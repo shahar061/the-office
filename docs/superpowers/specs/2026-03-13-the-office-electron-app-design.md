@@ -60,6 +60,47 @@ Three adapters:
 
 Adding support for new tools (Crush, Copilot) means implementing one new adapter file.
 
+Adapters extend Node's `EventEmitter` for the `on()` method.
+
+### Adapter Error Handling
+
+Each adapter handles failures at the integration boundary:
+
+| Scenario | Behavior |
+|----------|----------|
+| JSONL file deleted mid-watch | Emit `agent:closed` for affected agent, log warning, continue watching directory for new files |
+| Claude SDK connection drop | Emit `agent:closed`, surface error in chat panel ("Connection lost"), auto-retry with exponential backoff (1s, 2s, 4s, max 30s) |
+| OpenCode SQLite locked | Skip poll cycle, retry on next interval (1s). After 10 consecutive failures, emit `agent:closed` and surface error |
+| Invalid JSONL line | Skip line, log warning, continue processing. Do not crash the watcher. |
+| Adapter startup failure | Mark adapter as disconnected in top bar, surface error in chat panel, allow other adapters to function independently |
+
+General principle: adapters fail independently. A broken OpenCode connection does not affect Claude Code monitoring.
+
+### IPC Bridge Contract
+
+The `preload.ts` exposes a typed API via `contextBridge.exposeInMainWorld`:
+
+```typescript
+// Exposed as window.office
+interface OfficeAPI {
+  // Events (main → renderer, push-based)
+  onAgentEvent(callback: (event: AgentEvent) => void): () => void;
+  onConnectionStatus(callback: (status: ConnectionStatus) => void): () => void;
+
+  // Commands (renderer → main, request-response)
+  dispatch(prompt: string, agentRole?: AgentRole): Promise<{ sessionId: string }>;
+  getActiveSessions(): Promise<SessionInfo[]>;
+  approvePermission(agentId: string, toolId: string): Promise<void>;
+  denyPermission(agentId: string, toolId: string): Promise<void>;
+
+  // Kanban data (renderer → main, request-response)
+  getKanbanState(): Promise<KanbanState>;
+  onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
+}
+```
+
+Events use `ipcRenderer.on()` wrapped in the preload bridge. Commands use `ipcRenderer.invoke()` with corresponding `ipcMain.handle()` handlers. All callback registrations return an unsubscribe function.
+
 ### Unified AgentEvent
 
 ```typescript
@@ -93,7 +134,7 @@ interface AgentEvent {
 - **SDK sessions** — tagged with `agentRole` at spawn time (CEO, Backend Engineer, etc.)
 - **External transcripts** — parsed from system prompt/agent definition in first JSONL lines
 - **OpenCode sessions** — mapped to a configurable default role or generic character
-- **Sub-agents** — appear as smaller linked characters near their parent
+- **Sub-agents** — deferred to v2. For v1, sub-agent activity is attributed to the parent agent (the parent character animates for sub-agent tool calls). Sub-agent events are identifiable by `isSidechain: true` in JSONL transcripts and by the SDK's subagent lifecycle events.
 - **Unknown agents** — fall back to a generic "freelancer" character
 
 ---
@@ -196,33 +237,35 @@ Five zones:
 
 ### 14 Unique Characters
 
-| Group | Agent | Color | Identifier |
-|-------|-------|-------|-----------|
-| Leadership | CEO | Blue #3b82f6 | Suit + tie |
-| Leadership | Product Manager | Cyan #06b6d4 | Clipboard |
-| Leadership | Market Researcher | Green #22c55e | Magnifier |
-| Leadership | Chief Architect | Orange #f97316 | Blueprint |
-| Coordination | Agent Organizer | Purple #a855f7 | Gears |
-| Coordination | Project Manager | Cyan #06b6d4 | Gantt chart |
-| Coordination | Team Lead | Orange #f97316 | Target |
-| Engineering | Backend Engineer | Green #22c55e | Terminal |
-| Engineering | Frontend Engineer | Blue #3b82f6 | Palette |
-| Engineering | Mobile Developer | Purple #a855f7 | Phone |
-| Engineering | UI/UX Expert | Orange #f97316 | Pen tool |
-| Engineering | Data Engineer | Cyan #06b6d4 | Database |
-| Engineering | DevOps | Red #ef4444 | Wrench |
-| Engineering | Automation Dev | Red #ef4444 | Robot |
+Each agent has a unique color to ensure visual distinguishability in both the pixel office and the chat panel.
+
+| Group | Agent | Color | Hex | Identifier |
+|-------|-------|-------|-----|-----------|
+| Leadership | CEO | Blue | #3b82f6 | Suit + tie |
+| Leadership | Product Manager | Teal | #14b8a6 | Clipboard |
+| Leadership | Market Researcher | Green | #22c55e | Magnifier |
+| Leadership | Chief Architect | Orange | #f97316 | Blueprint |
+| Coordination | Agent Organizer | Purple | #a855f7 | Gears |
+| Coordination | Project Manager | Sky | #0ea5e9 | Gantt chart |
+| Coordination | Team Lead | Amber | #f59e0b | Target |
+| Engineering | Backend Engineer | Emerald | #10b981 | Terminal |
+| Engineering | Frontend Engineer | Indigo | #6366f1 | Palette |
+| Engineering | Mobile Developer | Violet | #8b5cf6 | Phone |
+| Engineering | UI/UX Expert | Rose | #f43f5e | Pen tool |
+| Engineering | Data Engineer | Cyan | #06b6d4 | Database |
+| Engineering | DevOps | Red | #ef4444 | Wrench |
+| Engineering | Automation Dev | Pink | #ec4899 | Robot |
 
 ### Sprite Sheet Format
 
-Per character: 16×32px frames, 7 columns × 4 rows (112×128 PNG per character)
+Per character: 16×32px frames, 7 columns × 3 rows (112×96 PNG per character). Left-facing frames are generated by horizontally flipping the Right row at runtime — no dedicated row in the sheet.
 
 | Row | Direction | Frames |
 |-----|-----------|--------|
 | 0 | Down | walk1, walk2, walk3, type1, type2, read1, read2 |
 | 1 | Up | (same layout) |
 | 2 | Right | (same layout) |
-| 3 | Left | (flipped from Right at runtime) |
+| — | Left | (flipped from Right at runtime, not stored in sheet) |
 
 ### Animation State Machine
 
@@ -262,11 +305,32 @@ Name + role below each character. Dimmed for idle agents.
 
 ### Kanban Whiteboard (PixiJS, wall furniture)
 
-- Reads from KanbanStore (sourced from tasks.yaml / build state)
+- Reads from KanbanStore
 - Four columns: Queued / Active / Review / Done
 - Each task rendered as a tiny color-coded bar
 - Phase name and completion % at bottom
 - Updates in real-time
+
+**KanbanStore data source:** The main process watches the project's `docs/office/` directory (the office plugin's output location) for `tasks.yaml` and `build/phase-*/status.yaml` files. It parses and merges these into a `KanbanState` object:
+
+```typescript
+interface KanbanState {
+  projectName: string;
+  currentPhase: string;
+  completionPercent: number;
+  tasks: KanbanTask[];
+}
+
+interface KanbanTask {
+  id: string;
+  description: string;
+  status: 'queued' | 'active' | 'review' | 'done' | 'failed';
+  assignedAgent: AgentRole;
+  phaseId: string;
+}
+```
+
+The `tasks.yaml` provides the task definitions (id, description, assigned agent, phase). Per-phase `status.yaml` files provide live status updates. The main process merges these and pushes updates to the renderer via `onKanbanUpdate`. If no `tasks.yaml` exists (e.g., during /imagine phase), the whiteboard shows an empty state.
 
 ### Presentation Screen (PixiJS, boardroom wall)
 
@@ -321,8 +385,7 @@ the-office/
 │   ├── office/
 │   │   ├── OfficeCanvas.tsx             # PixiJS Application wrapper
 │   │   ├── scenes/
-│   │   │   ├── OfficeScene.ts           # Main scene: tilemap + furniture + characters
-│   │   │   └── BoardroomScene.ts        # Boardroom focus view
+│   │   │   └── OfficeScene.ts           # Single scene: tilemap + all zones + characters
 │   │   ├── characters/
 │   │   │   ├── Character.ts             # State machine (IDLE/WALK/TYPE/READ)
 │   │   │   ├── CharacterSprite.ts       # AnimatedSprite with direction handling
@@ -342,7 +405,7 @@ the-office/
 │   │       ├── TileMap.ts               # Grid management, walkability
 │   │       └── layouts/                 # Pre-designed office layout JSONs
 │   └── assets/
-│       ├── characters/                  # 14 sprite sheets (112×128 PNG each)
+│       ├── characters/                  # 14 sprite sheets (112×96 PNG each)
 │       ├── tiles/                       # Floor + wall tilesets (16×16)
 │       └── furniture/                   # Desk, chair, plant, whiteboard sprites
 ├── package.json
@@ -378,8 +441,10 @@ the-office/
 
 ---
 
-## Open Questions for Implementation
+## Decisions
 
-1. **Sprite art sourcing** — commission custom 16×32 character sprites or start with modified CC0 assets?
-2. **Office plugin integration** — should the Electron app replace the office plugin's Flask dashboard, or coexist?
-3. **OpenCode deprecation** — OpenCode is archived; should we target Crush (charmbracelet/crush) from the start instead?
+1. **Sprite art sourcing** — start with free CC0 16×16 tilesets and modified character sprites. Commission custom pixel art for characters once the game loop and animations are proven. The sprite sheet format and asset pipeline are designed to be drop-in replaceable.
+2. **Office plugin integration** — the Electron app coexists with the existing office Claude Code plugin for v1. The plugin continues to work in the terminal; the Electron app is an independent visual layer. Longer term, the app may replace the Flask dashboard.
+3. **OpenCode support** — keep the `OpenCodeAdapter` for backward compatibility, but design the `ToolAdapter` interface to easily support Crush (charmbracelet/crush) as the active successor. The adapter is a single file — swapping is low cost.
+4. **Session persistence** — no persistence in v1. Sessions are ephemeral; closing the app loses session history. Can be added later via local SQLite.
+5. **Window sizing** — minimum window size 1024×640. Chat panel is fixed at 320px. PixiJS canvas fills remaining space and re-renders at the new resolution on resize.
