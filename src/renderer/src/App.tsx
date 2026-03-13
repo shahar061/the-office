@@ -1,4 +1,5 @@
-import React from'react';
+import React from 'react';
+import { OfficeCanvas } from './office/OfficeCanvas';
 
 export function App() {
   return (
@@ -6,9 +7,7 @@ export function App() {
       <div style={{ width: 320, borderRight: '1px solid #2a2a4a', padding: 16 }}>
         Chat Panel (placeholder)
       </div>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Pixel Office (placeholder)
-      </div>
+      <OfficeCanvas />
     </div>
   );
 }
