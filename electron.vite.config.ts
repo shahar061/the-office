@@ -10,6 +10,9 @@ export default defineConfig({
         entry: 'electron/main.ts',
         formats: ['cjs'],
       },
+      rollupOptions: {
+        external: ['sql.js'],
+      },
     },
   },
   preload: {

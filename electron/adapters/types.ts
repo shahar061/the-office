@@ -8,7 +8,7 @@ export interface AdapterConfig {
 }
 
 export abstract class ToolAdapter extends EventEmitter {
-  abstract start(config: AdapterConfig): void;
+  abstract start(config: AdapterConfig): void | Promise<void>;
   abstract stop(): void;
   dispatch?(prompt: string, agentRole: AgentRole): Promise<void>;
 

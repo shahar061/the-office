@@ -1,6 +1,7 @@
-import Database from 'better-sqlite3';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import { ToolAdapter, type AdapterConfig } from './types';
 import type { AgentEvent } from '../../shared/types';
 
@@ -23,15 +24,15 @@ interface SessionRow {
 }
 
 export class OpenCodeAdapter extends ToolAdapter {
-  private db: Database.Database | null = null;
+  private db: SqlJsDatabase | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private projectDir = '';
   private failureCount = 0;
   private dbPath: string;
+  private SQL: Awaited<ReturnType<typeof initSqlJs>> | null = null;
 
   private knownSessions = new Set<string>();
   private watermarks = new Map<string, number>();
-  // sessionId -> (callID -> last seen status)
   private toolStates = new Map<string, Map<string, string>>();
 
   constructor(dbPath?: string) {
@@ -39,14 +40,27 @@ export class OpenCodeAdapter extends ToolAdapter {
     this.dbPath = dbPath ?? path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
   }
 
-  start(config: AdapterConfig): void {
+  async start(config: AdapterConfig): Promise<void> {
     this.projectDir = config.projectDir;
+    console.log('[OpenCodeAdapter] Starting with dbPath:', this.dbPath);
+    
     try {
-      this.db = new Database(this.dbPath, { readonly: true });
+      this.SQL = await initSqlJs();
+      
+      if (!fs.existsSync(this.dbPath)) {
+        console.error('[OpenCodeAdapter] Database file not found:', this.dbPath);
+        return;
+      }
+      
+      const fileBuffer = fs.readFileSync(this.dbPath);
+      this.db = new this.SQL.Database(fileBuffer);
+      
       this.failureCount = 0;
       this.pollTimer = setInterval(() => this.poll(), POLL_INTERVAL);
       this.poll();
-    } catch {
+      console.log('[OpenCodeAdapter] Successfully connected to OpenCode database');
+    } catch (err) {
+      console.error('[OpenCodeAdapter] Failed to connect:', err);
       return;
     }
   }
@@ -58,21 +72,39 @@ export class OpenCodeAdapter extends ToolAdapter {
     }
     this.db?.close();
     this.db = null;
+    this.SQL = null;
     this.knownSessions.clear();
     this.watermarks.clear();
     this.toolStates.clear();
   }
 
   private poll(): void {
-    if (!this.db) return;
+    if (!this.db || !this.SQL) return;
 
     try {
-      const sessions = this.db.prepare(
-        'SELECT id, title, directory, time_updated FROM session WHERE directory = ?'
-      ).all(this.projectDir) as SessionRow[];
+      // Re-open the database to get latest changes
+      const fileBuffer = fs.readFileSync(this.dbPath);
+      this.db.close();
+      this.db = new this.SQL.Database(fileBuffer);
+      
+      const sessions = this.db.exec(
+        `SELECT id, title, directory, time_updated FROM session WHERE directory = '${this.projectDir.replace(/'/g, "''")}'`
+      );
+
+      if (sessions.length === 0 || sessions[0].values.length === 0) {
+        this.failureCount = 0;
+        return;
+      }
+
+      const sessionRows: SessionRow[] = sessions[0].values.map(row => ({
+        id: row[0] as string,
+        title: row[1] as string,
+        directory: row[2] as string,
+        time_updated: row[3] as number,
+      }));
 
       this.failureCount = 0;
-      const currentIds = new Set(sessions.map(s => s.id));
+      const currentIds = new Set(sessionRows.map(s => s.id));
 
       // Detect removed/archived sessions
       for (const id of this.knownSessions) {
@@ -90,7 +122,7 @@ export class OpenCodeAdapter extends ToolAdapter {
         }
       }
 
-      for (const session of sessions) {
+      for (const session of sessionRows) {
         // New session discovered
         if (!this.knownSessions.has(session.id)) {
           this.knownSessions.add(session.id);
@@ -107,16 +139,26 @@ export class OpenCodeAdapter extends ToolAdapter {
 
         // Fetch parts updated since our last watermark
         const watermark = this.watermarks.get(session.id) ?? 0;
-        const parts = this.db!.prepare(
-          'SELECT id, session_id, time_created, time_updated, data FROM part WHERE session_id = ? AND time_updated > ? ORDER BY time_updated ASC'
-        ).all(session.id, watermark) as PartRow[];
+        const partsResult = this.db.exec(
+          `SELECT id, session_id, time_created, time_updated, data FROM part WHERE session_id = '${session.id.replace(/'/g, "''")}' AND time_updated > ${watermark} ORDER BY time_updated ASC`
+        );
 
-        let maxUpdated = watermark;
-        for (const part of parts) {
-          this.processPart(session.id, part);
-          if (part.time_updated > maxUpdated) maxUpdated = part.time_updated;
+        if (partsResult.length > 0) {
+          const parts: PartRow[] = partsResult[0].values.map(row => ({
+            id: row[0] as string,
+            session_id: row[1] as string,
+            time_created: row[2] as number,
+            time_updated: row[3] as number,
+            data: row[4] as string,
+          }));
+
+          let maxUpdated = watermark;
+          for (const part of parts) {
+            this.processPart(session.id, part);
+            if (part.time_updated > maxUpdated) maxUpdated = part.time_updated;
+          }
+          this.watermarks.set(session.id, maxUpdated);
         }
-        this.watermarks.set(session.id, maxUpdated);
       }
     } catch {
       this.failureCount++;
@@ -172,7 +214,6 @@ export class OpenCodeAdapter extends ToolAdapter {
       });
     } else if (next === 'completed' || next === 'error') {
       if (!prev) {
-        // Missed the running state (poll gap) — emit start first
         this.emitAgentEvent({
           agentId: sessionId, agentRole: 'freelancer', source: 'opencode',
           type: 'agent:tool:start', toolName, toolId: callID, timestamp,

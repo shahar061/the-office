@@ -53,7 +53,7 @@ function setupAdapters() {
     }
   });
 
-  sessionManager.start({ projectDir });
+  sessionManager.start({ projectDir }).catch(err => console.error('[Main] Failed to start adapters:', err));
 
   const status: ConnectionStatus = {
     claudeCode: 'connected',

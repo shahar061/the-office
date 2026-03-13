@@ -12,13 +12,16 @@ export class SessionManager extends EventEmitter {
     this.adapters = adapters;
   }
 
-  start(config: AdapterConfig): void {
+  async start(config: AdapterConfig): Promise<void> {
     this.config = config;
     for (const adapter of this.adapters) {
       adapter.on('agentEvent', (event: AgentEvent) => {
         this.handleAgentEvent(event);
       });
-      adapter.start(config);
+      const result = adapter.start(config);
+      if (result instanceof Promise) {
+        await result;
+      }
     }
   }
 
