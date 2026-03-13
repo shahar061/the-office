@@ -21,10 +21,12 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "1.6",
     "electron": "^41.0.2",
     "electron-vite": "^5.0.0",
     "typescript": "^5.9.3",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "vitest": "1.6"
   },
   "dependencies": {
     "react": "^19.2.4",
