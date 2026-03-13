@@ -37,15 +37,19 @@ function createWindow() {
 
 function setupAdapters() {
   const projectDir = process.cwd();
+  console.log('[Main] Setting up adapters for project:', projectDir);
 
   const adapters = [
     new ClaudeCodeTranscriptAdapter(),
-    new OpenCodeAdapter(),
+    // Note: OpenCode adapter requires OpenCode to create session state files
+    // which it currently doesn't do. OpenCode integration is a TODO.
+    // new OpenCodeAdapter(),
   ];
 
   sessionManager = new SessionManager(adapters);
 
   sessionManager.on('agentEvent', (event) => {
+    console.log('[Main] Agent event:', event.type, event.agentId);
     if (mainWindow) {
       mainWindow.webContents.send(IPC_CHANNELS.AGENT_EVENT, event);
     }
@@ -55,12 +59,13 @@ function setupAdapters() {
 
   const status: ConnectionStatus = {
     claudeCode: 'connected',
-    openCode: 'connected',
+    openCode: 'disconnected', // OpenCode doesn't expose session state yet
   };
 
   if (mainWindow) {
     mainWindow.webContents.send(IPC_CHANNELS.CONNECTION_STATUS, status);
   }
+  console.log('[Main] Adapters initialized and event forwarding active');
 }
 
 function setupIPC() {

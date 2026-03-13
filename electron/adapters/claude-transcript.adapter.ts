@@ -13,6 +13,7 @@ export class ClaudeCodeTranscriptAdapter extends ToolAdapter {
 
   start(config: AdapterConfig): void {
     const claudeDir = path.join(os.homedir(), '.claude', 'projects');
+    console.log('[ClaudeTranscriptAdapter] Watching for transcript files in:', claudeDir);
     this.watcher = chokidar.watch(`${claudeDir}/**/*.jsonl`, {
       ignoreInitial: true,
       persistent: true,
@@ -20,6 +21,7 @@ export class ClaudeCodeTranscriptAdapter extends ToolAdapter {
 
     this.watcher.on('add', (filePath: string) => this.handleNewFile(filePath));
     this.watcher.on('change', (filePath: string) => this.handleFileChange(filePath));
+    console.log('[ClaudeTranscriptAdapter] Watcher started successfully');
   }
 
   stop(): void {

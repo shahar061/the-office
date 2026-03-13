@@ -21,14 +21,16 @@ export class OpenCodeAdapter extends ToolAdapter {
 
   start(config: AdapterConfig): void {
     const dbPath = path.join(config.projectDir, '.opencode', 'state.db');
+    console.log('[OpenCodeAdapter] Looking for state.db at:', dbPath);
     try {
       this.db = new Database(dbPath, { readonly: true });
       this.failureCount = 0;
-    } catch {
+      console.log('[OpenCodeAdapter] Successfully connected to OpenCode database');
+      this.pollTimer = setInterval(() => this.poll(), POLL_INTERVAL);
+    } catch (err) {
+      console.log('[OpenCodeAdapter] No OpenCode database found - OpenCode may not have been run in this project yet');
       return;
     }
-
-    this.pollTimer = setInterval(() => this.poll(), POLL_INTERVAL);
   }
 
   stop(): void {
