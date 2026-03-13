@@ -41,9 +41,7 @@ function setupAdapters() {
 
   const adapters = [
     new ClaudeCodeTranscriptAdapter(),
-    // Note: OpenCode adapter requires OpenCode to create session state files
-    // which it currently doesn't do. OpenCode integration is a TODO.
-    // new OpenCodeAdapter(),
+    new OpenCodeAdapter(),
   ];
 
   sessionManager = new SessionManager(adapters);
@@ -59,7 +57,7 @@ function setupAdapters() {
 
   const status: ConnectionStatus = {
     claudeCode: 'connected',
-    openCode: 'disconnected', // OpenCode doesn't expose session state yet
+    openCode: 'connected',
   };
 
   if (mainWindow) {
