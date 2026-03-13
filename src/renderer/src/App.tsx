@@ -1,13 +1,18 @@
 import React from 'react';
+import { ChatPanel } from './components/ChatPanel/ChatPanel';
+import { TopBar } from './components/TopBar/TopBar';
+import { StatsOverlay } from './components/StatsOverlay/StatsOverlay';
 import { OfficeCanvas } from './office/OfficeCanvas';
 
 export function App() {
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0f0f1a', color: '#e5e5e5' }}>
-      <div style={{ width: 320, borderRight: '1px solid #2a2a4a', padding: 16 }}>
-        Chat Panel (placeholder)
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0f0f1a', color: '#e5e5e5' }}>
+      <TopBar />
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <ChatPanel />
+        <OfficeCanvas />
+        <StatsOverlay />
       </div>
-      <OfficeCanvas />
     </div>
   );
 }
