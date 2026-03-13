@@ -1,9 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import { Application } from 'pixi.js';
+import { OfficeScene } from './OfficeScene';
 
 export function OfficeCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const sceneRef = useRef<OfficeScene | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -21,13 +23,23 @@ export function OfficeCanvas() {
         resolution: 1,
       });
       container.appendChild(app.canvas);
+      sceneRef.current = new OfficeScene(app);
     };
 
     init();
 
+    const onResize = () => {
+      if (sceneRef.current && container) {
+        sceneRef.current.onResize(container.clientWidth, container.clientHeight);
+      }
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
+      window.removeEventListener('resize', onResize);
       app.destroy(true, { children: true });
       appRef.current = null;
+      sceneRef.current = null;
     };
   }, []);
 
