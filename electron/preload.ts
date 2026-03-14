@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/types';
-import type { AgentEvent, ConnectionStatus, KanbanState, AgentRole, SessionInfo } from '../shared/types';
+import type { AgentEvent, ConnectionStatus, KanbanState, AgentRole, SessionInfo, SessionListItem } from '../shared/types';
 
 contextBridge.exposeInMainWorld('office', {
   onAgentEvent(callback: (event: AgentEvent) => void): () => void {
@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('office', {
     const handler = (_: Electron.IpcRendererEvent, state: KanbanState) => callback(state);
     ipcRenderer.on(IPC_CHANNELS.KANBAN_UPDATE, handler);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.KANBAN_UPDATE, handler);
+  },
+
+  onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void {
+    const handler = (_: Electron.IpcRendererEvent, sessions: SessionListItem[]) => callback(sessions);
+    ipcRenderer.on(IPC_CHANNELS.SESSION_LIST_UPDATE, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LIST_UPDATE, handler);
   },
 
   dispatch(prompt: string, agentRole?: AgentRole): Promise<{ sessionId: string }> {

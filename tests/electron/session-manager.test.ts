@@ -9,6 +9,7 @@ class MockAdapter extends ToolAdapter {
   start(config: AdapterConfig) { this.started = true; }
   stop() { this.stopped = true; }
   triggerEvent(event: AgentEvent) { this.emitAgentEvent(event); }
+  triggerSessionListUpdate(sessions: any[]) { this.emitSessionList(sessions); }
 }
 
 describe('SessionManager', () => {
@@ -84,5 +85,18 @@ describe('SessionManager', () => {
     });
 
     expect(manager.getActiveSessions()).toHaveLength(0);
+  });
+
+  it('forwards sessionListUpdate from adapters', () => {
+    const lists: any[] = [];
+    manager.on('sessionListUpdate', (s: any) => lists.push(s));
+    manager.start({ projectDir: '/tmp/test' });
+
+    (adapter1 as any).triggerSessionListUpdate([
+      { sessionId: 'ses_1', title: 'Test', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 1000 },
+    ]);
+
+    expect(lists).toHaveLength(1);
+    expect(lists[0][0].sessionId).toBe('ses_1');
   });
 });

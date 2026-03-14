@@ -3,10 +3,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import { ToolAdapter, type AdapterConfig } from './types';
-import type { AgentEvent } from '../../shared/types';
+import type { AgentEvent, SessionListItem } from '../../shared/types';
 
 const POLL_INTERVAL = 1000;
 const MAX_CONSECUTIVE_FAILURES = 10;
+const ACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 interface PartRow {
   id: string;
@@ -20,6 +21,8 @@ interface SessionRow {
   id: string;
   title: string;
   directory: string;
+  project_id: string;
+  time_created: number;
   time_updated: number;
 }
 
@@ -34,6 +37,7 @@ export class OpenCodeAdapter extends ToolAdapter {
   private knownSessions = new Set<string>();
   private watermarks = new Map<string, number>();
   private toolStates = new Map<string, Map<string, string>>();
+  private statusCache = new Map<string, { timeUpdated: number; status: 'busy' | 'waiting' | 'stale' }>();
 
   constructor(dbPath?: string) {
     super();
@@ -76,6 +80,7 @@ export class OpenCodeAdapter extends ToolAdapter {
     this.knownSessions.clear();
     this.watermarks.clear();
     this.toolStates.clear();
+    this.statusCache.clear();
   }
 
   private poll(): void {
@@ -88,11 +93,13 @@ export class OpenCodeAdapter extends ToolAdapter {
       this.db = new this.SQL.Database(fileBuffer);
       
       const sessions = this.db.exec(
-        `SELECT id, title, directory, time_updated FROM session WHERE directory = '${this.projectDir.replace(/'/g, "''")}'`
+        `SELECT id, title, directory, project_id, time_created, time_updated FROM session WHERE parent_id IS NULL AND time_archived IS NULL ORDER BY time_updated DESC`
       );
 
       if (sessions.length === 0 || sessions[0].values.length === 0) {
         this.failureCount = 0;
+        // Emit empty session list when no sessions
+        this.emitSessionList([]);
         return;
       }
 
@@ -100,8 +107,21 @@ export class OpenCodeAdapter extends ToolAdapter {
         id: row[0] as string,
         title: row[1] as string,
         directory: row[2] as string,
-        time_updated: row[3] as number,
+        project_id: row[3] as string,
+        time_created: row[4] as number,
+        time_updated: row[5] as number,
       }));
+
+      // Build and emit session list with activity status
+      const sessionList: SessionListItem[] = sessionRows.map(session => ({
+        sessionId: session.id,
+        title: session.title,
+        directory: session.directory,
+        projectName: path.basename(session.directory) || session.directory,
+        status: this.getSessionStatus(session.id, session.time_updated),
+        lastUpdated: session.time_updated,
+      }));
+      this.emitSessionList(sessionList);
 
       this.failureCount = 0;
       const currentIds = new Set(sessionRows.map(s => s.id));
@@ -119,6 +139,7 @@ export class OpenCodeAdapter extends ToolAdapter {
           this.knownSessions.delete(id);
           this.watermarks.delete(id);
           this.toolStates.delete(id);
+          this.statusCache.delete(id);
         }
       }
 
@@ -174,6 +195,36 @@ export class OpenCodeAdapter extends ToolAdapter {
         this.stop();
       }
     }
+  }
+
+  private getSessionStatus(sessionId: string, sessionTimeUpdated: number): 'busy' | 'waiting' | 'stale' {
+    if (!this.db) return 'stale';
+
+    // Use cached status if session hasn't changed
+    const cached = this.statusCache.get(sessionId);
+    if (cached && cached.timeUpdated === sessionTimeUpdated) return cached.status;
+
+    const stmt = this.db.prepare(
+      'SELECT data, time_updated FROM part WHERE session_id = ? ORDER BY time_updated DESC LIMIT 1'
+    );
+    stmt.bind([sessionId]);
+
+    let status: 'busy' | 'waiting' | 'stale' = 'stale';
+    if (stmt.step()) {
+      const [data, timeUpdated] = stmt.get() as [string, number];
+      try {
+        const parsed: Record<string, unknown> = JSON.parse(data);
+        if (parsed.type === 'step-start') status = 'busy';
+        else if (parsed.type === 'step-finish') {
+          if (parsed.reason === 'tool-calls') status = 'busy';
+          else if (parsed.reason === 'stop' && Date.now() - timeUpdated < ACTIVITY_TIMEOUT) status = 'waiting';
+        }
+      } catch { /* stale */ }
+    }
+    stmt.free();
+
+    this.statusCache.set(sessionId, { timeUpdated: sessionTimeUpdated, status });
+    return status;
   }
 
   private processPart(sessionId: string, part: PartRow): void {

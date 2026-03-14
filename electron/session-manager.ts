@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { ToolAdapter, type AdapterConfig } from './adapters/types';
-import type { AgentEvent, SessionInfo } from '../shared/types';
+import type { AgentEvent, SessionInfo, SessionListItem } from '../shared/types';
 
 export class SessionManager extends EventEmitter {
   private adapters: ToolAdapter[];
@@ -17,6 +17,9 @@ export class SessionManager extends EventEmitter {
     for (const adapter of this.adapters) {
       adapter.on('agentEvent', (event: AgentEvent) => {
         this.handleAgentEvent(event);
+      });
+      adapter.on('sessionListUpdate', (sessions: SessionListItem[]) => {
+        this.emit('sessionListUpdate', sessions);
       });
       const result = adapter.start(config);
       if (result instanceof Promise) {

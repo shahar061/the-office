@@ -4,10 +4,11 @@ import { SessionManager } from './session-manager';
 import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapter';
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
 import { IPC_CHANNELS } from '../shared/types';
-import type { ConnectionStatus } from '../shared/types';
+import type { ConnectionStatus, SessionListItem } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
+let windowReady = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -32,7 +33,10 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    windowReady = false;
   });
+
+  windowReady = true;
 }
 
 function setupAdapters() {
@@ -50,6 +54,12 @@ function setupAdapters() {
     console.log('[Main] Agent event:', event.type, event.agentId);
     if (mainWindow) {
       mainWindow.webContents.send(IPC_CHANNELS.AGENT_EVENT, event);
+    }
+  });
+
+  sessionManager.on('sessionListUpdate', (sessions: SessionListItem[]) => {
+    if (mainWindow && windowReady) {
+      mainWindow.webContents.send(IPC_CHANNELS.SESSION_LIST_UPDATE, sessions);
     }
   });
 
