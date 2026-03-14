@@ -71,6 +71,7 @@ Clicking outside the popover or pressing Escape closes it without action.
 | `SESSION_LINKED` (`office:session-linked`) | main -> renderer | Notify renderer that pending session matched a real session ID |
 | `SESSION_LINK_FAILED` (`office:session-link-failed`) | main -> renderer | Notify renderer that session linking timed out (30s) |
 | `DISPATCH_ERROR` (`office:dispatch-error`) | main -> renderer | Notify renderer that `opencode run` subprocess failed |
+| `CANCEL_SESSION` (`office:cancel-session`) | renderer -> main | Clear pending state, kill subprocess, stop linking logic |
 
 ### Modified Channels
 
@@ -87,6 +88,7 @@ pickDirectory(): Promise<string | null>;
 onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void;
 onSessionLinkFailed(callback: (data: { error: string }) => void): () => void;
 onDispatchError(callback: (data: { error: string }) => void): () => void;
+cancelSession(): Promise<void>;
 ```
 
 `pickDirectory()` calls `dialog.showOpenDialog` in the main process and returns the selected path. This keeps Electron's `dialog` module in the main process where it belongs.
@@ -212,22 +214,22 @@ When `pendingSession` exists but `selectedSessionId` is null:
 | `src/renderer/src/screens/LobbyScreen.tsx` | Render `<LobbyFAB />`. |
 | `src/renderer/src/main.tsx` | Listen for `SESSION_LINKED`, `SESSION_LINK_FAILED`, `DISPATCH_ERROR` events. |
 | `src/renderer/src/components/TopBar/TopBar.tsx` | Show project name + waiting indicator in pre-session state. |
+| `src/renderer/src/stores/chat.store.ts` | Add `addSystemMessage(text)` action for displaying errors from `DISPATCH_ERROR` and `SESSION_LINK_FAILED`. |
 
 ### Unchanged
 
 - `OpenCodeAdapter` — stays read-only, no changes
 - `SessionManager` — no new responsibilities
-- `ChatPanel` — dispatch call already exists. `PromptInput` disables send button when `dispatchInFlight` is true (read from app store) and re-enables on `SESSION_LINKED`.
+- `ChatPanel` — dispatch call already exists. `PromptInput` disables send button when `dispatchInFlight` is true (read from app store) and re-enables on `SESSION_LINKED`. The existing `isDispatching` flag in chat.store handles regular dispatch-in-progress; `dispatchInFlight` in app.store handles the pre-session state. Both should disable send.
 - `OfficeCanvas`, `OfficeScene`, character system — work as-is once events flow
 - `SessionPanel` — untouched
 - `session.store`, `office.store`, `kanban.store` — no modifications
-- `chat.store` — gains a `addSystemMessage(text)` action for displaying errors from `DISPATCH_ERROR` and `SESSION_LINK_FAILED`
 
 ## Edge Cases
 
 **User cancels folder picker**: `pickDirectory()` returns null, popover stays open, no action taken.
 
-**User navigates back to lobby before sending first prompt**: `navigateToLobby()` clears `pendingSession`. No subprocess was spawned, no session created. Clean return.
+**User navigates back to lobby before sending first prompt**: `navigateToLobby()` clears `pendingSession` in the renderer store and sends a `CANCEL_SESSION` IPC to the main process, which clears its pending state, kills any running subprocess, and stops the linking logic. This prevents stale matches if `opencode run` already wrote to SQLite before the kill signal.
 
 **`opencode run` fails**: The subprocess exits with a non-zero code or stderr output. The main process sends a `DISPATCH_ERROR` event to the renderer with the error message. The Chat Panel displays the error as a system message (e.g., "Failed to start session: <error>"). The send button is re-enabled so the user can retry with another prompt, or they can navigate back to the lobby. The `dispatchInFlight` flag is cleared.
 
