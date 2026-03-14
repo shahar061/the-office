@@ -18,6 +18,7 @@ interface ChatState {
   isDispatching: boolean;
   handleAgentEvent: (event: AgentEvent) => void;
   addUserMessage: (content: string) => void;
+  addSystemMessage: (content: string) => void;
   setPhase: (phase: Phase) => void;
   setDispatching: (v: boolean) => void;
   reset: () => void;
@@ -59,6 +60,17 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [...state.messages, {
         id: `msg-${++messageCounter}`,
         role: 'user',
+        content,
+        timestamp: Date.now(),
+      }],
+    }));
+  },
+
+  addSystemMessage: (content: string) => {
+    set((state) => ({
+      messages: [...state.messages, {
+        id: `msg-${++messageCounter}`,
+        role: 'system' as const,
         content,
         timestamp: Date.now(),
       }],

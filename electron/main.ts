@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import { spawn, type ChildProcess } from 'child_process';
 import { SessionManager } from './session-manager';
 import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapter';
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
@@ -9,6 +10,11 @@ import type { ConnectionStatus, SessionListItem } from '../shared/types';
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
 let windowReady = false;
+let pendingSession: { tool: string; directory: string; createdAt: number } | null = null;
+let linkedSessionId: string | null = null;
+let dispatchInFlight = false;
+let linkingTimer: ReturnType<typeof setTimeout> | null = null;
+const activeProcesses = new Set<ChildProcess>();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -61,6 +67,26 @@ function setupAdapters() {
     if (mainWindow && windowReady) {
       mainWindow.webContents.send(IPC_CHANNELS.SESSION_LIST_UPDATE, sessions);
     }
+
+    // Session linking: match new session to pending config
+    if (pendingSession && !linkedSessionId && dispatchInFlight) {
+      const match = sessions.find(s =>
+        s.directory === pendingSession!.directory &&
+        s.createdAt > pendingSession!.createdAt - 2000
+      );
+      if (match) {
+        linkedSessionId = match.sessionId;
+        dispatchInFlight = false;
+        if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+        console.log('[Main] Session linked:', match.sessionId, match.title);
+        if (mainWindow) {
+          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINKED, {
+            sessionId: match.sessionId,
+            title: match.title,
+          });
+        }
+      }
+    }
   });
 
   sessionManager.start({ projectDir }).catch(err => console.error('[Main] Failed to start adapters:', err));
@@ -76,11 +102,78 @@ function setupAdapters() {
   console.log('[Main] Adapters initialized and event forwarding active');
 }
 
+function spawnOpenCode(args: string[]): void {
+  console.log('[Main] Spawning: opencode', args.join(' '));
+  const child = spawn('opencode', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  activeProcesses.add(child);
+
+  child.stdout?.on('data', (data: Buffer) => {
+    console.log('[OpenCode stdout]', data.toString().trim());
+  });
+
+  child.stderr?.on('data', (data: Buffer) => {
+    console.error('[OpenCode stderr]', data.toString().trim());
+  });
+
+  child.on('error', (err) => {
+    console.error('[Main] opencode spawn error:', err.message);
+    activeProcesses.delete(child);
+    dispatchInFlight = false;
+    if (mainWindow) {
+      mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+        error: err.message,
+      });
+    }
+  });
+
+  child.on('exit', (code) => {
+    activeProcesses.delete(child);
+    if (code !== 0 && code !== null) {
+      console.error('[Main] opencode exited with code:', code);
+      dispatchInFlight = false;
+      if (mainWindow) {
+        mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+          error: `opencode exited with code ${code}`,
+        });
+      }
+    }
+  });
+}
+
 function setupIPC() {
   ipcMain.handle(IPC_CHANNELS.DISPATCH, async (_event, prompt: string) => {
-    // TODO: Implement SDK adapter dispatch
-    console.log('Dispatch requested:', prompt);
-    return { sessionId: `session-${Date.now()}` };
+    if (linkedSessionId && pendingSession) {
+      const args = ['run', prompt, '--session', linkedSessionId, '--dir', pendingSession.directory, '--format', 'json'];
+      spawnOpenCode(args);
+      return { sessionId: linkedSessionId };
+    }
+
+    if (pendingSession && !dispatchInFlight) {
+      dispatchInFlight = true;
+      const args = ['run', prompt, '--dir', pendingSession.directory, '--format', 'json'];
+      spawnOpenCode(args);
+
+      // Start 30s linking timeout
+      linkingTimer = setTimeout(() => {
+        if (!linkedSessionId && mainWindow) {
+          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
+            error: 'Timed out waiting for session to appear',
+          });
+          dispatchInFlight = false;
+        }
+      }, 30_000);
+
+      return { sessionId: 'pending' };
+    }
+
+    if (pendingSession && dispatchInFlight) {
+      return { error: 'session-starting' };
+    }
+
+    return { error: 'no-session' };
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_SESSIONS, async () => {
@@ -106,6 +199,36 @@ function setupIPC() {
       tasks: [],
     };
   });
+
+  ipcMain.handle(IPC_CHANNELS.PICK_DIRECTORY, async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_SESSION, async (_event, tool: string, directory: string) => {
+    pendingSession = { tool, directory, createdAt: Date.now() };
+    linkedSessionId = null;
+    dispatchInFlight = false;
+    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    console.log('[Main] Session created:', { tool, directory });
+    return { ok: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
+    console.log('[Main] Session cancelled');
+    pendingSession = null;
+    linkedSessionId = null;
+    dispatchInFlight = false;
+    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    for (const proc of activeProcesses) {
+      proc.kill();
+    }
+    activeProcesses.clear();
+  });
 }
 
 app.whenReady().then(() => {
@@ -115,6 +238,11 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  for (const proc of activeProcesses) {
+    proc.kill();
+  }
+  activeProcesses.clear();
+  if (linkingTimer) clearTimeout(linkingTimer);
   sessionManager?.stop();
   app.quit();
 });

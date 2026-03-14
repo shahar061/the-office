@@ -27,6 +27,36 @@ contextBridge.exposeInMainWorld('office', {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LIST_UPDATE, handler);
   },
 
+  onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void {
+    const handler = (_: Electron.IpcRendererEvent, data: { sessionId: string; title: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.SESSION_LINKED, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LINKED, handler);
+  },
+
+  onSessionLinkFailed(callback: (data: { error: string }) => void): () => void {
+    const handler = (_: Electron.IpcRendererEvent, data: { error: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.SESSION_LINK_FAILED, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LINK_FAILED, handler);
+  },
+
+  onDispatchError(callback: (data: { error: string }) => void): () => void {
+    const handler = (_: Electron.IpcRendererEvent, data: { error: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.DISPATCH_ERROR, handler);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.DISPATCH_ERROR, handler);
+  },
+
+  createSession(tool: string, directory: string): Promise<{ ok: true }> {
+    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_SESSION, tool, directory);
+  },
+
+  pickDirectory(): Promise<string | null> {
+    return ipcRenderer.invoke(IPC_CHANNELS.PICK_DIRECTORY);
+  },
+
+  cancelSession(): Promise<void> {
+    return ipcRenderer.invoke(IPC_CHANNELS.CANCEL_SESSION);
+  },
+
   dispatch(prompt: string, agentRole?: AgentRole): Promise<{ sessionId: string }> {
     return ipcRenderer.invoke(IPC_CHANNELS.DISPATCH, prompt, agentRole);
   },

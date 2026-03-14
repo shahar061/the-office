@@ -1,5 +1,6 @@
 import React from 'react';
 import { useChatStore, type Phase } from '../../stores/chat.store';
+import { useAppStore } from '../../stores/app.store';
 import { MessageThread } from './MessageThread';
 import { PromptInput } from './PromptInput';
 
@@ -16,6 +17,11 @@ export function ChatPanel() {
 
   const handleSubmit = async (prompt: string) => {
     addUserMessage(prompt);
+
+    const appState = useAppStore.getState();
+    if (appState.pendingSession && !appState.selectedSessionId) {
+      appState.setDispatchInFlight(true);
+    }
 
     if ((window as any).office?.dispatch) {
       useChatStore.getState().setDispatching(true);
