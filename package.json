@@ -11,7 +11,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate-maps": "tsx scripts/generate-maps.ts"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "@vitest/coverage-v8": "1.6",
     "electron": "^41.0.2",
     "electron-vite": "^5.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vitest": "1.6"
