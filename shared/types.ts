@@ -90,6 +90,7 @@ export interface SessionListItem {
   projectName: string;
   status: 'busy' | 'waiting' | 'stale';
   lastUpdated: number;
+  createdAt: number;
 }
 
 export const IPC_CHANNELS = {
@@ -102,6 +103,12 @@ export const IPC_CHANNELS = {
   DENY_PERMISSION: 'office:deny-permission',
   GET_KANBAN: 'office:get-kanban',
   SESSION_LIST_UPDATE: 'office:session-list-update',
+  CREATE_SESSION: 'office:create-session',
+  PICK_DIRECTORY: 'office:pick-directory',
+  SESSION_LINKED: 'office:session-linked',
+  SESSION_LINK_FAILED: 'office:session-link-failed',
+  DISPATCH_ERROR: 'office:dispatch-error',
+  CANCEL_SESSION: 'office:cancel-session',
 } as const;
 
 export interface OfficeAPI {
@@ -114,6 +121,12 @@ export interface OfficeAPI {
   getKanbanState(): Promise<KanbanState>;
   onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
   onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void;
+  createSession(tool: string, directory: string): Promise<{ ok: true }>;
+  pickDirectory(): Promise<string | null>;
+  onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void;
+  onSessionLinkFailed(callback: (data: { error: string }) => void): () => void;
+  onDispatchError(callback: (data: { error: string }) => void): () => void;
+  cancelSession(): Promise<void>;
 }
 
 declare global {
