@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useChatStore } from '../../stores/chat.store';
+import { useAppStore } from '../../stores/app.store';
 
 const QUICK_COMMANDS = ['/imagine', '/warroom', '/build'];
 
@@ -10,10 +11,13 @@ interface Props {
 export function PromptInput({ onSubmit }: Props) {
   const [input, setInput] = useState('');
   const isDispatching = useChatStore((s) => s.isDispatching);
+  const dispatchInFlight = useAppStore((s) => s.dispatchInFlight);
+
+  const isBlocked = isDispatching || dispatchInFlight;
 
   const handleSubmit = () => {
     const trimmed = input.trim();
-    if (!trimmed || isDispatching) return;
+    if (!trimmed || isBlocked) return;
     onSubmit(trimmed);
     setInput('');
   };
@@ -52,7 +56,7 @@ export function PromptInput({ onSubmit }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a prompt..."
-          disabled={isDispatching}
+          disabled={isBlocked}
           rows={2}
           style={{
             flex: 1,
@@ -68,14 +72,14 @@ export function PromptInput({ onSubmit }: Props) {
         />
         <button
           onClick={handleSubmit}
-          disabled={isDispatching || !input.trim()}
+          disabled={isBlocked || !input.trim()}
           style={{
-            background: isDispatching ? '#2a2a4a' : '#3b82f6',
+            background: isBlocked ? '#2a2a4a' : '#3b82f6',
             border: 'none',
             color: '#fff',
             padding: '0 16px',
             borderRadius: 4,
-            cursor: isDispatching ? 'not-allowed' : 'pointer',
+            cursor: isBlocked ? 'not-allowed' : 'pointer',
             fontSize: 13,
           }}
         >
