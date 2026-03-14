@@ -1,4 +1,8 @@
-import { TileMap } from './tilemap';
+export interface Walkable {
+  width: number;
+  height: number;
+  isWalkable(x: number, y: number): boolean;
+}
 
 interface Point {
   x: number;
@@ -12,7 +16,7 @@ const DIRECTIONS: Point[] = [
   { x: 1, y: 0 },
 ];
 
-export function findPath(map: TileMap, start: Point, goal: Point): Point[] | null {
+export function findPath(map: Walkable, start: Point, goal: Point): Point[] | null {
   if (start.x === goal.x && start.y === goal.y) return [];
   if (!map.isWalkable(goal.x, goal.y)) return null;
 

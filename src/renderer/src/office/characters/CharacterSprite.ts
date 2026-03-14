@@ -1,11 +1,7 @@
-import { AnimatedSprite, Container, Texture, Rectangle } from 'pixi.js';
+import { AnimatedSprite, Container, Texture } from 'pixi.js';
 
 export type Direction = 'down' | 'up' | 'right' | 'left';
 export type AnimState = 'walk' | 'type' | 'read' | 'idle';
-
-const FRAME_WIDTH = 16;
-const FRAME_HEIGHT = 32;
-const COLS = 7;
 
 const DIRECTION_ROW: Record<Direction, number> = {
   down: 0,
@@ -24,17 +20,17 @@ const ANIM_FRAMES: Record<AnimState, number[]> = {
 export class CharacterSprite {
   readonly container: Container;
   private sprite: AnimatedSprite;
-  private baseTexture: Texture;
+  private frames: Texture[][];
   private currentDirection: Direction = 'down';
   private currentAnim: AnimState = 'idle';
   private frameSpeed: number = 0.15;
 
-  constructor(spriteSheet: Texture) {
-    this.baseTexture = spriteSheet;
+  constructor(frames: Texture[][]) {
+    this.frames = frames;
     this.container = new Container();
 
-    const frames = this.getFrames('down', 'idle');
-    this.sprite = new AnimatedSprite(frames);
+    const initialFrames = this.getFrames('down', 'idle');
+    this.sprite = new AnimatedSprite(initialFrames);
     this.sprite.anchor.set(0.5, 1);
     this.sprite.animationSpeed = this.frameSpeed;
     this.sprite.play();
@@ -45,18 +41,7 @@ export class CharacterSprite {
   private getFrames(direction: Direction, anim: AnimState): Texture[] {
     const row = DIRECTION_ROW[direction];
     const frameIndices = ANIM_FRAMES[anim];
-
-    return frameIndices.map((col) => {
-      const frame = new Rectangle(
-        col * FRAME_WIDTH,
-        row * FRAME_HEIGHT,
-        FRAME_WIDTH,
-        FRAME_HEIGHT,
-      );
-      const tex = new Texture({ source: this.baseTexture.source, frame });
-      tex.source.scaleMode = 'nearest';
-      return tex;
-    });
+    return frameIndices.map((col) => this.frames[row][col]);
   }
 
   setAnimation(anim: AnimState, direction: Direction): void {
