@@ -79,6 +79,7 @@ export class TiledMapRenderer {
     this.tileSize = mapData.tilewidth
     this.rootContainer = new Container()
     this.characterContainer = new Container()
+    this.characterContainer.label = ''
     this.characterContainer.sortableChildren = true
 
     this.parseCollisionLayer()
