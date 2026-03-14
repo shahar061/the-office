@@ -22,7 +22,9 @@ export function LobbyCanvas() {
         resolution: 1,
       });
       container.appendChild(app.canvas);
+
       scene = new LobbyScene(app);
+      await scene.init();
     };
 
     init();

@@ -23,7 +23,10 @@ export function OfficeCanvas() {
         resolution: 1,
       });
       container.appendChild(app.canvas);
-      sceneRef.current = new OfficeScene(app);
+
+      const scene = new OfficeScene(app);
+      await scene.init();
+      sceneRef.current = scene;
     };
 
     init();
