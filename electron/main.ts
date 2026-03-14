@@ -82,11 +82,78 @@ function setupAdapters() {
   console.log('[Main] Adapters initialized and event forwarding active');
 }
 
+function spawnOpenCode(args: string[]): void {
+  console.log('[Main] Spawning: opencode', args.join(' '));
+  const child = spawn('opencode', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  activeProcesses.add(child);
+
+  child.stdout?.on('data', (data: Buffer) => {
+    console.log('[OpenCode stdout]', data.toString().trim());
+  });
+
+  child.stderr?.on('data', (data: Buffer) => {
+    console.error('[OpenCode stderr]', data.toString().trim());
+  });
+
+  child.on('error', (err) => {
+    console.error('[Main] opencode spawn error:', err.message);
+    activeProcesses.delete(child);
+    dispatchInFlight = false;
+    if (mainWindow) {
+      mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+        error: err.message,
+      });
+    }
+  });
+
+  child.on('exit', (code) => {
+    activeProcesses.delete(child);
+    if (code !== 0 && code !== null) {
+      console.error('[Main] opencode exited with code:', code);
+      dispatchInFlight = false;
+      if (mainWindow) {
+        mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+          error: `opencode exited with code ${code}`,
+        });
+      }
+    }
+  });
+}
+
 function setupIPC() {
   ipcMain.handle(IPC_CHANNELS.DISPATCH, async (_event, prompt: string) => {
-    // TODO: Implement SDK adapter dispatch
-    console.log('Dispatch requested:', prompt);
-    return { sessionId: `session-${Date.now()}` };
+    if (linkedSessionId && pendingSession) {
+      const args = ['run', prompt, '--session', linkedSessionId, '--dir', pendingSession.directory, '--format', 'json'];
+      spawnOpenCode(args);
+      return { sessionId: linkedSessionId };
+    }
+
+    if (pendingSession && !dispatchInFlight) {
+      dispatchInFlight = true;
+      const args = ['run', prompt, '--dir', pendingSession.directory, '--format', 'json'];
+      spawnOpenCode(args);
+
+      // Start 30s linking timeout
+      linkingTimer = setTimeout(() => {
+        if (!linkedSessionId && mainWindow) {
+          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
+            error: 'Timed out waiting for session to appear',
+          });
+          dispatchInFlight = false;
+        }
+      }, 30_000);
+
+      return { sessionId: 'pending' };
+    }
+
+    if (pendingSession && dispatchInFlight) {
+      return { error: 'session-starting' };
+    }
+
+    return { error: 'no-session' };
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_SESSIONS, async () => {
