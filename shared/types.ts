@@ -83,6 +83,15 @@ export interface SessionInfo {
   startedAt: number;
 }
 
+export interface SessionListItem {
+  sessionId: string;
+  title: string;
+  directory: string;
+  projectName: string;
+  status: 'busy' | 'waiting' | 'stale';
+  lastUpdated: number;
+}
+
 export const IPC_CHANNELS = {
   AGENT_EVENT: 'office:agent-event',
   CONNECTION_STATUS: 'office:connection-status',
@@ -92,6 +101,7 @@ export const IPC_CHANNELS = {
   APPROVE_PERMISSION: 'office:approve-permission',
   DENY_PERMISSION: 'office:deny-permission',
   GET_KANBAN: 'office:get-kanban',
+  SESSION_LIST_UPDATE: 'office:session-list-update',
 } as const;
 
 export interface OfficeAPI {
@@ -103,6 +113,7 @@ export interface OfficeAPI {
   denyPermission(agentId: string, toolId: string): Promise<void>;
   getKanbanState(): Promise<KanbanState>;
   onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
+  onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void;
 }
 
 declare global {
