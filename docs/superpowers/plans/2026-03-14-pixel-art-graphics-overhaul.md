@@ -945,10 +945,11 @@ Replace `deskTile` with `spriteVariant`. Use sequential variant names for now (`
 Update the `AgentConfig` interface:
 ```typescript
 interface AgentConfig {
+  role: AgentRole         // preserved from existing interface
   displayName: string
   color: string
   group: 'leadership' | 'coordination' | 'engineering'
-  spriteVariant: string  // replaces deskTile
+  spriteVariant: string   // NEW — replaces deskTile
   idleZone: 'boardroom' | 'open-work-area' | 'break-room'  // updated zone names
 }
 ```
@@ -1005,7 +1006,7 @@ Changes to constructor and methods:
 3. Look up desk position from spawn points: `mapRenderer.getSpawnPoint('desk-' + role)`
 4. If no spawn point found, start at a random walkable tile in the agent's idle zone
 5. In `update()`: set `this.sprite.container.zIndex = this.pixelY` for Y-sorting
-6. Replace all `this.map` calls with `this.mapRenderer` (same method names: `isWalkable`, `tileToPixel`, `pixelToTile`)
+6. Replace all `this.tileMap` references with `this.mapRenderer` (same method names: `isWalkable`, `tileToPixel`, `pixelToTile`, `tileSize`). Note: the existing code uses `this.tileMap.tileSize` directly in `updateWalk()` — these become `this.mapRenderer.tileSize`
 7. Update imports: remove TileMap, import TiledMapRenderer
 
 **Note for OfficeScene integration (Task 10):** When constructing Characters, the scene must call `SpriteAdapter.extractFrames(charTexture, config)` to produce the `frames` parameter before passing it to the Character constructor.
@@ -1199,12 +1200,13 @@ async init() {
 }
 ```
 
-**Important:** Since `init()` is now async, `OfficeCanvas.tsx` must `await` it. The current `OfficeCanvas.tsx` already uses an async pattern inside `useEffect` — just ensure `await scene.init()` is called:
+**Important:** Since `init()` is now async, `OfficeCanvas.tsx` must `await` it and set the ref **after** init completes to avoid resize handlers touching a partially-initialized scene:
 
 ```typescript
 // In OfficeCanvas.tsx useEffect:
 const scene = new OfficeScene(app)
-await scene.init()  // was synchronous before, now async
+await scene.init()  // load assets, build tile layers
+sceneRef.current = scene  // set AFTER init completes — avoids race with resize handler
 ```
 
 - [ ] **Step 3: Verify the app runs**
@@ -1236,7 +1238,7 @@ Read `src/renderer/src/office/engine/camera.ts` to see the hardcoded PHASE_TARGE
 - [ ] **Step 2: Modify Camera to accept zone data**
 
 Changes:
-1. Constructor gains a `zones: Map<string, ZoneRect>` parameter (from TiledMapRenderer)
+1. Constructor signature changes to `constructor(container: Container, zones: Map<string, ZoneRect>)` — keeps the existing `container` parameter, adds `zones`
 2. Phase targets are computed from zone centers instead of hardcoded:
    ```typescript
    // 'imagine' → boardroom zone center
