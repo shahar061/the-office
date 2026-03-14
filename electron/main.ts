@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import { spawn, type ChildProcess } from 'child_process';
 import { SessionManager } from './session-manager';
 import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapter';
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
@@ -9,6 +10,11 @@ import type { ConnectionStatus, SessionListItem } from '../shared/types';
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
 let windowReady = false;
+let pendingSession: { tool: string; directory: string; createdAt: number } | null = null;
+let linkedSessionId: string | null = null;
+let dispatchInFlight = false;
+let linkingTimer: ReturnType<typeof setTimeout> | null = null;
+const activeProcesses = new Set<ChildProcess>();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -106,6 +112,36 @@ function setupIPC() {
       tasks: [],
     };
   });
+
+  ipcMain.handle(IPC_CHANNELS.PICK_DIRECTORY, async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_SESSION, async (_event, tool: string, directory: string) => {
+    pendingSession = { tool, directory, createdAt: Date.now() };
+    linkedSessionId = null;
+    dispatchInFlight = false;
+    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    console.log('[Main] Session created:', { tool, directory });
+    return { ok: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
+    console.log('[Main] Session cancelled');
+    pendingSession = null;
+    linkedSessionId = null;
+    dispatchInFlight = false;
+    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    for (const proc of activeProcesses) {
+      proc.kill();
+    }
+    activeProcesses.clear();
+  });
 }
 
 app.whenReady().then(() => {
@@ -115,6 +151,11 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  for (const proc of activeProcesses) {
+    proc.kill();
+  }
+  activeProcesses.clear();
+  if (linkingTimer) clearTimeout(linkingTimer);
   sessionManager?.stop();
   app.quit();
 });
