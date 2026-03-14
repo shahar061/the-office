@@ -7,6 +7,7 @@ export function TopBar() {
   const totalCost = useChatStore((s) => s.totalCost);
   const totalTokens = useChatStore((s) => s.totalTokens);
   const sessionTitle = useAppStore((s) => s.selectedSessionTitle);
+  const pendingSession = useAppStore((s) => s.pendingSession);
   const navigateToLobby = useAppStore((s) => s.navigateToLobby);
   const [connection, setConnection] = useState<ConnectionStatus>({
     claudeCode: 'disconnected',
@@ -20,6 +21,9 @@ export function TopBar() {
   }, []);
 
   const handleBack = () => {
+    if (window.office?.cancelSession) {
+      window.office.cancelSession();
+    }
     navigateToLobby();
   };
 
@@ -62,9 +66,16 @@ export function TopBar() {
       >
         Back to Lobby
       </button>
-      {sessionTitle && (
+      {sessionTitle ? (
         <span style={{ color: '#e5e5e5', fontWeight: 500 }}>{sessionTitle}</span>
-      )}
+      ) : pendingSession ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#e5e5e5', fontWeight: 500 }}>
+            {pendingSession.directory.split('/').pop() || pendingSession.directory}
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 10 }}>waiting for first prompt</span>
+        </span>
+      ) : null}
       <span>{dot(connection.claudeCode)} Claude Code</span>
       <span>{dot(connection.openCode)} OpenCode</span>
       <span style={{ marginLeft: 'auto' }}>${totalCost.toFixed(2)}</span>
