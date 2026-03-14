@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AgentEvent, AgentRole } from '../../../shared/types';
-import { getAgentConfig } from '../office/characters/agents.config';
+
 
 const TYPING_TOOLS = ['Write', 'Edit', 'Bash', 'NotebookEdit'];
 const READING_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Agent'];
@@ -38,12 +38,11 @@ export const useOfficeStore = create<OfficeState>((set) => ({
 
       switch (event.type) {
         case 'agent:created': {
-          const config = getAgentConfig(event.agentRole);
           agents[event.agentId] = {
             agentId: event.agentId,
             role: event.agentRole,
             state: 'idle',
-            position: { x: config.deskTile.x * 16, y: config.deskTile.y * 16 },
+            position: { x: 0, y: 0 },
             target: null,
             currentTool: null,
             waiting: false,

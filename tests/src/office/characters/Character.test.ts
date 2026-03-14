@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Character, CharacterState } from '../../../../src/renderer/src/office/characters/Character';
-import { TileMap } from '../../../../src/renderer/src/office/engine/tilemap';
 
 vi.mock('../../../../src/renderer/src/office/characters/CharacterSprite', () => ({
   CharacterSprite: class MockSprite {
-    container = { x: 0, y: 0, alpha: 1, destroy: vi.fn() };
+    container = { x: 0, y: 0, alpha: 1, zIndex: 0, destroy: vi.fn() };
     setAnimation = vi.fn();
     setPosition = vi.fn();
     setAlpha = vi.fn();
@@ -12,26 +11,32 @@ vi.mock('../../../../src/renderer/src/office/characters/CharacterSprite', () => 
   },
 }));
 
-const LAYOUT = {
+const tiles = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => 0));
+tiles[0] = Array(10).fill(1);
+tiles[9] = Array(10).fill(1);
+for (let y = 0; y < 10; y++) { tiles[y][0] = 1; tiles[y][9] = 1; }
+
+const mockMapRenderer = {
   width: 10, height: 10, tileSize: 16,
-  tiles: Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => 0)),
-};
-LAYOUT.tiles[0] = Array(10).fill(1);
-LAYOUT.tiles[9] = Array(10).fill(1);
-for (let y = 0; y < 10; y++) { LAYOUT.tiles[y][0] = 1; LAYOUT.tiles[y][9] = 1; }
+  isWalkable: (x: number, y: number) => {
+    if (y < 0 || y >= 10 || x < 0 || x >= 10) return false;
+    return tiles[y][x] === 0;
+  },
+  tileToPixel: (tx: number, ty: number) => ({ x: tx * 16, y: ty * 16 }),
+  pixelToTile: (px: number, py: number) => ({ x: Math.floor(px / 16), y: Math.floor(py / 16) }),
+  getSpawnPoint: (name: string) => name === 'desk-backend-engineer' ? { x: 5, y: 5 } : undefined,
+  getZone: () => undefined,
+} as any;
 
 describe('Character', () => {
-  let tileMap: TileMap;
   let character: Character;
 
   beforeEach(() => {
-    tileMap = new TileMap(LAYOUT);
     character = new Character({
       agentId: 'agent-1',
       role: 'backend-engineer',
-      deskTile: { x: 5, y: 5 },
-      tileMap,
-      spriteSheet: null as any,
+      mapRenderer: mockMapRenderer,
+      frames: [[]] as any,
     });
   });
 
