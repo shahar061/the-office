@@ -20,22 +20,41 @@ vi.mock('fs', async () => {
 
 vi.mock('sql.js', () => ({
   default: vi.fn().mockImplementation(() => ({
-    Database: vi.fn().mockImplementation(() => ({
-      exec: vi.fn((sql: string) => {
-        if (sql.includes('FROM session')) {
-          return [{
-            values: (globalThis as any).sessionRows || []
-          }];
-        }
-        if (sql.includes('FROM part')) {
-          return [{
-            values: (globalThis as any).partRows || []
-          }];
-        }
-        return [];
-      }),
-      close: vi.fn(),
-    })),
+    Database: vi.fn().mockImplementation(() => {
+      const rows = (globalThis as any).sessionRows || [];
+      return {
+        exec: vi.fn((sql: string) => {
+          if (sql.includes('FROM session')) {
+            return [{
+              columns: ['id','title','directory','project_id','time_created','time_updated'],
+              values: rows
+            }];
+          }
+          if (sql.includes('FROM part') && !sql.includes('LIMIT 1')) {
+            return [{
+              values: (globalThis as any).partRows || []
+            }];
+          }
+          return [];
+        }),
+        prepare: vi.fn((sql: string) => {
+          const preparedResult: any = null;
+          return {
+            bind: (params: any[]) => {
+              const sessionId = params[0];
+              const parts = (globalThis as any).activityParts || {};
+              const activity = parts[sessionId] || null;
+              return {
+                step: () => activity !== null,
+                get: () => activity ? [activity.data, activity.time_updated] : null,
+                free: vi.fn(),
+              };
+            },
+          };
+        }),
+        close: vi.fn(),
+      };
+    }),
   })),
 }));
 
@@ -58,6 +77,7 @@ describe('OpenCodeAdapter', () => {
     adapter.on('agentEvent', (e: AgentEvent) => events.push(e));
     (globalThis as any).sessionRows = [];
     (globalThis as any).partRows = [];
+    (globalThis as any).activityParts = {};
   });
 
   afterEach(() => {
@@ -65,9 +85,9 @@ describe('OpenCodeAdapter', () => {
     vi.useRealTimers();
   });
 
-  it('emits agent:created when a session for the project is found', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test session', '/my/project', 1000]];
-    await adapter.start({ projectDir: '/my/project' });
+  it('emits agent:created for any session (no directory filtering)', async () => {
+    (globalThis as any).sessionRows = [['ses_1', 'Test session', '/my/project', 'proj_1', 500, 1000]];
+    await adapter.start({ projectDir: '/different/project' });
 
     const created = events.find(e => e.type === 'agent:created');
     expect(created).toBeDefined();
@@ -77,14 +97,8 @@ describe('OpenCodeAdapter', () => {
     expect(created!.message).toBe('Test session');
   });
 
-  it('emits no events when no sessions match the project directory', async () => {
-    (globalThis as any).sessionRows = [];
-    await adapter.start({ projectDir: '/my/project' });
-    expect(events).toHaveLength(0);
-  });
-
   it('emits tool:start for a running tool part', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     (globalThis as any).partRows = [toolPart('prt_1', 'call_1', 'bash', 'running', 100)];
     await adapter.start({ projectDir: '/p' });
 
@@ -95,7 +109,7 @@ describe('OpenCodeAdapter', () => {
   });
 
   it('emits tool:done when tool completes', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     (globalThis as any).partRows = [toolPart('prt_1', 'call_1', 'bash', 'completed', 200)];
     await adapter.start({ projectDir: '/p' });
 
@@ -109,7 +123,7 @@ describe('OpenCodeAdapter', () => {
   it('emits agent:closed when session is removed', async () => {
     adapter = new OpenCodeAdapter('/fake/opencode.db');
     adapter.on('agentEvent', (e: AgentEvent) => events.push(e));
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     await adapter.start({ projectDir: '/p' });
 
     const created = events.find(e => e.type === 'agent:created');
@@ -118,7 +132,7 @@ describe('OpenCodeAdapter', () => {
   });
 
   it('emits session:cost:update on step-finish with cost', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     (globalThis as any).partRows = [stepFinishPart('prt_1', 'continue', 0.05, 1500, 100)];
     await adapter.start({ projectDir: '/p' });
 
@@ -129,7 +143,7 @@ describe('OpenCodeAdapter', () => {
   });
 
   it('emits agent:waiting when step reason is stop', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     (globalThis as any).partRows = [stepFinishPart('prt_1', 'stop', 0, 0, 100)];
     await adapter.start({ projectDir: '/p' });
 
@@ -138,7 +152,7 @@ describe('OpenCodeAdapter', () => {
   });
 
   it('tracks tool state transitions correctly', async () => {
-    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 1000]];
+    (globalThis as any).sessionRows = [['ses_1', 'Test', '/p', 'proj_1', 500, 1000]];
     (globalThis as any).partRows = [
       toolPart('prt_1', 'call_1', 'Read', 'running', 100),
       toolPart('prt_2', 'call_1', 'Read', 'completed', 200),
