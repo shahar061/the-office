@@ -1,7 +1,7 @@
 import { Texture } from 'pixi.js';
 import { CharacterSprite, type Direction, type AnimState } from './CharacterSprite';
 import { findPath } from '../engine/pathfinding';
-import { TileMap } from '../engine/tilemap';
+import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
 import type { AgentRole } from '../../../../shared/types';
 
 export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
@@ -11,9 +11,8 @@ const SPEED = 48;
 interface CharacterOptions {
   agentId: string;
   role: AgentRole;
-  deskTile: { x: number; y: number };
-  tileMap: TileMap;
-  spriteSheet: Texture;
+  mapRenderer: TiledMapRenderer;
+  frames: Texture[][];
 }
 
 export class Character {
@@ -22,7 +21,7 @@ export class Character {
   readonly sprite: CharacterSprite;
 
   private state: CharacterState = 'idle';
-  private tileMap: TileMap;
+  private mapRenderer: TiledMapRenderer;
   private deskTile: { x: number; y: number };
   private px: number;
   private py: number;
@@ -35,13 +34,16 @@ export class Character {
   constructor(options: CharacterOptions) {
     this.agentId = options.agentId;
     this.role = options.role;
-    this.deskTile = options.deskTile;
-    this.tileMap = options.tileMap;
-    this.sprite = new CharacterSprite(options.spriteSheet);
+    this.mapRenderer = options.mapRenderer;
+    this.sprite = new CharacterSprite(options.frames);
 
-    const pos = this.tileMap.tileToPixel(this.deskTile.x, this.deskTile.y);
-    this.px = pos.x + this.tileMap.tileSize / 2;
-    this.py = pos.y + this.tileMap.tileSize;
+    // Look up desk position from spawn points
+    const spawnPoint = this.mapRenderer.getSpawnPoint('desk-' + options.role);
+    this.deskTile = spawnPoint ?? { x: 1, y: 1 };
+
+    const pos = this.mapRenderer.tileToPixel(this.deskTile.x, this.deskTile.y);
+    this.px = pos.x + this.mapRenderer.tileSize / 2;
+    this.py = pos.y + this.mapRenderer.tileSize;
     this.sprite.setPosition(this.px, this.py);
   }
 
@@ -50,7 +52,7 @@ export class Character {
   }
 
   getTilePosition(): { x: number; y: number } {
-    return this.tileMap.pixelToTile(this.px, this.py - 1);
+    return this.mapRenderer.pixelToTile(this.px, this.py - 1);
   }
 
   getPixelPosition(): { x: number; y: number } {
@@ -59,7 +61,7 @@ export class Character {
 
   moveTo(tile: { x: number; y: number }): void {
     const currentTile = this.getTilePosition();
-    const path = findPath(this.tileMap, currentTile, tile);
+    const path = findPath(this.mapRenderer, currentTile, tile);
     if (path && path.length > 0) {
       this.path = path;
       this.state = 'walk';
@@ -93,6 +95,8 @@ export class Character {
     } else if (this.state === 'idle') {
       this.updateIdle(dt);
     }
+    // Y-sort: characters closer to bottom render in front
+    this.sprite.container.zIndex = this.py;
   }
 
   private updateWalk(dt: number): void {
@@ -108,8 +112,8 @@ export class Character {
     }
 
     const target = this.path[0];
-    const targetPx = target.x * this.tileMap.tileSize + this.tileMap.tileSize / 2;
-    const targetPy = target.y * this.tileMap.tileSize + this.tileMap.tileSize;
+    const targetPx = target.x * this.mapRenderer.tileSize + this.mapRenderer.tileSize / 2;
+    const targetPy = target.y * this.mapRenderer.tileSize + this.mapRenderer.tileSize;
 
     const dx = targetPx - this.px;
     const dy = targetPy - this.py;
@@ -151,7 +155,7 @@ export class Character {
     for (let attempt = 0; attempt < 10; attempt++) {
       const tx = current.x + Math.floor(Math.random() * range * 2) - range;
       const ty = current.y + Math.floor(Math.random() * range * 2) - range;
-      if (this.tileMap.isWalkable(tx, ty)) {
+      if (this.mapRenderer.isWalkable(tx, ty)) {
         this.moveTo({ x: tx, y: ty });
         return;
       }
