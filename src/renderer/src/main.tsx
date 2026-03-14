@@ -36,6 +36,26 @@ function initStoreSubscriptions() {
     useKanbanStore.getState().handleKanbanUpdate(state);
   });
 
+  if (window.office.onSessionLinked) {
+    window.office.onSessionLinked(({ sessionId, title }) => {
+      useAppStore.getState().linkSession(sessionId, title);
+    });
+  }
+
+  if (window.office.onSessionLinkFailed) {
+    window.office.onSessionLinkFailed(({ error }) => {
+      useChatStore.getState().addSystemMessage(`Failed to start session: ${error}`);
+      useAppStore.getState().clearDispatchInFlight();
+    });
+  }
+
+  if (window.office.onDispatchError) {
+    window.office.onDispatchError(({ error }) => {
+      useChatStore.getState().addSystemMessage(`Error: ${error}`);
+      useAppStore.getState().clearDispatchInFlight();
+    });
+  }
+
   window.office.getKanbanState().then((state) => {
     if (state) useKanbanStore.getState().handleKanbanUpdate(state);
   });
