@@ -120,6 +120,7 @@ export class OpenCodeAdapter extends ToolAdapter {
         projectName: path.basename(session.directory) || session.directory,
         status: this.getSessionStatus(session.id, session.time_updated),
         lastUpdated: session.time_updated,
+        createdAt: session.time_created,
       }));
       this.emitSessionList(sessionList);
 
