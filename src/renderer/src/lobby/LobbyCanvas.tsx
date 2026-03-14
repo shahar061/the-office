@@ -29,7 +29,7 @@ export function LobbyCanvas() {
 
     init();
 
-    const onResize = () => scene?.onResize();
+    const onResize = () => scene?.onResize(container.clientWidth, container.clientHeight);
     window.addEventListener('resize', onResize);
 
     return () => {

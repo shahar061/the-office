@@ -69,8 +69,8 @@ export class OfficeScene {
       const frames = SpriteAdapter.extractFrames(sheetTex, {
         frameWidth: 16,
         frameHeight: 32,
-        columns: 24,
-        walkFrames: 6,
+        walkRow: 1,
+        framesPerDirection: 6,
       });
 
       const character = new Character({
@@ -86,6 +86,10 @@ export class OfficeScene {
 
     // Set up camera with zone data
     this.camera = new Camera(this.worldContainer, this.mapRenderer.getAllZones());
+    this.camera.setMapSize(
+      this.mapRenderer.width * this.mapRenderer.tileSize,
+      this.mapRenderer.height * this.mapRenderer.tileSize,
+    );
     this.camera.setViewSize(this.app.screen.width, this.app.screen.height);
     this.camera.focusOnPhase('imagine');
 
