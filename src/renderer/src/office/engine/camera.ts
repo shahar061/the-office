@@ -13,13 +13,6 @@ const PHASE_ZOOM: Record<string, number> = {
   build: 1.5,
 };
 
-// Fallback targets if zones are missing
-const FALLBACK_TARGETS: Record<string, CameraTarget> = {
-  imagine: { x: 80, y: 96, zoom: 2.5 },
-  warroom: { x: 256, y: 160, zoom: 2.0 },
-  build: { x: 320, y: 192, zoom: 1.5 },
-};
-
 const LERP_SPEED = 0.04;
 
 export class Camera {
@@ -34,14 +27,27 @@ export class Camera {
   private viewWidth = 960;
   private viewHeight = 800;
   private manualOverride = false;
+  private mapWidth = 960;
+  private mapHeight = 640;
 
   constructor(container: Container, zones?: Map<string, ZoneRect>) {
     this.container = container;
     this.phaseTargets = this.buildPhaseTargets(zones);
   }
 
+  setMapSize(width: number, height: number): void {
+    this.mapWidth = width;
+    this.mapHeight = height;
+  }
+
+  private getMinZoom(): number {
+    if (this.viewWidth === 0 || this.viewHeight === 0) return 1;
+    return Math.max(this.viewWidth / this.mapWidth, this.viewHeight / this.mapHeight);
+  }
+
   private buildPhaseTargets(zones?: Map<string, ZoneRect>): Record<string, CameraTarget> {
-    if (!zones) return { ...FALLBACK_TARGETS };
+    const fallback = { x: this.mapWidth / 2, y: this.mapHeight / 2, zoom: 1.5 };
+    if (!zones) return { imagine: fallback, warroom: fallback, build: fallback };
 
     const targets: Record<string, CameraTarget> = {};
 
@@ -54,7 +60,7 @@ export class Camera {
         zoom: PHASE_ZOOM.imagine,
       };
     } else {
-      targets.imagine = FALLBACK_TARGETS.imagine;
+      targets.imagine = fallback;
     }
 
     // warroom → open-work-area zone center
@@ -66,7 +72,7 @@ export class Camera {
         zoom: PHASE_ZOOM.warroom,
       };
     } else {
-      targets.warroom = FALLBACK_TARGETS.warroom;
+      targets.warroom = fallback;
     }
 
     // build → full map center (zoom out)
@@ -78,7 +84,7 @@ export class Camera {
         zoom: PHASE_ZOOM.build,
       };
     } else {
-      targets.build = FALLBACK_TARGETS.build;
+      targets.build = fallback;
     }
 
     return targets;
@@ -95,7 +101,7 @@ export class Camera {
     if (target) {
       this.targetX = target.x;
       this.targetY = target.y;
-      this.targetZoom = target.zoom;
+      this.targetZoom = Math.max(target.zoom, this.getMinZoom());
     }
   }
 
@@ -107,7 +113,7 @@ export class Camera {
 
   setZoom(zoom: number): void {
     this.manualOverride = true;
-    this.targetZoom = Math.max(0.5, Math.min(4, zoom));
+    this.targetZoom = Math.max(this.getMinZoom(), Math.min(4, zoom));
   }
 
   resetToPhase(phase: string): void {
@@ -123,5 +129,11 @@ export class Camera {
     this.container.scale.set(this.currentZoom);
     this.container.x = this.viewWidth / 2 - this.currentX * this.currentZoom;
     this.container.y = this.viewHeight / 2 - this.currentY * this.currentZoom;
+
+    // Clamp to map bounds — no empty space beyond edges
+    const minX = this.viewWidth - this.mapWidth * this.currentZoom;
+    const minY = this.viewHeight - this.mapHeight * this.currentZoom;
+    this.container.x = Math.min(0, Math.max(minX, this.container.x));
+    this.container.y = Math.min(0, Math.max(minY, this.container.y));
   }
 }
