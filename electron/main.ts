@@ -67,6 +67,26 @@ function setupAdapters() {
     if (mainWindow && windowReady) {
       mainWindow.webContents.send(IPC_CHANNELS.SESSION_LIST_UPDATE, sessions);
     }
+
+    // Session linking: match new session to pending config
+    if (pendingSession && !linkedSessionId && dispatchInFlight) {
+      const match = sessions.find(s =>
+        s.directory === pendingSession!.directory &&
+        s.createdAt > pendingSession!.createdAt - 2000
+      );
+      if (match) {
+        linkedSessionId = match.sessionId;
+        dispatchInFlight = false;
+        if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+        console.log('[Main] Session linked:', match.sessionId, match.title);
+        if (mainWindow) {
+          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINKED, {
+            sessionId: match.sessionId,
+            title: match.title,
+          });
+        }
+      }
+    }
   });
 
   sessionManager.start({ projectDir }).catch(err => console.error('[Main] Failed to start adapters:', err));
