@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type { AgentEvent, AgentRole } from '../../shared/types';
+import type { AgentEvent, AgentRole, SessionListItem } from '../../shared/types';
 
 export * from '../../shared/types';
 
@@ -14,5 +14,9 @@ export abstract class ToolAdapter extends EventEmitter {
 
   protected emitAgentEvent(event: AgentEvent): void {
     this.emit('agentEvent', event);
+  }
+
+  protected emitSessionList(sessions: SessionListItem[]): void {
+    this.emit('sessionListUpdate', sessions);
   }
 }
