@@ -1,17 +1,19 @@
 import { Texture, Rectangle } from 'pixi.js'
 
 export interface SpriteSheetConfig {
-  frameWidth: number   // pixel width of one frame (typically 16)
-  frameHeight: number  // pixel height of one frame (typically 32)
-  columns: number      // frames per row in the source sheet
-  walkFrames: number   // number of walk frames per direction (typically 3)
+  frameWidth: number          // pixel width of one frame (typically 16)
+  frameHeight: number         // pixel height of one frame (typically 32)
+  walkRow: number             // which row contains walk frames (typically 1)
+  framesPerDirection: number  // walk frames per direction in that row (typically 6)
 }
 
 /**
  * Maps LimeZu character spritesheets to the 7-column x 3-row frame layout
  * that CharacterSprite expects.
  *
- * LimeZu layout: 4 directions (down, left, right, up) each with N walk frames.
+ * LimeZu walk row layout: 4 directions packed into one row, each with
+ * framesPerDirection frames. Order: down, left, up, right.
+ *
  * Output: 3 rows (down, up, right) each with 7 frames:
  *   [walk1, walk2, walk3, type1, type2, read1, read2]
  *
@@ -19,21 +21,25 @@ export interface SpriteSheetConfig {
  * include desk animations.
  */
 export class SpriteAdapter {
-  /** Source rows to extract from LimeZu sheet: down=1, up=3, right=2 */
-  private static readonly SOURCE_ROWS = [1, 3, 2]
+  /** Column offset (in direction-groups) for each direction within the walk row */
+  private static readonly DIRECTION_GROUP = { down: 3, left: 2, up: 1, right: 0 }
+
+  /** Output order matches CharacterSprite's DIRECTION_ROW: down=0, up=1, right=2 */
+  private static readonly OUTPUT_DIRECTIONS: Array<'down' | 'up' | 'right'> = ['down', 'up', 'right']
 
   static extractFrames(sheetTexture: Texture, config: SpriteSheetConfig): Texture[][] {
-    const { frameWidth, frameHeight, walkFrames } = config
+    const { frameWidth, frameHeight, walkRow, framesPerDirection } = config
     const output: Texture[][] = []
 
-    for (const srcRow of this.SOURCE_ROWS) {
+    for (const dir of this.OUTPUT_DIRECTIONS) {
       const frames: Texture[] = []
+      const groupStart = this.DIRECTION_GROUP[dir] * framesPerDirection
 
-      // Extract walk frames (columns 0..walkFrames-1)
-      for (let col = 0; col < walkFrames; col++) {
+      // Extract 3 walk frames by sampling every other frame from the cycle
+      for (let i = 0; i < framesPerDirection; i += 2) {
         const frame = new Rectangle(
-          col * frameWidth,
-          srcRow * frameHeight,
+          (groupStart + i) * frameWidth,
+          walkRow * frameHeight,
           frameWidth,
           frameHeight,
         )

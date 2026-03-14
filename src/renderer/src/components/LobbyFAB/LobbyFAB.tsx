@@ -136,21 +136,22 @@ export function LobbyFAB() {
       <button
         onClick={() => setOpen(!open)}
         style={{
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          border: 'none',
-          background: '#3b82f6',
-          color: '#fff',
-          fontSize: 24,
+          padding: '8px 16px',
+          borderRadius: 6,
+          border: '1px solid #2a2a4a',
+          background: 'rgba(59, 130, 246, 0.15)',
+          color: '#3b82f6',
+          fontSize: 12,
+          fontWeight: 500,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          whiteSpace: 'nowrap',
         }}
       >
-        +
+        New Session
       </button>
     </div>
   );
