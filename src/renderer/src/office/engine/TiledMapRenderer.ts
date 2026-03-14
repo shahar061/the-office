@@ -73,7 +73,7 @@ export class TiledMapRenderer {
   private characterContainer: Container
   private rootContainer: Container
 
-  constructor(private mapData: TiledMap, private tilesetTexture: Texture) {
+  constructor(private mapData: TiledMap, private tilesetTextures: Texture[]) {
     this.width = mapData.width
     this.height = mapData.height
     this.tileSize = mapData.tilewidth
@@ -168,9 +168,17 @@ export class TiledMapRenderer {
     }
   }
 
+  private resolveTileset(rawTileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
+    for (let i = this.mapData.tilesets.length - 1; i >= 0; i--) {
+      if (rawTileId >= this.mapData.tilesets[i].firstgid) {
+        return { tileset: this.mapData.tilesets[i], texture: this.tilesetTextures[i] }
+      }
+    }
+    return undefined
+  }
+
   private buildTileLayers(): void {
-    const tileset = this.mapData.tilesets[0]
-    if (!tileset) return
+    if (this.mapData.tilesets.length === 0) return
 
     for (const layerName of TILE_LAYERS) {
       const layer = this.findLayer(layerName, 'tilelayer')
@@ -183,14 +191,17 @@ export class TiledMapRenderer {
             const rawTileId = layer.data[y * this.width + x]
             if (rawTileId === 0) continue
 
+            const resolved = this.resolveTileset(rawTileId)
+            if (!resolved) continue
+
+            const { tileset, texture } = resolved
             const localId = rawTileId - tileset.firstgid
-            const tilesetColumns = tileset.columns
-            const srcX = (localId % tilesetColumns) * tileset.tilewidth
-            const srcY = Math.floor(localId / tilesetColumns) * tileset.tileheight
+            const srcX = (localId % tileset.columns) * tileset.tilewidth
+            const srcY = Math.floor(localId / tileset.columns) * tileset.tileheight
 
             const frame = new Rectangle(srcX, srcY, tileset.tilewidth, tileset.tileheight)
-            const texture = new Texture({ source: this.tilesetTexture.source, frame })
-            const sprite = new Sprite(texture)
+            const tileTexture = new Texture({ source: texture.source, frame })
+            const sprite = new Sprite(tileTexture)
             sprite.x = x * this.tileSize
             sprite.y = y * this.tileSize
             container.addChild(sprite)

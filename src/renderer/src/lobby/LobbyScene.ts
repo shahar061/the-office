@@ -1,6 +1,7 @@
 import { Application, Assets, Container } from 'pixi.js';
 import { TiledMapRenderer } from '../office/engine/TiledMapRenderer';
-import tilesetUrl from '../assets/tilesets/modern-interiors.png?url';
+import roomBuilderUrl from '../assets/tilesets/room-builder.png?url';
+import interiorsUrl from '../assets/tilesets/interiors.png?url';
 import lobbyMapData from '../assets/maps/lobby.tmj';
 
 export class LobbyScene {
@@ -15,10 +16,17 @@ export class LobbyScene {
   }
 
   async init(): Promise<void> {
-    const tilesetTexture = await Assets.load(tilesetUrl);
-    tilesetTexture.source.scaleMode = 'nearest';
+    const [roomBuilderTex, interiorsTex] = await Promise.all([
+      Assets.load(roomBuilderUrl),
+      Assets.load(interiorsUrl),
+    ]);
+    roomBuilderTex.source.scaleMode = 'nearest';
+    interiorsTex.source.scaleMode = 'nearest';
 
-    this.mapRenderer = new TiledMapRenderer(lobbyMapData as any, tilesetTexture);
+    this.mapRenderer = new TiledMapRenderer(
+      lobbyMapData as any,
+      [roomBuilderTex, interiorsTex],
+    );
     this.worldContainer.addChild(this.mapRenderer.getContainer());
 
     this.centerCamera();

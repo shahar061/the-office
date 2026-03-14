@@ -61,7 +61,7 @@ const mockTexture = new Texture()
 describe('TiledMapRenderer', () => {
   describe('basic properties', () => {
     it('exposes width, height, tileSize from map data', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.width).toBe(4)
       expect(renderer.height).toBe(3)
       expect(renderer.tileSize).toBe(16)
@@ -70,19 +70,19 @@ describe('TiledMapRenderer', () => {
 
   describe('tileToPixel / pixelToTile', () => {
     it('converts tile coords to pixel coords', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.tileToPixel(2, 3)).toEqual({ x: 32, y: 48 })
     })
 
     it('converts pixel coords to tile coords', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.pixelToTile(35, 50)).toEqual({ x: 2, y: 3 })
     })
   })
 
   describe('collision / walkability', () => {
     it('all tiles walkable when no collision layer exists', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.isWalkable(0, 0)).toBe(true)
       expect(renderer.isWalkable(3, 2)).toBe(true)
     })
@@ -101,7 +101,7 @@ describe('TiledMapRenderer', () => {
           },
         ],
       })
-      const renderer = new TiledMapRenderer(map, mockTexture)
+      const renderer = new TiledMapRenderer(map, [mockTexture])
       expect(renderer.isWalkable(0, 0)).toBe(true)
       expect(renderer.isWalkable(1, 0)).toBe(false)
       expect(renderer.isWalkable(3, 1)).toBe(false)
@@ -110,7 +110,7 @@ describe('TiledMapRenderer', () => {
     })
 
     it('out-of-bounds tiles are not walkable', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.isWalkable(-1, 0)).toBe(false)
       expect(renderer.isWalkable(0, -1)).toBe(false)
       expect(renderer.isWalkable(4, 0)).toBe(false)
@@ -132,14 +132,14 @@ describe('TiledMapRenderer', () => {
           },
         ],
       })
-      const renderer = new TiledMapRenderer(map, mockTexture)
+      const renderer = new TiledMapRenderer(map, [mockTexture])
       expect(renderer.getSpawnPoint('desk-ceo')).toEqual({ x: 5, y: 8 })
       expect(renderer.getSpawnPoint('desk-backend-engineer')).toEqual({ x: 20, y: 6 })
       expect(renderer.getSpawnPoint('nonexistent')).toBeUndefined()
     })
 
     it('returns empty map when no spawn-points layer', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.getAllSpawnPoints().size).toBe(0)
     })
   })
@@ -158,7 +158,7 @@ describe('TiledMapRenderer', () => {
           },
         ],
       })
-      const renderer = new TiledMapRenderer(map, mockTexture)
+      const renderer = new TiledMapRenderer(map, [mockTexture])
       expect(renderer.getZone('boardroom')).toEqual({ x: 1, y: 1, width: 10, height: 12 })
       expect(renderer.getZone('break-room')).toEqual({ x: 26, y: 16, width: 12, height: 7 })
       expect(renderer.getZone('nonexistent')).toBeUndefined()
@@ -175,7 +175,7 @@ describe('TiledMapRenderer', () => {
           { name: 'furniture-above', type: 'tilelayer', data: Array(12).fill(0) },
         ],
       })
-      const renderer = new TiledMapRenderer(map, mockTexture)
+      const renderer = new TiledMapRenderer(map, [mockTexture])
       const root = renderer.getContainer()
       const labels = root.children.map((c: any) => c.label ?? 'character')
 
@@ -183,7 +183,7 @@ describe('TiledMapRenderer', () => {
     })
 
     it('character container has sortableChildren enabled', () => {
-      const renderer = new TiledMapRenderer(makeMap(), mockTexture)
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
       expect(renderer.getCharacterContainer().sortableChildren).toBe(true)
     })
   })

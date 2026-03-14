@@ -19,8 +19,8 @@ export interface SpriteSheetConfig {
  * include desk animations.
  */
 export class SpriteAdapter {
-  /** Source rows to extract from LimeZu sheet: down=0, up=3, right=2 */
-  private static readonly SOURCE_ROWS = [0, 3, 2]
+  /** Source rows to extract from LimeZu sheet: down=1, up=3, right=2 */
+  private static readonly SOURCE_ROWS = [1, 3, 2]
 
   static extractFrames(sheetTexture: Texture, config: SpriteSheetConfig): Texture[][] {
     const { frameWidth, frameHeight, walkFrames } = config

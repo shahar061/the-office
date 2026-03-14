@@ -1,12 +1,25 @@
-import { Application, Assets, Container } from 'pixi.js';
+import { Application, Assets, Container, Texture } from 'pixi.js';
 import { TiledMapRenderer } from './engine/TiledMapRenderer';
 import { Camera } from './engine/camera';
 import { Character } from './characters/Character';
 import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
 import type { AgentRole } from '../../../shared/types';
-import tilesetUrl from '../assets/tilesets/modern-interiors.png?url';
+import roomBuilderUrl from '../assets/tilesets/room-builder.png?url';
+import interiorsUrl from '../assets/tilesets/interiors.png?url';
 import officeMapData from '../assets/maps/office.tmj';
+
+import adamUrl from '../assets/characters/Adam_walk.png?url';
+import alexUrl from '../assets/characters/Alex_walk.png?url';
+import ameliaUrl from '../assets/characters/Amelia_walk.png?url';
+import bobUrl from '../assets/characters/Bob_walk.png?url';
+
+const CHARACTER_SHEETS: Record<string, string> = {
+  adam: adamUrl,
+  alex: alexUrl,
+  amelia: ameliaUrl,
+  bob: bobUrl,
+};
 
 export class OfficeScene {
   private app: Application;
@@ -23,16 +36,53 @@ export class OfficeScene {
   }
 
   async init(): Promise<void> {
-    // Load tileset texture with nearest-neighbor scaling for pixel art
-    const tilesetTexture = await Assets.load(tilesetUrl);
-    tilesetTexture.source.scaleMode = 'nearest';
+    // Load both tileset textures with nearest-neighbor for pixel art
+    const [roomBuilderTex, interiorsTex] = await Promise.all([
+      Assets.load(roomBuilderUrl),
+      Assets.load(interiorsUrl),
+    ]);
+    roomBuilderTex.source.scaleMode = 'nearest';
+    interiorsTex.source.scaleMode = 'nearest';
 
-    // Create renderer from Tiled JSON map
-    this.mapRenderer = new TiledMapRenderer(officeMapData as any, tilesetTexture);
+    // Create renderer with both tilesets (order matches TMJ tileset array)
+    this.mapRenderer = new TiledMapRenderer(
+      officeMapData as any,
+      [roomBuilderTex, interiorsTex],
+    );
 
-    // Add tile layers to scene
     this.worldContainer.addChild(this.mapRenderer.getContainer());
     this.characterLayer = this.mapRenderer.getCharacterContainer();
+
+    // Load character spritesheets
+    const sheetTextures = new Map<string, Texture>();
+    for (const [name, url] of Object.entries(CHARACTER_SHEETS)) {
+      const tex = await Assets.load(url);
+      tex.source.scaleMode = 'nearest';
+      sheetTextures.set(name, tex);
+    }
+
+    // Create characters for all agents
+    for (const config of Object.values(AGENT_CONFIGS)) {
+      const sheetTex = sheetTextures.get(config.spriteVariant);
+      if (!sheetTex) continue;
+
+      const frames = SpriteAdapter.extractFrames(sheetTex, {
+        frameWidth: 16,
+        frameHeight: 32,
+        columns: 24,
+        walkFrames: 6,
+      });
+
+      const character = new Character({
+        agentId: config.role,
+        role: config.role,
+        mapRenderer: this.mapRenderer,
+        frames,
+      });
+
+      this.characters.set(config.role, character);
+      this.characterLayer.addChild(character.sprite.container);
+    }
 
     // Set up camera with zone data
     this.camera = new Camera(this.worldContainer, this.mapRenderer.getAllZones());
