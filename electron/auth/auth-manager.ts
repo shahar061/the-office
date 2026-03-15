@@ -5,11 +5,16 @@ import type { AuthStatus } from '../../shared/types';
 
 const AUTH_FILE = 'auth.json';
 
+interface CliAuthInfo {
+  loggedIn: boolean;
+  email?: string;
+  subscriptionType?: string;
+}
+
 export class AuthManager {
   private dataDir: string;
   private apiKey: string | null = null;
-  private cliAuthenticated: boolean = false;
-  private cliChecked: boolean = false;
+  private cliAuth: CliAuthInfo | null = null;
 
   constructor(dataDir: string) {
     this.dataDir = dataDir;
@@ -18,40 +23,36 @@ export class AuthManager {
 
   /**
    * Check if the Claude Code CLI is installed and authenticated.
-   * Runs `claude --version` as a lightweight probe. If the CLI is
-   * installed and the user has run `claude login`, the SDK will
-   * automatically use those credentials.
+   * Runs `claude auth status` which returns JSON with login state,
+   * email, and subscription type.
    */
   async detectCliAuth(): Promise<boolean> {
     try {
-      const version = await this.runClaude(['--version']);
-      if (!version) {
-        this.cliAuthenticated = false;
-        this.cliChecked = true;
+      const output = await this.runClaude(['auth', 'status']);
+      if (!output) {
+        this.cliAuth = null;
         return false;
       }
-      // CLI exists — check if authenticated by trying a minimal operation.
-      // `claude --version` succeeds even without auth, so we check for
-      // the existence of the credentials file.
-      const claudeDir = path.join(process.env.HOME || '', '.claude');
-      const hasCredentials = fs.existsSync(claudeDir) && (
-        fs.existsSync(path.join(claudeDir, 'credentials.json')) ||
-        fs.existsSync(path.join(claudeDir, '.credentials'))
-      );
-      this.cliAuthenticated = hasCredentials;
-      this.cliChecked = true;
-      return hasCredentials;
+      const parsed = JSON.parse(output) as CliAuthInfo;
+      if (parsed.loggedIn) {
+        this.cliAuth = parsed;
+        return true;
+      }
+      this.cliAuth = null;
+      return false;
     } catch {
-      this.cliAuthenticated = false;
-      this.cliChecked = true;
+      this.cliAuth = null;
       return false;
     }
   }
 
   getStatus(): AuthStatus {
     // CLI auth takes priority
-    if (this.cliAuthenticated) {
-      return { connected: true, account: 'Claude Code (CLI)', method: 'cli-auth' };
+    if (this.cliAuth?.loggedIn) {
+      const label = this.cliAuth.email
+        ? `${this.cliAuth.email}${this.cliAuth.subscriptionType ? ` (${this.cliAuth.subscriptionType})` : ''}`
+        : 'Claude Code (CLI)';
+      return { connected: true, account: label, method: 'cli-auth' };
     }
     // Fall back to API key
     if (this.apiKey) {
@@ -65,13 +66,13 @@ export class AuthManager {
    * no env override is needed. If using API key, sets ANTHROPIC_API_KEY.
    */
   getAuthEnv(): Record<string, string> | undefined {
-    if (this.cliAuthenticated) return undefined; // CLI handles it
+    if (this.cliAuth?.loggedIn) return undefined; // CLI handles it
     if (this.apiKey) return { ANTHROPIC_API_KEY: this.apiKey };
     return undefined;
   }
 
   isAuthenticated(): boolean {
-    return this.cliAuthenticated || !!this.apiKey;
+    return (this.cliAuth?.loggedIn ?? false) || !!this.apiKey;
   }
 
   connectApiKey(key: string): { success: boolean; error?: string } {
