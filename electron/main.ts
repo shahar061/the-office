@@ -193,7 +193,7 @@ function setupIPC() {
               error: `claude exited with code ${code}`,
             });
           }
-          if (!linkedSessionId && mainWindow) {
+          if (!linkedSessionId && code !== 0 && mainWindow) {
             mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
               error: `claude exited unexpectedly (code ${code})`,
             });

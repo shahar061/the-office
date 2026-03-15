@@ -41,6 +41,7 @@ export class ClaudeCodeProcess extends EventEmitter {
     });
 
     this.process.on('exit', (code) => {
+      this.rl.close();
       this.emitEvent('agent:closed');
       this.emit('exit', code);
     });
@@ -60,6 +61,7 @@ export class ClaudeCodeProcess extends EventEmitter {
   }
 
   kill(): void {
+    this.rl.close();
     this.process.kill('SIGTERM');
   }
 
@@ -92,6 +94,7 @@ export class ClaudeCodeProcess extends EventEmitter {
 
     if (data.type === 'tool_result') {
       const toolName = this.lastToolNames.get(data.tool_use_id);
+      this.lastToolNames.delete(data.tool_use_id);
       this.emitEvent('agent:tool:done', { toolName, toolId: data.tool_use_id });
       return;
     }
