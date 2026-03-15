@@ -183,22 +183,24 @@ function setupIPC() {
               error: err.message,
             });
           }
-          activeClaudeProcess = null;
         });
 
         activeClaudeProcess.on('exit', (code) => {
-          console.log('[Main] ClaudeCodeProcess exited:', code);
-          if (code !== 0 && code !== null && mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
-              error: `claude exited with code ${code}`,
-            });
+          // In print mode, each prompt spawns a new process that exits after responding.
+          // Non-zero exit is an error; zero exit is normal completion.
+          console.log('[Main] ClaudeCodeProcess child exited:', code);
+          if (code !== 0 && code !== null) {
+            if (mainWindow) {
+              mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+                error: `claude exited with code ${code}`,
+              });
+            }
+            if (!linkedSessionId && mainWindow) {
+              mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
+                error: `claude exited unexpectedly (code ${code})`,
+              });
+            }
           }
-          if (!linkedSessionId && code !== 0 && mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
-              error: `claude exited unexpectedly (code ${code})`,
-            });
-          }
-          activeClaudeProcess = null;
         });
       }
 

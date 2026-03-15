@@ -9,6 +9,7 @@ const mockProcess = Object.assign(new EventEmitter(), {
   stdin: new Writable({ write(_chunk, _enc, cb) { cb(); } }),
   pid: 12345,
   kill: vi.fn(),
+  killed: false,
 });
 
 vi.mock('child_process', () => ({
@@ -29,6 +30,7 @@ describe('ClaudeCodeProcess', () => {
       stdout: new Readable({ read() {} }),
       stderr: new Readable({ read() {} }),
       stdin: new Writable({ write(_chunk, _enc, cb) { cb(); } }),
+      killed: false,
     });
     mockProcess.kill.mockClear();
     vi.mocked(spawn).mockClear().mockReturnValue(mockProcess as any);
@@ -40,23 +42,7 @@ describe('ClaudeCodeProcess', () => {
     return proc;
   }
 
-  it('spawns claude with --output-format stream-json', () => {
-    createProc('/my/project');
-    expect(spawn).toHaveBeenCalledWith(
-      'claude',
-      ['--output-format', 'stream-json'],
-      expect.objectContaining({ cwd: '/my/project' }),
-    );
-  });
-
-  it('spawns with --resume when resumeSessionId is provided', () => {
-    createProc('/my/project', 'ses-abc-123');
-    expect(spawn).toHaveBeenCalledWith(
-      'claude',
-      ['--output-format', 'stream-json', '--resume', 'ses-abc-123'],
-      expect.objectContaining({ cwd: '/my/project' }),
-    );
-  });
+  // --- parseLine tests (unit tests for JSONL parsing) ---
 
   it('emits agent:created on init event and exposes sessionId', () => {
     createProc();
@@ -113,37 +99,13 @@ describe('ClaudeCodeProcess', () => {
     expect(msgEvent!.message).toBe('Working on it...');
   });
 
-  it('emits session:cost:update and agent:waiting on result event', () => {
+  it('emits session:cost:update on result event with total_cost_usd', () => {
     createProc();
     proc.parseLine(JSON.stringify({ type: 'system', subtype: 'init', session_id: 'ses-1' }));
-    proc.parseLine(JSON.stringify({ type: 'result', total_cost: 0.042, total_duration_ms: 5000 }));
+    proc.parseLine(JSON.stringify({ type: 'result', total_cost_usd: 0.042 }));
     const costEvent = events.find(e => e.type === 'session:cost:update');
     expect(costEvent).toBeDefined();
     expect(costEvent!.cost).toBe(0.042);
-    const waitEvent = events.find(e => e.type === 'agent:waiting');
-    expect(waitEvent).toBeDefined();
-  });
-
-  it('writes prompt to stdin via sendPrompt()', () => {
-    createProc();
-    const writeSpy = vi.spyOn(mockProcess.stdin, 'write');
-    proc.sendPrompt('Fix the bug');
-    expect(writeSpy).toHaveBeenCalledWith('Fix the bug\n', expect.any(Function));
-  });
-
-  it('emits agent:closed on process exit', () => {
-    createProc();
-    proc.parseLine(JSON.stringify({ type: 'system', subtype: 'init', session_id: 'ses-1' }));
-    mockProcess.emit('exit', 0, null);
-    const closedEvent = events.find(e => e.type === 'agent:closed');
-    expect(closedEvent).toBeDefined();
-    expect(closedEvent!.agentId).toBe('ses-1');
-  });
-
-  it('kill() sends SIGTERM to the process', () => {
-    createProc();
-    proc.kill();
-    expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
   });
 
   it('skips invalid JSON lines without crashing', () => {
@@ -167,5 +129,50 @@ describe('ClaudeCodeProcess', () => {
     }));
     expect(events.filter(e => e.type === 'agent:message')).toHaveLength(1);
     expect(events.filter(e => e.type === 'agent:tool:start')).toHaveLength(1);
+  });
+
+  // --- sendPrompt tests ---
+
+  it('spawns claude -p with stream-json verbose on sendPrompt', () => {
+    createProc('/my/project');
+    proc.sendPrompt('Fix the bug');
+    expect(spawn).toHaveBeenCalledWith(
+      'claude',
+      ['-p', 'Fix the bug', '--output-format', 'stream-json', '--verbose'],
+      expect.objectContaining({ cwd: '/my/project' }),
+    );
+  });
+
+  it('includes --resume with sessionId on subsequent prompts', () => {
+    createProc('/my/project');
+    // Simulate first prompt setting sessionId via init
+    proc.parseLine(JSON.stringify({ type: 'system', subtype: 'init', session_id: 'ses-abc' }));
+    vi.mocked(spawn).mockClear();
+
+    proc.sendPrompt('Next question');
+    expect(spawn).toHaveBeenCalledWith(
+      'claude',
+      ['-p', 'Next question', '--output-format', 'stream-json', '--verbose', '--resume', 'ses-abc'],
+      expect.objectContaining({ cwd: '/my/project' }),
+    );
+  });
+
+  it('uses --resume from constructor when resumeSessionId is provided', () => {
+    createProc('/my/project', 'ses-existing');
+    proc.sendPrompt('Continue please');
+    expect(spawn).toHaveBeenCalledWith(
+      'claude',
+      ['-p', 'Continue please', '--output-format', 'stream-json', '--verbose', '--resume', 'ses-existing'],
+      expect.objectContaining({ cwd: '/my/project' }),
+    );
+  });
+
+  // --- kill tests ---
+
+  it('kill() sends SIGTERM to active process', () => {
+    createProc();
+    proc.sendPrompt('test');
+    proc.kill();
+    expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
   });
 });
