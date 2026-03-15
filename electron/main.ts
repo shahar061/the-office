@@ -6,12 +6,14 @@ import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapte
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
 import { IPC_CHANNELS } from '../shared/types';
 import type { ConnectionStatus, SessionListItem } from '../shared/types';
-import { exec } from 'child_process';
+import { loadSettings, saveSettings, detectTerminals, browseTerminalApp } from './settings';
+import type { AppSettings } from '../shared/types';
+// exec removed — using spawn for osascript
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
 let windowReady = false;
-let pendingSession: { tool: string; directory: string; createdAt: number } | null = null;
+let pendingSession: { tool: string; directory: string; terminalId?: string; createdAt: number } | null = null;
 let linkedSessionId: string | null = null;
 let dispatchInFlight = false;
 let linkingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -154,24 +156,24 @@ function setupIPC() {
     if (pendingSession.tool === 'claude-code') {
       if (!claudeTerminalLaunched) {
         claudeTerminalLaunched = true;
-        const dir = pendingSession.directory;
-        const appleScript = [
-          'tell application "Terminal"',
-          '  activate',
-          `  do script "cd ${JSON.stringify(dir)} && claude"`,
-          'end tell',
-        ].join('\n');
-        exec('osascript -e ' + JSON.stringify(appleScript), (err) => {
-          if (err) {
-            console.error('[Main] Failed to open Terminal:', err.message);
-            if (mainWindow) {
-              mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
-            }
-            claudeTerminalLaunched = false;
-          } else {
-            console.log('[Main] Opened Terminal with claude in:', pendingSession?.directory);
+        const dir = pendingSession.directory.replace(/'/g, "'\\''");
+        const cmd = `cd '${dir}' && claude`;
+        const child = spawn('osascript', [
+          '-e', 'tell application "Terminal"',
+          '-e', 'activate',
+          '-e', `do script ${JSON.stringify(cmd)}`,
+          '-e', 'end tell',
+        ]);
+        child.on('error', handleTerminalError);
+        child.on('exit', (code) => { if (code !== 0) handleTerminalError(new Error(`osascript exit ${code}`)); });
+        function handleTerminalError(err: Error) {
+          console.error('[Main] Failed to open Terminal:', err.message);
+          if (mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
           }
-        });
+          claudeTerminalLaunched = false;
+        }
+        console.log('[Main] Opening Terminal with claude in:', pendingSession.directory);
       }
       // Session linking happens via ClaudeCodeTranscriptAdapter (file watching)
       // when claude creates its transcript file in ~/.claude/projects/
@@ -242,13 +244,31 @@ function setupIPC() {
     return result.filePaths[0];
   });
 
-  ipcMain.handle(IPC_CHANNELS.CREATE_SESSION, async (_event, tool: string, directory: string) => {
-    pendingSession = { tool, directory, createdAt: Date.now() };
+  ipcMain.handle(IPC_CHANNELS.CREATE_SESSION, async (_event, tool: string, directory: string, terminalId?: string) => {
+    pendingSession = { tool, directory, terminalId, createdAt: Date.now() };
     linkedSessionId = null;
     dispatchInFlight = false;
     if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
     console.log('[Main] Session created:', { tool, directory });
     return { ok: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async () => {
+    return loadSettings();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, settings: AppSettings) => {
+    saveSettings(settings);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.DETECT_TERMINALS, async () => {
+    const current = loadSettings();
+    return detectTerminals(current.terminals);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BROWSE_TERMINAL_APP, async () => {
+    if (!mainWindow) return null;
+    return browseTerminalApp(mainWindow);
   });
 
   ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
@@ -272,10 +292,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (activeClaudeProcess) {
-    activeClaudeProcess.kill();
-    activeClaudeProcess = null;
-  }
   for (const proc of activeProcesses) {
     proc.kill();
   }

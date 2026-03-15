@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/types';
-import type { AgentEvent, ConnectionStatus, KanbanState, AgentRole, SessionInfo, SessionListItem } from '../shared/types';
+import type { AgentEvent, ConnectionStatus, KanbanState, AgentRole, SessionInfo, SessionListItem, AppSettings, TerminalConfig } from '../shared/types';
 
 contextBridge.exposeInMainWorld('office', {
   onAgentEvent(callback: (event: AgentEvent) => void): () => void {
@@ -45,8 +45,8 @@ contextBridge.exposeInMainWorld('office', {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DISPATCH_ERROR, handler);
   },
 
-  createSession(tool: string, directory: string): Promise<{ ok: true }> {
-    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_SESSION, tool, directory);
+  createSession(tool: string, directory: string, terminalId?: string): Promise<{ ok: true }> {
+    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_SESSION, tool, directory, terminalId);
   },
 
   pickDirectory(): Promise<string | null> {
@@ -75,5 +75,21 @@ contextBridge.exposeInMainWorld('office', {
 
   getKanbanState(): Promise<KanbanState> {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_KANBAN);
+  },
+
+  getSettings(): Promise<AppSettings> {
+    return ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS);
+  },
+
+  saveSettings(settings: AppSettings): Promise<void> {
+    return ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
+  },
+
+  detectTerminals(): Promise<TerminalConfig[]> {
+    return ipcRenderer.invoke(IPC_CHANNELS.DETECT_TERMINALS);
+  },
+
+  browseTerminalApp(): Promise<TerminalConfig | null> {
+    return ipcRenderer.invoke(IPC_CHANNELS.BROWSE_TERMINAL_APP);
   },
 });
