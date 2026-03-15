@@ -608,30 +608,37 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
         {/* Auth panel — CLI detected or API key fallback */}
         {showApiKeyPanel && !connected && (
           <div style={{
-            position: 'absolute',
-            bottom: 32,
-            left: 0,
-            background: '#16162a',
-            border: '1px solid #333',
-            borderRadius: 8,
-            padding: '14px 16px',
+            position: 'fixed',
+            bottom: 56,
+            left: 24,
+            background: '#1a1a2e',
+            border: '1px solid #444',
+            borderRadius: 10,
+            padding: '16px 18px',
             width: 400,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Authentication
               </span>
               <button
                 onClick={() => setShowApiKeyPanel(false)}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#6b7280',
+                  background: '#2a2a3e',
+                  border: '1px solid #444',
+                  borderRadius: 4,
+                  color: '#e5e5e5',
                   cursor: 'pointer',
                   fontSize: 14,
                   lineHeight: 1,
-                  padding: '0 2px',
+                  padding: '4px 8px',
+                  minWidth: 28,
+                  minHeight: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
                 ✕
