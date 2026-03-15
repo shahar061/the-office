@@ -35,11 +35,8 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     agentId: 'ceo',
     agentRole: 'ceo',
     prompt,
-    options: {
-      apiKey: config.apiKey,
-      cwd: config.projectDir,
-      agents,
-      permissionHandler: config.permissionHandler,
-    },
+    cwd: config.projectDir,
+    agents,
+    env: config.authEnv,
   });
 }

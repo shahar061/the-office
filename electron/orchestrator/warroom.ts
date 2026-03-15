@@ -37,9 +37,8 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     agentId: 'agent-organizer',
     agentRole: 'agent-organizer',
     prompt,
-    options: {
-      apiKey: config.apiKey,
-      cwd: config.projectDir,
-    },
+    cwd: config.projectDir,
+    agents,
+    env: config.authEnv,
   });
 }

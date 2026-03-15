@@ -90,6 +90,9 @@ async function runPhaseSession(
     agentId: phase.id,
     agentRole: primaryRole,
     prompt,
+    cwd: config.projectDir,
+    agents,
+    env: config.authEnv,
   });
 }
 

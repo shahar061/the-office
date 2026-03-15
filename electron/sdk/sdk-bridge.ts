@@ -9,7 +9,12 @@ export interface SessionConfig {
   agentRole: AgentRole;
   prompt: string;
   systemPrompt?: string;
-  options?: Record<string, unknown>;
+  cwd?: string;
+  agents?: Record<string, { description: string; prompt: string; tools?: string[] }>;
+  permissionMode?: string;
+  allowedTools?: string[];
+  env?: Record<string, string>;
+  maxTurns?: number;
 }
 
 // ── Role resolution ──
@@ -184,13 +189,18 @@ export class SDKBridge extends EventEmitter {
     const sdk = await import('@anthropic-ai/claude-agent-sdk');
     const { query } = sdk;
 
-    const queryOptions = {
-      prompt: config.prompt,
-      ...(config.systemPrompt ? { system: config.systemPrompt } : {}),
-      ...(config.options ?? {}),
-    };
+    // Build SDK options — only include defined fields
+    const options: Record<string, unknown> = {};
+    if (config.systemPrompt) options.systemPrompt = config.systemPrompt;
+    if (config.cwd) options.cwd = config.cwd;
+    if (config.agents) options.agents = config.agents;
+    if (config.env) options.env = config.env;
+    if (config.allowedTools) options.allowedTools = config.allowedTools;
+    if (config.maxTurns) options.maxTurns = config.maxTurns;
+    // Default to bypassing permissions — the app handles them via UI
+    options.permissionMode = config.permissionMode || 'bypassPermissions';
 
-    const gen = query(queryOptions);
+    const gen = query({ prompt: config.prompt, options });
     this.activeQuery = gen as unknown as { close(): void };
 
     try {
