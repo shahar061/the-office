@@ -2,7 +2,11 @@ import React, { useRef, useEffect } from 'react';
 import { Application } from 'pixi.js';
 import { OfficeScene } from './OfficeScene';
 
-export function OfficeCanvas() {
+interface OfficeCanvasProps {
+  onSceneReady?: (scene: OfficeScene) => void;
+}
+
+export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
@@ -27,6 +31,7 @@ export function OfficeCanvas() {
       const scene = new OfficeScene(app);
       await scene.init();
       sceneRef.current = scene;
+      onSceneReady?.(scene);
     };
 
     init();

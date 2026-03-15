@@ -145,6 +145,14 @@ export class OfficeScene {
     return this.worldContainer;
   }
 
+  getCharacter(role: string): Character | undefined {
+    return this.characters.get(role);
+  }
+
+  getAllCharacters(): Map<string, Character> {
+    return this.characters;
+  }
+
   onResize(width: number, height: number): void {
     this.camera.setViewSize(width, height);
   }
