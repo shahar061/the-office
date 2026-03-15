@@ -46,7 +46,7 @@ export type AgentEventType =
 export interface AgentEvent {
   agentId: string;
   agentRole: AgentRole;
-  source: 'sdk' | 'transcript' | 'opencode';
+  source: 'sdk' | 'transcript' | 'opencode' | 'claude-process';
   type: AgentEventType;
   toolName?: string;
   toolId?: string;
@@ -79,7 +79,7 @@ export interface KanbanState {
 export interface SessionInfo {
   sessionId: string;
   agentRole: AgentRole;
-  source: 'sdk' | 'transcript' | 'opencode';
+  source: 'sdk' | 'transcript' | 'opencode' | 'claude-process';
   startedAt: number;
 }
 
