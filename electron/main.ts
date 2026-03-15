@@ -87,6 +87,7 @@ function createWindow(): void {
     minHeight: 640,
     title: 'The Office',
     backgroundColor: '#0f0f1a',
+    fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,

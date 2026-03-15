@@ -93,16 +93,41 @@ export class Camera {
   setViewSize(width: number, height: number): void {
     this.viewWidth = width;
     this.viewHeight = height;
+    // Ensure zoom stays at least the minimum to fill the viewport
+    const minZoom = this.getMinZoom();
+    if (this.targetZoom < minZoom) {
+      this.targetZoom = minZoom;
+    }
   }
 
+  /**
+   * Focus on the target zone for a phase. The zoom is at least
+   * getMinZoom() so the map always fills the viewport.
+   */
   focusOnPhase(phase: string): void {
     if (this.manualOverride) return;
     const target = this.phaseTargets[phase];
+    const minZoom = this.getMinZoom();
     if (target) {
       this.targetX = target.x;
       this.targetY = target.y;
-      this.targetZoom = Math.max(target.zoom, this.getMinZoom());
+      this.targetZoom = Math.max(target.zoom, minZoom);
+    } else {
+      // Default: center map, fit to screen
+      this.targetX = this.mapWidth / 2;
+      this.targetY = this.mapHeight / 2;
+      this.targetZoom = minZoom;
     }
+  }
+
+  /**
+   * Fit the entire map to the current viewport.
+   */
+  fitToScreen(): void {
+    this.manualOverride = false;
+    this.targetX = this.mapWidth / 2;
+    this.targetY = this.mapHeight / 2;
+    this.targetZoom = this.getMinZoom();
   }
 
   panTo(x: number, y: number): void {

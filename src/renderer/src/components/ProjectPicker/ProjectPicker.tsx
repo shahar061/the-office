@@ -473,7 +473,9 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
     setCreating(true);
     setNewError(null);
     try {
-      const result = await window.office.createProject(name, newPath);
+      // Create a subfolder with the project name inside the selected directory
+      const projectDir = newPath + '/' + name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase();
+      const result = await window.office.createProject(name, projectDir);
       if (result.success) {
         const state = await window.office.getProjectState();
         onProjectOpened(state);

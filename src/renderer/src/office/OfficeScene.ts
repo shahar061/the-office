@@ -120,6 +120,8 @@ export class OfficeScene {
       this.mapRenderer.height * this.mapRenderer.tileSize,
     );
     this.camera.setViewSize(this.app.screen.width, this.app.screen.height);
+    // Start with map fitted to screen, then focus on initial phase
+    this.camera.fitToScreen();
     this.camera.focusOnPhase('imagine');
 
     this.app.ticker.add(() => this.update());
