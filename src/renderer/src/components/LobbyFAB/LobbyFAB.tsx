@@ -5,7 +5,7 @@ type Tool = 'opencode' | 'claude-code';
 
 const TOOLS: { id: Tool; label: string; enabled: boolean }[] = [
   { id: 'opencode', label: 'OpenCode', enabled: true },
-  { id: 'claude-code', label: 'Claude Code', enabled: false },
+  { id: 'claude-code', label: 'Claude Code', enabled: true },
 ];
 
 export function LobbyFAB() {
