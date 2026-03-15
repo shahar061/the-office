@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/app.store';
+import { useSettingsStore } from '../../stores/settings.store';
 
 type Tool = 'opencode' | 'claude-code';
 
@@ -14,6 +15,9 @@ export function LobbyFAB() {
   const [selectedDir, setSelectedDir] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const createSession = useAppStore((s) => s.createSession);
+  const terminals = useSettingsStore((s) => s.terminals);
+  const defaultTerminalId = useSettingsStore((s) => s.defaultTerminalId);
+  const [selectedTerminal, setSelectedTerminal] = useState<string>(defaultTerminalId);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -34,6 +38,10 @@ export function LobbyFAB() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (defaultTerminalId) setSelectedTerminal(defaultTerminalId);
+  }, [defaultTerminalId]);
+
   const handlePickDir = async () => {
     if (!window.office?.pickDirectory) return;
     const dir = await window.office.pickDirectory();
@@ -43,9 +51,9 @@ export function LobbyFAB() {
   const handleStart = async () => {
     if (!selectedDir) return;
     if (window.office?.createSession) {
-      await window.office.createSession(selectedTool, selectedDir);
+      await window.office.createSession(selectedTool, selectedDir, selectedTerminal || undefined);
     }
-    createSession(selectedTool, selectedDir);
+    createSession(selectedTool, selectedDir, selectedTerminal || undefined);
     setOpen(false);
     setSelectedDir(null);
   };
@@ -94,6 +102,33 @@ export function LobbyFAB() {
               </button>
             ))}
           </div>
+
+          {terminals.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Terminal
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {terminals.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedTerminal(t.id)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: selectedTerminal === t.id ? '1px solid #3b82f6' : '1px solid #2a2a4a',
+                      background: selectedTerminal === t.id ? 'rgba(59, 130, 246, 0.15)' : 'rgba(42, 42, 74, 0.3)',
+                      color: selectedTerminal === t.id ? '#3b82f6' : '#9ca3af',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t.name}{t.id === defaultTerminalId ? ' ●' : ''}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <button
             onClick={handlePickDir}

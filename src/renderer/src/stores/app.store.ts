@@ -8,6 +8,7 @@ type Screen = 'lobby' | 'office';
 interface PendingSession {
   tool: string;
   directory: string;
+  terminalId?: string;
   createdAt: number;
 }
 
@@ -20,7 +21,7 @@ interface AppState {
   dispatchInFlight: boolean;
   navigateToOffice: (sessionId: string, title: string) => void;
   navigateToLobby: () => void;
-  createSession: (tool: string, directory: string) => void;
+  createSession: (tool: string, directory: string, terminalId?: string) => void;
   linkSession: (sessionId: string, title: string) => void;
   setDispatchInFlight: (value: boolean) => void;
   clearDispatchInFlight: () => void;
@@ -54,7 +55,7 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
-  createSession: (tool, directory) => {
+  createSession: (tool, directory, terminalId?) => {
     useOfficeStore.getState().reset();
     useChatStore.getState().reset();
     useKanbanStore.getState().reset();
@@ -62,7 +63,7 @@ export const useAppStore = create<AppState>((set) => ({
       screen: 'office',
       selectedSessionId: null,
       selectedSessionTitle: null,
-      pendingSession: { tool, directory, createdAt: Date.now() },
+      pendingSession: { tool, directory, ...(terminalId ? { terminalId } : {}), createdAt: Date.now() },
       dispatchInFlight: false,
     });
   },
