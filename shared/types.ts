@@ -91,6 +91,7 @@ export interface SessionListItem {
   status: 'busy' | 'waiting' | 'stale';
   lastUpdated: number;
   createdAt: number;
+  source: 'opencode' | 'claude-code';
 }
 
 export interface TerminalConfig {

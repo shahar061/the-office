@@ -93,7 +93,7 @@ describe('SessionManager', () => {
     manager.start({ projectDir: '/tmp/test' });
 
     (adapter1 as any).triggerSessionListUpdate([
-      { sessionId: 'ses_1', title: 'Test', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 1000 },
+      { sessionId: 'ses_1', title: 'Test', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 1000, createdAt: 900, source: 'opencode' },
     ]);
 
     expect(lists).toHaveLength(1);

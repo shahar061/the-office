@@ -121,6 +121,7 @@ export class OpenCodeAdapter extends ToolAdapter {
         status: this.getSessionStatus(session.id, session.time_updated),
         lastUpdated: session.time_updated,
         createdAt: session.time_created,
+        source: 'opencode',
       }));
       this.emitSessionList(sessionList);
 
