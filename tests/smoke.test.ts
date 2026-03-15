@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AGENT_ROLES, AGENT_COLORS } from '../electron/adapters/types';
+import { AGENT_ROLES, AGENT_COLORS } from '../shared/types';
 
 describe('Core types', () => {
   it('defines 15 agent roles (14 + freelancer)', () => {
