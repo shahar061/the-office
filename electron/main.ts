@@ -75,7 +75,9 @@ function setupAdapters() {
 
     // Session linking: match new session to pending config
     if (pendingSession && !linkedSessionId && dispatchInFlight) {
+      const expectedSource = pendingSession!.tool === 'claude-code' ? 'claude-code' : 'opencode';
       const match = sessions.find(s =>
+        s.source === expectedSource &&
         s.directory === pendingSession!.directory &&
         s.createdAt > pendingSession!.createdAt - 2000
       );
