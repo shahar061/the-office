@@ -2,6 +2,7 @@ import React from 'react';
 import { SessionPanel } from '../components/SessionPanel/SessionPanel';
 import { LobbyCanvas } from '../lobby/LobbyCanvas';
 import { LobbyFAB } from '../components/LobbyFAB/LobbyFAB';
+import { SettingsGear } from '../components/SettingsGear';
 
 export function LobbyScreen() {
   return (
@@ -9,6 +10,9 @@ export function LobbyScreen() {
       <SessionPanel />
       <LobbyCanvas />
       <LobbyFAB />
+      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20 }}>
+        <SettingsGear />
+      </div>
     </div>
   );
 }

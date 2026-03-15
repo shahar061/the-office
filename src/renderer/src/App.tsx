@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAppStore } from './stores/app.store';
+import { useSettingsStore } from './stores/settings.store';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { OfficeScreen } from './screens/OfficeScreen';
+import { SettingsModal } from './components/SettingsModal/SettingsModal';
 
 export function App() {
   const screen = useAppStore((s) => s.screen);
 
-  if (screen === 'office') {
-    return <OfficeScreen />;
-  }
+  useEffect(() => {
+    useSettingsStore.getState().load();
+  }, []);
 
-  return <LobbyScreen />;
+  return (
+    <>
+      {screen === 'office' ? <OfficeScreen /> : <LobbyScreen />}
+      <SettingsModal />
+    </>
+  );
 }

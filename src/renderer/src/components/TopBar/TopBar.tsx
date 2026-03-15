@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat.store';
 import { useAppStore } from '../../stores/app.store';
 import type { ConnectionStatus } from '../../../shared/types';
+import { SettingsGear } from '../SettingsGear';
 
 export function TopBar() {
   const totalCost = useChatStore((s) => s.totalCost);
@@ -78,7 +79,8 @@ export function TopBar() {
       ) : null}
       <span>{dot(connection.claudeCode)} Claude Code</span>
       <span>{dot(connection.openCode)} OpenCode</span>
-      <span style={{ marginLeft: 'auto' }}>${totalCost.toFixed(2)}</span>
+      <span style={{ marginLeft: 'auto' }}><SettingsGear /></span>
+      <span>${totalCost.toFixed(2)}</span>
       <span>{(totalTokens / 1000).toFixed(1)}k tokens</span>
     </div>
   );
