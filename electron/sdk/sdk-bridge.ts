@@ -200,11 +200,17 @@ export class SDKBridge extends EventEmitter {
     // Default to bypassing permissions — the app handles them via UI
     options.permissionMode = config.permissionMode || 'bypassPermissions';
 
+    console.log('[SDKBridge] Starting query with options:', JSON.stringify({
+      prompt: config.prompt.slice(0, 100) + '...',
+      options: { ...options, agents: options.agents ? `[${Object.keys(options.agents as Record<string, unknown>).length} agents]` : undefined },
+    }));
+
     const gen = query({ prompt: config.prompt, options });
     this.activeQuery = gen as unknown as { close(): void };
 
     try {
       for await (const msg of gen) {
+        console.log('[SDKBridge] Message type:', (msg as any)?.type, (msg as any)?.subtype || '');
         const events = translateMessage(
           msg as unknown as Record<string, unknown>,
           config.agentRole,
@@ -217,6 +223,11 @@ export class SDKBridge extends EventEmitter {
           this.emit('agentEvent', enrichedEvent);
         }
       }
+    } catch (err: any) {
+      console.error('[SDKBridge] Session error:', err.message);
+      if (err.stderr) console.error('[SDKBridge] stderr:', err.stderr);
+      if (err.exitCode) console.error('[SDKBridge] exit code:', err.exitCode);
+      throw err;
     } finally {
       this.activeQuery = null;
       const closedEvent: AgentEvent = {
