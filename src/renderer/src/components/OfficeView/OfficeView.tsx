@@ -3,6 +3,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { AgentRole } from '@shared/types';
+import PermissionPrompt from '../PermissionPrompt/PermissionPrompt';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -342,6 +343,7 @@ export default function OfficeView() {
           Pixel Office (PixiJS — Coming Soon)
         </div>
       </div>
+      <PermissionPrompt />
     </div>
   );
 }
