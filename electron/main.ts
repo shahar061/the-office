@@ -207,8 +207,10 @@ function setupIPC(): void {
         onEvent: onAgentEvent,
       });
       phaseMachine.markCompleted('imagine');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Main] Imagine failed:', err);
+      const errMsg = err.stderr || err.message || 'Unknown error';
+      sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
       phaseMachine.markFailed();
     }
   });
