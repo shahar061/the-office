@@ -42,14 +42,23 @@ export class ClaudeCodeProcess extends EventEmitter {
       args.push('--resume', this._sessionId);
     }
 
+    console.log('[ClaudeCodeProcess] Spawning:', 'claude', args.join(' '));
     const child = spawn('claude', args, {
       cwd: this.directory,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
     this.activeProcess = child;
+    console.log('[ClaudeCodeProcess] Spawned PID:', child.pid);
 
     const rl = readline.createInterface({ input: child.stdout! });
-    rl.on('line', (line) => this.parseLine(line));
+    rl.on('line', (line) => {
+      console.log('[ClaudeCodeProcess] stdout line:', line.slice(0, 120));
+      this.parseLine(line);
+    });
+
+    child.stdout?.on('data', (data: Buffer) => {
+      console.log('[ClaudeCodeProcess] raw stdout chunk:', data.length, 'bytes');
+    });
 
     child.stderr?.on('data', (data: Buffer) => {
       console.warn('[ClaudeCodeProcess stderr]', data.toString().trim());
@@ -62,7 +71,8 @@ export class ClaudeCodeProcess extends EventEmitter {
       this.emit('error', err);
     });
 
-    child.on('exit', (code) => {
+    child.on('exit', (code, signal) => {
+      console.log('[ClaudeCodeProcess] exit code:', code, 'signal:', signal);
       this.activeProcess = null;
       rl.close();
       // In print mode, exit code 0 is normal (response complete).

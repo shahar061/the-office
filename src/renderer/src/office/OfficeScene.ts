@@ -5,7 +5,8 @@ import { Character } from './characters/Character';
 import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
 import type { AgentRole } from '../../../shared/types';
-import roomBuilderUrl from '../assets/tilesets/room-builder.png?url';
+import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
+import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
 import interiorsUrl from '../assets/tilesets/interiors.png?url';
 import officeMapData from '../assets/maps/office.tmj';
 
@@ -36,18 +37,46 @@ export class OfficeScene {
   }
 
   async init(): Promise<void> {
-    // Load both tileset textures with nearest-neighbor for pixel art
-    const [roomBuilderTex, interiorsTex] = await Promise.all([
-      Assets.load(roomBuilderUrl),
-      Assets.load(interiorsUrl),
-    ]);
-    roomBuilderTex.source.scaleMode = 'nearest';
+    // Load all tileset textures with nearest-neighbor for pixel art
+    const officeTilesetTex = await Assets.load(officeTilesetUrl);
+    officeTilesetTex.source.scaleMode = 'nearest';
+    const a5FloorsTex = await Assets.load(a5FloorsWallsUrl);
+    a5FloorsTex.source.scaleMode = 'nearest';
+    const interiorsTex = await Assets.load(interiorsUrl);
     interiorsTex.source.scaleMode = 'nearest';
 
-    // Create renderer with both tilesets (order matches TMJ tileset array)
+    // Resolve external tileset references with inline metadata
+    const resolvedMapData = {
+      ...officeMapData,
+      tilesets: [
+        officeMapData.tilesets[0],
+        {
+          firstgid: 513,
+          image: '../tilesets/A5 Office Floors & Walls.png',
+          imagewidth: 256,
+          imageheight: 512,
+          tilewidth: 16,
+          tileheight: 16,
+          columns: 16,
+          tilecount: 512,
+        },
+        {
+          firstgid: 1025,
+          image: '../tilesets/interiors.png',
+          imagewidth: 256,
+          imageheight: 1424,
+          tilewidth: 16,
+          tileheight: 16,
+          columns: 16,
+          tilecount: 1424,
+        },
+      ],
+    };
+
+    // Create renderer with all tilesets (order matches resolved array)
     this.mapRenderer = new TiledMapRenderer(
-      officeMapData as any,
-      [roomBuilderTex, interiorsTex],
+      resolvedMapData as any,
+      [officeTilesetTex, a5FloorsTex, interiorsTex],
     );
 
     this.worldContainer.addChild(this.mapRenderer.getContainer());

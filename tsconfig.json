@@ -17,5 +17,6 @@
       "@electron/*": ["electron/*"]
     }
   },
-  "include": ["src/**/*", "electron/**/*", "shared/**/*", "tests/**/*"]
+  "include": ["src/**/*", "electron/**/*", "shared/**/*", "tests/**/*"],
+  "exclude": ["src/**/assets/maps/*.tsx"]
 }

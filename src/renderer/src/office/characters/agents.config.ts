@@ -6,13 +6,13 @@ export interface AgentConfig {
   color: string;
   group: 'leadership' | 'coordination' | 'engineering';
   spriteVariant: string;
-  idleZone: 'boardroom' | 'open-work-area' | 'break-room';
+  idleZone: 'boardroom' | 'open-work-area' | 'break-room' | 'ceo-room' | 'entrance';
 }
 
 export const AGENT_CONFIGS: Record<AgentRole, AgentConfig> = {
   'ceo': {
     role: 'ceo', displayName: 'CEO', color: AGENT_COLORS['ceo'],
-    group: 'leadership', spriteVariant: 'adam', idleZone: 'boardroom',
+    group: 'leadership', spriteVariant: 'adam', idleZone: 'ceo-room',
   },
   'product-manager': {
     role: 'product-manager', displayName: 'Product Manager', color: AGENT_COLORS['product-manager'],

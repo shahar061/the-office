@@ -39,7 +39,7 @@ export class LobbyScene {
   private centerCamera(): void {
     const worldW = this.mapRenderer.width * this.mapRenderer.tileSize;
     const worldH = this.mapRenderer.height * this.mapRenderer.tileSize;
-    const zoom = Math.max(
+    const zoom = Math.min(
       this.viewWidth / worldW,
       this.viewHeight / worldH,
     );

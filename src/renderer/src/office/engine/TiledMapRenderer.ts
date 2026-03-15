@@ -1,5 +1,12 @@
 import { Container, Sprite, Texture, Rectangle } from 'pixi.js'
 
+// --- Tiled flip flags ---
+
+const FLIPPED_H_FLAG = 0x80000000
+const FLIPPED_V_FLAG = 0x40000000
+const FLIPPED_D_FLAG = 0x20000000
+const TILE_ID_MASK = 0x1fffffff
+
 // --- Tiled JSON Types ---
 
 export interface TiledMap {
@@ -31,13 +38,14 @@ export interface TiledObject {
 
 export interface TiledTilesetRef {
   firstgid: number
-  image: string
-  imagewidth: number
-  imageheight: number
-  tilewidth: number
-  tileheight: number
-  columns: number
-  tilecount: number
+  source?: string
+  image?: string
+  imagewidth?: number
+  imageheight?: number
+  tilewidth?: number
+  tileheight?: number
+  columns?: number
+  tilecount?: number
 }
 
 // --- Renderer output types ---
@@ -136,8 +144,8 @@ export class TiledMapRenderer {
     if (!layer?.data) return
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        const tileId = layer.data[y * this.width + x]
-        if (tileId !== 0) {
+        const rawId = layer.data[y * this.width + x]
+        if ((rawId & TILE_ID_MASK) !== 0) {
           this.walkabilityGrid[y][x] = false
         }
       }
@@ -168,9 +176,9 @@ export class TiledMapRenderer {
     }
   }
 
-  private resolveTileset(rawTileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
+  private resolveTileset(tileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
     for (let i = this.mapData.tilesets.length - 1; i >= 0; i--) {
-      if (rawTileId >= this.mapData.tilesets[i].firstgid) {
+      if (tileId >= this.mapData.tilesets[i].firstgid) {
         return { tileset: this.mapData.tilesets[i], texture: this.tilesetTextures[i] }
       }
     }
@@ -188,22 +196,56 @@ export class TiledMapRenderer {
       if (layer?.data) {
         for (let y = 0; y < this.height; y++) {
           for (let x = 0; x < this.width; x++) {
-            const rawTileId = layer.data[y * this.width + x]
-            if (rawTileId === 0) continue
+            const raw = layer.data[y * this.width + x]
+            if (raw === 0) continue
 
-            const resolved = this.resolveTileset(rawTileId)
+            // Strip flip flags to get the actual tile ID
+            const flippedH = (raw & FLIPPED_H_FLAG) !== 0
+            const flippedV = (raw & FLIPPED_V_FLAG) !== 0
+            const flippedD = (raw & FLIPPED_D_FLAG) !== 0
+            const tileId = raw & TILE_ID_MASK
+
+            const resolved = this.resolveTileset(tileId)
             if (!resolved) continue
 
             const { tileset, texture } = resolved
-            const localId = rawTileId - tileset.firstgid
-            const srcX = (localId % tileset.columns) * tileset.tilewidth
-            const srcY = Math.floor(localId / tileset.columns) * tileset.tileheight
+            const cols = tileset.columns ?? 16
+            const tw = tileset.tilewidth ?? this.tileSize
+            const th = tileset.tileheight ?? this.tileSize
+            const localId = tileId - tileset.firstgid
+            const srcX = (localId % cols) * tw
+            const srcY = Math.floor(localId / cols) * th
 
-            const frame = new Rectangle(srcX, srcY, tileset.tilewidth, tileset.tileheight)
+            const frame = new Rectangle(srcX, srcY, tw, th)
             const tileTexture = new Texture({ source: texture.source, frame })
             const sprite = new Sprite(tileTexture)
-            sprite.x = x * this.tileSize
-            sprite.y = y * this.tileSize
+
+            // Apply Tiled flip/rotation transforms
+            if (flippedH || flippedV || flippedD) {
+              sprite.anchor.set(0.5, 0.5)
+              sprite.x = x * this.tileSize + this.tileSize / 2
+              sprite.y = y * this.tileSize + this.tileSize / 2
+              if (flippedD) {
+                if (flippedH && !flippedV) {
+                  sprite.rotation = Math.PI / 2
+                } else if (!flippedH && flippedV) {
+                  sprite.rotation = -Math.PI / 2
+                } else if (flippedH && flippedV) {
+                  sprite.rotation = Math.PI / 2
+                  sprite.scale.y = -1
+                } else {
+                  sprite.rotation = Math.PI / 2
+                  sprite.scale.x = -1
+                }
+              } else {
+                if (flippedH) sprite.scale.x = -1
+                if (flippedV) sprite.scale.y = -1
+              }
+            } else {
+              sprite.x = x * this.tileSize
+              sprite.y = y * this.tileSize
+            }
+
             container.addChild(sprite)
           }
         }

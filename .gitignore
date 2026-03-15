@@ -1,5 +1,30 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-.superpowers/
+out/
 *.tsbuildinfo
+
+# Environment
+.env
+.env.*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Claude Code
+.claude/
+.superpowers/
 .worktrees/
+
+# Electron
+release/
+
+# Coverage
+coverage/

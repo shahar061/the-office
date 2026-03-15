@@ -8,9 +8,9 @@ export interface CameraTarget {
 }
 
 const PHASE_ZOOM: Record<string, number> = {
-  imagine: 2.5,
-  warroom: 2.0,
-  build: 1.5,
+  imagine: 1.5,
+  warroom: 1.2,
+  build: 1.0,
 };
 
 const LERP_SPEED = 0.04;
@@ -19,16 +19,16 @@ export class Camera {
   private container: Container;
   private phaseTargets: Record<string, CameraTarget>;
   private currentX = 320;
-  private currentY = 192;
-  private currentZoom = 1.5;
+  private currentY = 240;
+  private currentZoom = 1.0;
   private targetX = 320;
-  private targetY = 192;
-  private targetZoom = 1.5;
+  private targetY = 240;
+  private targetZoom = 1.0;
   private viewWidth = 960;
   private viewHeight = 800;
   private manualOverride = false;
-  private mapWidth = 960;
-  private mapHeight = 640;
+  private mapWidth = 640;
+  private mapHeight = 480;
 
   constructor(container: Container, zones?: Map<string, ZoneRect>) {
     this.container = container;
@@ -42,7 +42,7 @@ export class Camera {
 
   private getMinZoom(): number {
     if (this.viewWidth === 0 || this.viewHeight === 0) return 1;
-    return Math.max(this.viewWidth / this.mapWidth, this.viewHeight / this.mapHeight);
+    return Math.min(this.viewWidth / this.mapWidth, this.viewHeight / this.mapHeight);
   }
 
   private buildPhaseTargets(zones?: Map<string, ZoneRect>): Record<string, CameraTarget> {
@@ -130,10 +130,20 @@ export class Camera {
     this.container.x = this.viewWidth / 2 - this.currentX * this.currentZoom;
     this.container.y = this.viewHeight / 2 - this.currentY * this.currentZoom;
 
-    // Clamp to map bounds — no empty space beyond edges
-    const minX = this.viewWidth - this.mapWidth * this.currentZoom;
-    const minY = this.viewHeight - this.mapHeight * this.currentZoom;
-    this.container.x = Math.min(0, Math.max(minX, this.container.x));
-    this.container.y = Math.min(0, Math.max(minY, this.container.y));
+    // Clamp to map bounds — center if map is smaller than viewport
+    const scaledW = this.mapWidth * this.currentZoom;
+    const scaledH = this.mapHeight * this.currentZoom;
+    if (scaledW <= this.viewWidth) {
+      this.container.x = (this.viewWidth - scaledW) / 2;
+    } else {
+      const minX = this.viewWidth - scaledW;
+      this.container.x = Math.min(0, Math.max(minX, this.container.x));
+    }
+    if (scaledH <= this.viewHeight) {
+      this.container.y = (this.viewHeight - scaledH) / 2;
+    } else {
+      const minY = this.viewHeight - scaledH;
+      this.container.y = Math.min(0, Math.max(minY, this.container.y));
+    }
   }
 }
