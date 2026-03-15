@@ -6,6 +6,7 @@ import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapte
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
 import { IPC_CHANNELS } from '../shared/types';
 import type { ConnectionStatus, SessionListItem } from '../shared/types';
+import { ClaudeCodeProcess } from './adapters/claude-code-process';
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
@@ -15,6 +16,7 @@ let linkedSessionId: string | null = null;
 let dispatchInFlight = false;
 let linkingTimer: ReturnType<typeof setTimeout> | null = null;
 const activeProcesses = new Set<ChildProcess>();
+let activeClaudeProcess: ClaudeCodeProcess | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -145,18 +147,77 @@ function spawnOpenCode(args: string[]): void {
 
 function setupIPC() {
   ipcMain.handle(IPC_CHANNELS.DISPATCH, async (_event, prompt: string) => {
-    if (linkedSessionId && pendingSession) {
+    if (!pendingSession) return { error: 'no-session' };
+
+    // ── Claude Code path ──
+    if (pendingSession.tool === 'claude-code') {
+      if (!activeClaudeProcess) {
+        activeClaudeProcess = new ClaudeCodeProcess(
+          pendingSession.directory,
+          'freelancer',
+        );
+
+        activeClaudeProcess.on('agentEvent', (agentEvent) => {
+          if (mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.AGENT_EVENT, agentEvent);
+          }
+
+          if (agentEvent.type === 'agent:created' && activeClaudeProcess?.sessionId) {
+            linkedSessionId = activeClaudeProcess.sessionId;
+            if (mainWindow) {
+              mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINKED, {
+                sessionId: linkedSessionId,
+                title: `Claude Code — ${pendingSession?.directory.split('/').pop() ?? ''}`,
+              });
+            }
+          }
+        });
+
+        activeClaudeProcess.on('error', (err) => {
+          console.error('[Main] ClaudeCodeProcess error:', err.message);
+          if (mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
+          }
+          if (!linkedSessionId && mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
+              error: err.message,
+            });
+          }
+          activeClaudeProcess = null;
+        });
+
+        activeClaudeProcess.on('exit', (code) => {
+          console.log('[Main] ClaudeCodeProcess exited:', code);
+          if (code !== 0 && code !== null && mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
+              error: `claude exited with code ${code}`,
+            });
+          }
+          if (!linkedSessionId && mainWindow) {
+            mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
+              error: `claude exited unexpectedly (code ${code})`,
+            });
+          }
+          activeClaudeProcess = null;
+        });
+      }
+
+      activeClaudeProcess.sendPrompt(prompt);
+      return { sessionId: linkedSessionId ?? 'pending' };
+    }
+
+    // ── OpenCode path (unchanged) ──
+    if (linkedSessionId) {
       const args = ['run', prompt, '--session', linkedSessionId, '--dir', pendingSession.directory, '--format', 'json'];
       spawnOpenCode(args);
       return { sessionId: linkedSessionId };
     }
 
-    if (pendingSession && !dispatchInFlight) {
+    if (!dispatchInFlight) {
       dispatchInFlight = true;
       const args = ['run', prompt, '--dir', pendingSession.directory, '--format', 'json'];
       spawnOpenCode(args);
 
-      // Start 30s linking timeout
       linkingTimer = setTimeout(() => {
         if (!linkedSessionId && mainWindow) {
           mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
@@ -169,7 +230,7 @@ function setupIPC() {
       return { sessionId: 'pending' };
     }
 
-    if (pendingSession && dispatchInFlight) {
+    if (dispatchInFlight) {
       return { error: 'session-starting' };
     }
 
@@ -220,14 +281,18 @@ function setupIPC() {
 
   ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
     console.log('[Main] Session cancelled');
-    pendingSession = null;
-    linkedSessionId = null;
-    dispatchInFlight = false;
-    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    if (activeClaudeProcess) {
+      activeClaudeProcess.kill();
+      activeClaudeProcess = null;
+    }
     for (const proc of activeProcesses) {
       proc.kill();
     }
     activeProcesses.clear();
+    pendingSession = null;
+    linkedSessionId = null;
+    dispatchInFlight = false;
+    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
   });
 }
 
@@ -238,6 +303,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (activeClaudeProcess) {
+    activeClaudeProcess.kill();
+    activeClaudeProcess = null;
+  }
   for (const proc of activeProcesses) {
     proc.kill();
   }
