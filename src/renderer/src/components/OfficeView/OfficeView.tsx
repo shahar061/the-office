@@ -1,9 +1,12 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { AgentRole } from '@shared/types';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
+import { OfficeCanvas } from '../../office/OfficeCanvas';
+import { useSceneSync } from '../../office/useSceneSync';
+import type { OfficeScene } from '../../office/OfficeScene';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,8 +208,16 @@ export default function OfficeView() {
   const { messages, addMessage } = useChatStore();
 
   const [inputValue, setInputValue] = useState('');
+  const [officeScene, setOfficeScene] = useState<OfficeScene | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Bridge store → PixiJS scene
+  useSceneSync(officeScene);
+
+  const handleSceneReady = useCallback((scene: OfficeScene) => {
+    setOfficeScene(scene);
+  }, []);
 
   const phase = projectState?.currentPhase ?? 'idle';
   const isIdle = phase === 'idle';
@@ -338,9 +349,9 @@ export default function OfficeView() {
           </div>
         </div>
 
-        {/* PixiJS canvas placeholder */}
+        {/* PixiJS office canvas */}
         <div style={styles.canvasArea}>
-          Pixel Office (PixiJS — Coming Soon)
+          <OfficeCanvas onSceneReady={handleSceneReady} />
         </div>
       </div>
       <PermissionPrompt />
