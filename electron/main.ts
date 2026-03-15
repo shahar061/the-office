@@ -6,7 +6,7 @@ import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapte
 import { OpenCodeAdapter } from './adapters/opencode.adapter';
 import { IPC_CHANNELS } from '../shared/types';
 import type { ConnectionStatus, SessionListItem } from '../shared/types';
-import { ClaudeCodeProcess } from './adapters/claude-code-process';
+import { exec } from 'child_process';
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
@@ -16,7 +16,7 @@ let linkedSessionId: string | null = null;
 let dispatchInFlight = false;
 let linkingTimer: ReturnType<typeof setTimeout> | null = null;
 const activeProcesses = new Set<ChildProcess>();
-let activeClaudeProcess: ClaudeCodeProcess | null = null;
+let claudeTerminalLaunched = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -147,64 +147,34 @@ function spawnOpenCode(args: string[]): void {
 
 function setupIPC() {
   ipcMain.handle(IPC_CHANNELS.DISPATCH, async (_event, prompt: string) => {
+    console.log('[Main] DISPATCH called, tool:', pendingSession?.tool, 'prompt:', prompt.slice(0, 50));
     if (!pendingSession) return { error: 'no-session' };
 
-    // ── Claude Code path ──
+    // ── Claude Code path: open Terminal window ──
     if (pendingSession.tool === 'claude-code') {
-      if (!activeClaudeProcess) {
-        activeClaudeProcess = new ClaudeCodeProcess(
-          pendingSession.directory,
-          'freelancer',
-        );
-
-        activeClaudeProcess.on('agentEvent', (agentEvent) => {
-          if (mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.AGENT_EVENT, agentEvent);
-          }
-
-          if (agentEvent.type === 'agent:created' && activeClaudeProcess?.sessionId) {
-            linkedSessionId = activeClaudeProcess.sessionId;
+      if (!claudeTerminalLaunched) {
+        claudeTerminalLaunched = true;
+        const dir = pendingSession.directory;
+        const appleScript = [
+          'tell application "Terminal"',
+          '  activate',
+          `  do script "cd ${JSON.stringify(dir)} && claude"`,
+          'end tell',
+        ].join('\n');
+        exec('osascript -e ' + JSON.stringify(appleScript), (err) => {
+          if (err) {
+            console.error('[Main] Failed to open Terminal:', err.message);
             if (mainWindow) {
-              mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINKED, {
-                sessionId: linkedSessionId,
-                title: `Claude Code — ${pendingSession?.directory.split('/').pop() ?? ''}`,
-              });
+              mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
             }
-          }
-        });
-
-        activeClaudeProcess.on('error', (err) => {
-          console.error('[Main] ClaudeCodeProcess error:', err.message);
-          if (mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
-          }
-          if (!linkedSessionId && mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
-              error: err.message,
-            });
-          }
-        });
-
-        activeClaudeProcess.on('exit', (code) => {
-          // In print mode, each prompt spawns a new process that exits after responding.
-          // Non-zero exit is an error; zero exit is normal completion.
-          console.log('[Main] ClaudeCodeProcess child exited:', code);
-          if (code !== 0 && code !== null) {
-            if (mainWindow) {
-              mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
-                error: `claude exited with code ${code}`,
-              });
-            }
-            if (!linkedSessionId && mainWindow) {
-              mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
-                error: `claude exited unexpectedly (code ${code})`,
-              });
-            }
+            claudeTerminalLaunched = false;
+          } else {
+            console.log('[Main] Opened Terminal with claude in:', pendingSession?.directory);
           }
         });
       }
-
-      activeClaudeProcess.sendPrompt(prompt);
+      // Session linking happens via ClaudeCodeTranscriptAdapter (file watching)
+      // when claude creates its transcript file in ~/.claude/projects/
       return { sessionId: linkedSessionId ?? 'pending' };
     }
 
@@ -283,10 +253,7 @@ function setupIPC() {
 
   ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
     console.log('[Main] Session cancelled');
-    if (activeClaudeProcess) {
-      activeClaudeProcess.kill();
-      activeClaudeProcess = null;
-    }
+    claudeTerminalLaunched = false;
     for (const proc of activeProcesses) {
       proc.kill();
     }

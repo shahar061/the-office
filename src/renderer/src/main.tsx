@@ -25,9 +25,11 @@ function initStoreSubscriptions() {
   window.office.onSessionListUpdate((sessions) => {
     useSessionStore.getState().handleSessionListUpdate(sessions);
 
-    // Auto-navigate to lobby if selected session disappears
-    const selectedId = useAppStore.getState().selectedSessionId;
-    if (selectedId && !sessions.some(s => s.sessionId === selectedId)) {
+    // Auto-navigate to lobby if selected session disappears from adapter list.
+    // Only for adapter-managed sessions (OpenCode). Claude Code sessions are
+    // managed by ClaudeCodeProcess and don't appear in adapter session lists.
+    const { selectedSessionId, selectedSessionTool } = useAppStore.getState();
+    if (selectedSessionId && selectedSessionTool !== 'claude-code' && !sessions.some(s => s.sessionId === selectedSessionId)) {
       useAppStore.getState().navigateToLobby();
     }
   });

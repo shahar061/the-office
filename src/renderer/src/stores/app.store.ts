@@ -15,6 +15,7 @@ interface AppState {
   screen: Screen;
   selectedSessionId: string | null;
   selectedSessionTitle: string | null;
+  selectedSessionTool: string | null;
   pendingSession: PendingSession | null;
   dispatchInFlight: boolean;
   navigateToOffice: (sessionId: string, title: string) => void;
@@ -29,13 +30,14 @@ export const useAppStore = create<AppState>((set) => ({
   screen: 'lobby',
   selectedSessionId: null,
   selectedSessionTitle: null,
+  selectedSessionTool: null,
   pendingSession: null,
   dispatchInFlight: false,
 
   navigateToOffice: (sessionId, title) => {
     useOfficeStore.getState().reset();
     useChatStore.getState().reset();
-    set({ screen: 'office', selectedSessionId: sessionId, selectedSessionTitle: title });
+    set({ screen: 'office', selectedSessionId: sessionId, selectedSessionTitle: title, selectedSessionTool: 'opencode' });
   },
 
   navigateToLobby: () => {
@@ -46,6 +48,7 @@ export const useAppStore = create<AppState>((set) => ({
       screen: 'lobby',
       selectedSessionId: null,
       selectedSessionTitle: null,
+      selectedSessionTool: null,
       pendingSession: null,
       dispatchInFlight: false,
     });
@@ -65,11 +68,13 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   linkSession: (sessionId, title) => {
+    const tool = useAppStore.getState().pendingSession?.tool ?? null;
     set({
       pendingSession: null,
       dispatchInFlight: false,
       selectedSessionId: sessionId,
       selectedSessionTitle: title,
+      selectedSessionTool: tool,
     });
   },
 
