@@ -6,6 +6,7 @@ export class SessionManager extends EventEmitter {
   private adapters: ToolAdapter[];
   private sessions: Map<string, SessionInfo> = new Map();
   private config: AdapterConfig | null = null;
+  private adapterSessions: Map<ToolAdapter, SessionListItem[]> = new Map();
 
   constructor(adapters: ToolAdapter[]) {
     super();
@@ -19,7 +20,9 @@ export class SessionManager extends EventEmitter {
         this.handleAgentEvent(event);
       });
       adapter.on('sessionListUpdate', (sessions: SessionListItem[]) => {
-        this.emit('sessionListUpdate', sessions);
+        this.adapterSessions.set(adapter, sessions);
+        const merged = Array.from(this.adapterSessions.values()).flat();
+        this.emit('sessionListUpdate', merged);
       });
       const result = adapter.start(config);
       if (result instanceof Promise) {
@@ -33,6 +36,7 @@ export class SessionManager extends EventEmitter {
       adapter.stop();
     }
     this.sessions.clear();
+    this.adapterSessions.clear();
   }
 
   private handleAgentEvent(event: AgentEvent): void {

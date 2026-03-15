@@ -99,4 +99,43 @@ describe('SessionManager', () => {
     expect(lists).toHaveLength(1);
     expect(lists[0][0].sessionId).toBe('ses_1');
   });
+
+  it('merges session lists from multiple adapters', () => {
+    const lists: any[] = [];
+    manager.on('sessionListUpdate', (s: any) => lists.push(s));
+    manager.start({ projectDir: '/tmp/test' });
+
+    adapter1.triggerSessionListUpdate([
+      { sessionId: 'ses_1', title: 'OC Session', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 1000, createdAt: 900, source: 'opencode' },
+    ]);
+    adapter2.triggerSessionListUpdate([
+      { sessionId: 'cc-abc', title: 'CC Session', directory: '/tmp', projectName: 'tmp', status: 'waiting', lastUpdated: 2000, createdAt: 1900, source: 'claude-code' },
+    ]);
+
+    const latest = lists[lists.length - 1];
+    expect(latest).toHaveLength(2);
+    expect(latest.find((s: any) => s.source === 'opencode')).toBeDefined();
+    expect(latest.find((s: any) => s.source === 'claude-code')).toBeDefined();
+  });
+
+  it('updates only the changed adapter sessions on re-emit', () => {
+    const lists: any[] = [];
+    manager.on('sessionListUpdate', (s: any) => lists.push(s));
+    manager.start({ projectDir: '/tmp/test' });
+
+    adapter1.triggerSessionListUpdate([
+      { sessionId: 'ses_1', title: 'OC', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 1000, createdAt: 900, source: 'opencode' },
+    ]);
+    adapter2.triggerSessionListUpdate([
+      { sessionId: 'cc-1', title: 'CC', directory: '/tmp', projectName: 'tmp', status: 'busy', lastUpdated: 2000, createdAt: 1900, source: 'claude-code' },
+    ]);
+    adapter1.triggerSessionListUpdate([
+      { sessionId: 'ses_1', title: 'OC Updated', directory: '/tmp', projectName: 'tmp', status: 'waiting', lastUpdated: 3000, createdAt: 900, source: 'opencode' },
+    ]);
+
+    const latest = lists[lists.length - 1];
+    expect(latest).toHaveLength(2);
+    expect(latest.find((s: any) => s.sessionId === 'ses_1').title).toBe('OC Updated');
+    expect(latest.find((s: any) => s.sessionId === 'cc-1')).toBeDefined();
+  });
 });
