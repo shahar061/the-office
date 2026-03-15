@@ -498,6 +498,23 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
           <div style={S.logoSub}>AI-powered project studio</div>
         </div>
 
+        {/* Auth hint when not connected */}
+        {!connected && (
+          <div style={{
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            fontSize: 13,
+            color: '#93c5fd',
+            textAlign: 'center' as const,
+            lineHeight: 1.5,
+          }}>
+            Connect your account to get started — click <strong>Connect</strong> in the bottom-left corner
+          </div>
+        )}
+
         {/* ── New Project ── */}
         <div style={S.card}>
           <div style={S.cardTitle}>New Project</div>
