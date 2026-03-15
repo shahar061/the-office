@@ -19,6 +19,11 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     const container = containerRef.current;
     if (!container) return;
 
+    // Clear any leftover canvases from previous mounts (React StrictMode)
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+
     destroyedRef.current = false;
     const app = new Application();
     appRef.current = app;
@@ -34,17 +39,21 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
 
       // Guard against cleanup running before init completes (React StrictMode)
       if (destroyedRef.current) {
-        app.destroy(true, { children: true });
+        try { app.destroy(true, { children: true }); } catch { /* ignore */ }
         return;
       }
 
+      // Ensure no duplicate canvases
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
       container.appendChild(app.canvas);
 
       const scene = new OfficeScene(app);
       await scene.init();
 
       if (destroyedRef.current) {
-        app.destroy(true, { children: true });
+        try { app.destroy(true, { children: true }); } catch { /* ignore */ }
         return;
       }
 
@@ -68,13 +77,13 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     return () => {
       destroyedRef.current = true;
       window.removeEventListener('resize', onResize);
-      // Only destroy if init completed (app.stage exists)
+      // Remove canvas from DOM
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      // Destroy PixiJS app if init completed
       if (appRef.current?.stage) {
-        try {
-          appRef.current.destroy(true, { children: true });
-        } catch {
-          // Ignore destroy errors during hot-reload / unmount race
-        }
+        try { appRef.current.destroy(true, { children: true }); } catch { /* ignore */ }
       }
       appRef.current = null;
       sceneRef.current = null;
