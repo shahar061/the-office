@@ -107,7 +107,7 @@ interface AppSettings {
 }
 ```
 
-**ID generation strategy:** IDs are deterministic slugs derived from the app name — e.g. `"iTerm"` → `"iterm"`, `"Terminal.app"` → `"terminal-app"`. This makes detection idempotent (re-detecting the same app produces the same ID) and keeps IDs human-readable. If a custom `.app` is browsed, the slug is derived from the filename.
+**ID generation strategy:** IDs are deterministic slugs derived from the app name with the `.app` suffix stripped first — e.g. `"iTerm.app"` → `"iterm"`, `"Terminal.app"` → `"terminal"`. This makes detection idempotent (re-detecting the same app produces the same ID) and keeps IDs human-readable. If a custom `.app` is browsed, the slug is derived from the filename.
 
 New IPC channels:
 ```typescript
