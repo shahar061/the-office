@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { spawn, type ChildProcess } from 'child_process';
 import { SessionManager } from './session-manager';
 import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapter';
@@ -8,7 +10,6 @@ import { IPC_CHANNELS } from '../shared/types';
 import type { ConnectionStatus, SessionListItem } from '../shared/types';
 import { loadSettings, saveSettings, detectTerminals, browseTerminalApp } from './settings';
 import type { AppSettings } from '../shared/types';
-// exec removed — using spawn for osascript
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager | null = null;
@@ -152,28 +153,49 @@ function setupIPC() {
     console.log('[Main] DISPATCH called, tool:', pendingSession?.tool, 'prompt:', prompt.slice(0, 50));
     if (!pendingSession) return { error: 'no-session' };
 
-    // ── Claude Code path: open Terminal window ──
+    // ── Claude Code path: open terminal window ──
     if (pendingSession.tool === 'claude-code') {
       if (!claudeTerminalLaunched) {
         claudeTerminalLaunched = true;
-        const dir = pendingSession.directory.replace(/'/g, "'\\''");
-        const cmd = `cd '${dir}' && claude`;
-        const child = spawn('osascript', [
-          '-e', 'tell application "Terminal"',
-          '-e', 'activate',
-          '-e', `do script ${JSON.stringify(cmd)}`,
-          '-e', 'end tell',
-        ]);
+        const dir = pendingSession.directory;
+        const escapedDir = dir.replace(/'/g, "'\\''");
+        const escapedPrompt = prompt.replace(/'/g, "'\\''");
+        const cmd = `cd '${escapedDir}' && claude '${escapedPrompt}'`;
+
+        // Resolve which terminal to launch
+        const settings = loadSettings();
+        const terminalId = pendingSession.terminalId || settings.defaultTerminalId || 'terminal';
+        const terminalConfig = settings.terminals.find(t => t.id === terminalId);
+        const terminalAppName = terminalConfig
+          ? terminalConfig.name
+          : 'Terminal';
+
+        let child: ChildProcess;
+        if (terminalAppName === 'Terminal') {
+          // Terminal.app supports AppleScript's `do script`
+          child = spawn('osascript', [
+            '-e', 'tell application "Terminal"',
+            '-e', 'activate',
+            '-e', `do script ${JSON.stringify(cmd)}`,
+            '-e', 'end tell',
+          ]);
+        } else {
+          // Other terminals: write a temp script and launch via --command
+          // This avoids shell escaping issues with `open --args -e`
+          const scriptPath = path.join(os.tmpdir(), `office-launch-${Date.now()}.sh`);
+          fs.writeFileSync(scriptPath, `#!/bin/bash\n${cmd}\n`, { mode: 0o755 });
+          child = spawn('open', ['-na', terminalAppName + '.app', '--args', `--command=${scriptPath}`]);
+        }
         child.on('error', handleTerminalError);
         child.on('exit', (code) => { if (code !== 0) handleTerminalError(new Error(`osascript exit ${code}`)); });
         function handleTerminalError(err: Error) {
-          console.error('[Main] Failed to open Terminal:', err.message);
+          console.error('[Main] Failed to open terminal:', err.message);
           if (mainWindow) {
             mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
           }
           claudeTerminalLaunched = false;
         }
-        console.log('[Main] Opening Terminal with claude in:', pendingSession.directory);
+        console.log(`[Main] Opening ${terminalAppName} with claude in:`, pendingSession.directory);
       }
       // Session linking happens via ClaudeCodeTranscriptAdapter (file watching)
       // when claude creates its transcript file in ~/.claude/projects/

@@ -22,6 +22,7 @@ const KNOWN_TERMINALS: { name: string; appName: string }[] = [
   { name: 'Alacritty', appName: 'Alacritty.app' },
   { name: 'Hyper', appName: 'Hyper.app' },
   { name: 'WezTerm', appName: 'WezTerm.app' },
+  { name: 'Ghostty', appName: 'Ghostty.app' },
 ];
 
 export function slugify(name: string): string {

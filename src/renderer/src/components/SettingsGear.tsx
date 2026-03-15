@@ -9,17 +9,18 @@ export function SettingsGear() {
       onClick={open}
       title="Settings"
       style={{
-        background: 'none',
-        border: '1px solid #2a2a4a',
+        background: '#3b82f6',
+        border: '2px solid #3b82f6',
         borderRadius: 2,
-        color: '#9ca3af',
+        color: '#ffffff',
         cursor: 'pointer',
-        padding: '2px 6px',
-        fontSize: 14,
+        padding: '6px 10px',
+        fontSize: 18,
         lineHeight: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        boxShadow: '0 0 8px rgba(59, 130, 246, 0.2)',
       }}
     >
       ⚙
