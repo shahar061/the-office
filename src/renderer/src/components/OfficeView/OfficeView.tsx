@@ -3,7 +3,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { AgentRole } from '@shared/types';
-import PermissionPrompt from '../PermissionPrompt/PermissionPrompt';
+import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
