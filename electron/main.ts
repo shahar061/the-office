@@ -175,8 +175,7 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC_CHANNELS.START_IMAGINE, async (_event, userIdea: string) => {
     if (!currentProjectDir) throw new Error('No project open');
-    const apiKey = authManager.getApiKey();
-    if (!apiKey) throw new Error('No API key configured');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated — connect via CLI or API key');
 
     const state = projectManager.getProjectState(currentProjectDir);
     phaseMachine = new PhaseMachine(state.currentPhase, state.completedPhases);
@@ -201,7 +200,8 @@ function setupIPC(): void {
       await runImagine(userIdea, {
         projectDir: currentProjectDir,
         agentsDir,
-        apiKey,
+        apiKey: authManager.getApiKey() || '',
+        authEnv: authManager.getAuthEnv(),
         permissionHandler,
         onEvent: onAgentEvent,
       });
@@ -215,8 +215,7 @@ function setupIPC(): void {
   ipcMain.handle(IPC_CHANNELS.START_WARROOM, async () => {
     if (!currentProjectDir) throw new Error('No project open');
     if (!phaseMachine) throw new Error('No phase machine — start imagine first');
-    const apiKey = authManager.getApiKey();
-    if (!apiKey) throw new Error('No API key configured');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
 
     phaseMachine.transition('warroom');
 
@@ -231,7 +230,8 @@ function setupIPC(): void {
       await runWarroom({
         projectDir: currentProjectDir,
         agentsDir,
-        apiKey,
+        apiKey: authManager.getApiKey() || '',
+        authEnv: authManager.getAuthEnv(),
         permissionHandler,
         onEvent: onAgentEvent,
       });
@@ -245,8 +245,7 @@ function setupIPC(): void {
   ipcMain.handle(IPC_CHANNELS.START_BUILD, async (_event, config: BuildConfig) => {
     if (!currentProjectDir) throw new Error('No project open');
     if (!phaseMachine) throw new Error('No phase machine — start imagine first');
-    const apiKey = authManager.getApiKey();
-    if (!apiKey) throw new Error('No API key configured');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
 
     phaseMachine.transition('build');
 
@@ -259,7 +258,8 @@ function setupIPC(): void {
       await runBuild({
         projectDir: currentProjectDir,
         agentsDir,
-        apiKey,
+        apiKey: authManager.getApiKey() || '',
+        authEnv: authManager.getAuthEnv(),
         permissionHandler,
         buildConfig: config,
         onEvent: onAgentEvent,
@@ -305,9 +305,12 @@ function setupIPC(): void {
 
 // ── App Lifecycle ──
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
   setupIPC();
+  // Detect CLI auth on startup and notify renderer
+  await authManager.detectCliAuth();
+  send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
 });
 
 app.on('window-all-closed', () => {

@@ -573,7 +573,11 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
       <div style={S.statusBar}>
         <div style={S.dot(connected)} />
         <span style={S.statusLabel}>
-          {connected ? (authStatus.account ?? 'Connected') : 'Not connected'}
+          {connected
+            ? authStatus.method === 'cli-auth'
+              ? 'Claude Code (CLI)'
+              : (authStatus.account ?? 'Connected')
+            : 'Not connected'}
         </span>
         {!connected && !showApiKeyPanel && (
           <button
@@ -584,7 +588,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
           </button>
         )}
 
-        {/* Inline API key input panel */}
+        {/* Auth panel — CLI detected or API key fallback */}
         {showApiKeyPanel && !connected && (
           <div style={{
             position: 'absolute',
@@ -594,12 +598,12 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
             border: '1px solid #333',
             borderRadius: 8,
             padding: '14px 16px',
-            width: 360,
+            width: 400,
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Enter Anthropic API Key
+                Authentication
               </span>
               <button
                 onClick={() => setShowApiKeyPanel(false)}
@@ -615,6 +619,15 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
               >
                 ✕
               </button>
+            </div>
+            <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12, lineHeight: 1.5 }}>
+              <strong style={{ color: '#e5e5e5' }}>Recommended:</strong> Install{' '}
+              <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: '#3b82f6' }}>Claude Code</a>{' '}
+              and run <code style={{ background: '#1a1a2e', padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
+              in your terminal. Works with Max/Pro subscriptions.
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              Or enter API key
             </div>
             <ApiKeyPanel onConnected={() => setShowApiKeyPanel(false)} />
           </div>

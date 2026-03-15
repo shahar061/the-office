@@ -17,6 +17,7 @@ export interface BuildOrchestratorConfig {
   projectDir: string;
   agentsDir: string;
   apiKey: string;
+  authEnv?: Record<string, string>;
   permissionHandler: PermissionHandler;
   buildConfig: BuildConfig;
   onEvent: (event: AgentEvent) => void;

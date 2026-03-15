@@ -8,6 +8,7 @@ export interface ImagineConfig {
   projectDir: string;
   agentsDir: string;
   apiKey: string;
+  authEnv?: Record<string, string>;
   permissionHandler: PermissionHandler;
   onEvent: (event: AgentEvent) => void;
 }

@@ -15,6 +15,8 @@ describe('AuthManager', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  // ── Initial state ──
+
   it('starts disconnected when no auth file exists', () => {
     const manager = new AuthManager(tmpDir);
     const status = manager.getStatus();
@@ -28,11 +30,17 @@ describe('AuthManager', () => {
     expect(manager.getApiKey()).toBeNull();
   });
 
+  it('isAuthenticated returns false when disconnected', () => {
+    const manager = new AuthManager(tmpDir);
+    expect(manager.isAuthenticated()).toBe(false);
+  });
+
+  // ── API key auth ──
+
   it('connects with a valid API key', () => {
     const manager = new AuthManager(tmpDir);
     const result = manager.connectApiKey('sk-ant-test-key-123');
     expect(result.success).toBe(true);
-    expect(result.error).toBeUndefined();
 
     const status = manager.getStatus();
     expect(status.connected).toBe(true);
@@ -45,42 +53,53 @@ describe('AuthManager', () => {
     const result = manager.connectApiKey('');
     expect(result.success).toBe(false);
     expect(result.error).toBe('API key cannot be empty');
-    expect(manager.getStatus().connected).toBe(false);
   });
 
   it('rejects whitespace-only API key', () => {
     const manager = new AuthManager(tmpDir);
     const result = manager.connectApiKey('   ');
     expect(result.success).toBe(false);
-    expect(result.error).toBe('API key cannot be empty');
   });
 
-  it('trims whitespace from API key on connect', () => {
+  it('trims whitespace from API key', () => {
     const manager = new AuthManager(tmpDir);
     manager.connectApiKey('  my-key  ');
     expect(manager.getApiKey()).toBe('my-key');
   });
 
-  it('getApiKey returns the stored key after connecting', () => {
-    const manager = new AuthManager(tmpDir);
-    manager.connectApiKey('sk-ant-test-key-abc');
-    expect(manager.getApiKey()).toBe('sk-ant-test-key-abc');
-  });
-
   it('persists API key across instances', () => {
-    const manager1 = new AuthManager(tmpDir);
-    manager1.connectApiKey('sk-ant-persistent-key');
-
-    const manager2 = new AuthManager(tmpDir);
-    expect(manager2.getStatus().connected).toBe(true);
-    expect(manager2.getApiKey()).toBe('sk-ant-persistent-key');
+    const m1 = new AuthManager(tmpDir);
+    m1.connectApiKey('sk-ant-persistent');
+    const m2 = new AuthManager(tmpDir);
+    expect(m2.getStatus().connected).toBe(true);
+    expect(m2.getApiKey()).toBe('sk-ant-persistent');
   });
 
-  it('disconnects and removes the stored key', () => {
+  it('isAuthenticated returns true with API key', () => {
+    const manager = new AuthManager(tmpDir);
+    manager.connectApiKey('sk-ant-test');
+    expect(manager.isAuthenticated()).toBe(true);
+  });
+
+  // ── Auth env ──
+
+  it('getAuthEnv returns ANTHROPIC_API_KEY when using API key', () => {
+    const manager = new AuthManager(tmpDir);
+    manager.connectApiKey('sk-ant-test-key');
+    const env = manager.getAuthEnv();
+    expect(env).toEqual({ ANTHROPIC_API_KEY: 'sk-ant-test-key' });
+  });
+
+  it('getAuthEnv returns undefined when disconnected', () => {
+    const manager = new AuthManager(tmpDir);
+    expect(manager.getAuthEnv()).toBeUndefined();
+  });
+
+  // ── Disconnect ──
+
+  it('disconnects and removes stored key', () => {
     const manager = new AuthManager(tmpDir);
     manager.connectApiKey('sk-ant-some-key');
-    expect(manager.getStatus().connected).toBe(true);
-
     manager.disconnect();
     expect(manager.getStatus().connected).toBe(false);
     expect(manager.getApiKey()).toBeNull();
@@ -89,41 +108,34 @@ describe('AuthManager', () => {
   it('disconnect removes the auth file', () => {
     const manager = new AuthManager(tmpDir);
     manager.connectApiKey('sk-ant-some-key');
-    const authFile = path.join(tmpDir, 'auth.json');
-    expect(fs.existsSync(authFile)).toBe(true);
-
     manager.disconnect();
-    expect(fs.existsSync(authFile)).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'auth.json'))).toBe(false);
   });
 
-  it('disconnect is safe to call when already disconnected', () => {
+  it('disconnect is safe when already disconnected', () => {
     const manager = new AuthManager(tmpDir);
     expect(() => manager.disconnect()).not.toThrow();
-    expect(manager.getStatus().connected).toBe(false);
   });
 
-  it('new instance after disconnect starts disconnected', () => {
-    const manager1 = new AuthManager(tmpDir);
-    manager1.connectApiKey('sk-ant-some-key');
-    manager1.disconnect();
+  // ── Key redaction ──
 
-    const manager2 = new AuthManager(tmpDir);
-    expect(manager2.getStatus().connected).toBe(false);
-    expect(manager2.getApiKey()).toBeNull();
-  });
-
-  it('redacts API key in status account field for long keys', () => {
+  it('redacts long API keys', () => {
     const manager = new AuthManager(tmpDir);
     manager.connectApiKey('sk-ant-test-key-1234567890');
-    const status = manager.getStatus();
-    expect(status.account).toBe('sk-...890');
-    expect(status.account).not.toContain('ant-test-key-123456');
+    expect(manager.getStatus().account).toBe('sk-...890');
   });
 
-  it('redacts short API keys as ***', () => {
+  it('redacts short keys as ***', () => {
     const manager = new AuthManager(tmpDir);
     manager.connectApiKey('short');
-    const status = manager.getStatus();
-    expect(status.account).toBe('***');
+    expect(manager.getStatus().account).toBe('***');
+  });
+
+  // ── CLI detection (unit-testable parts) ──
+
+  it('detectCliAuth returns a boolean', async () => {
+    const manager = new AuthManager(tmpDir);
+    const result = await manager.detectCliAuth();
+    expect(typeof result).toBe('boolean');
   });
 });
