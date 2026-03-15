@@ -272,6 +272,25 @@ export default function OfficeView() {
       {/* Top bar */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
+          <button
+            onClick={() => {
+              useChatStore.getState().clearMessages();
+              useProjectStore.getState().setProjectState(null);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#6b7280',
+              cursor: 'pointer',
+              fontSize: 16,
+              padding: '0 8px 0 0',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="Back to project picker"
+          >
+            ←
+          </button>
           <span style={styles.projectName} title={projectName}>
             {projectName}
           </span>
