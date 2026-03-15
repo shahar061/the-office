@@ -279,9 +279,9 @@ function setupIPC(): void {
 
   // ── Chat ──
 
-  ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, message: string) => {
-    // Echo user message back as a ChatMessage (v1 placeholder)
-    sendChat({ role: 'user', text: message });
+  ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, _message: string) => {
+    // User messages are added to the chat store locally by the renderer.
+    // This handler exists for future use (routing messages to active SDK sessions).
   });
 
   // ── Permissions ──
