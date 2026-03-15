@@ -1,3 +1,7 @@
+// shared/types.ts — SDK-driven architecture types
+
+// ── Agent System ──
+
 export const AGENT_ROLES = [
   'ceo', 'product-manager', 'market-researcher', 'chief-architect',
   'agent-organizer', 'project-manager', 'team-lead',
@@ -32,6 +36,8 @@ export const AGENT_COLORS: Record<AgentRole, string> = {
   'freelancer': '#9ca3af',
 };
 
+// ── Events ──
+
 export type AgentEventType =
   | 'agent:created'
   | 'agent:tool:start'
@@ -40,13 +46,14 @@ export type AgentEventType =
   | 'agent:waiting'
   | 'agent:permission'
   | 'agent:message'
+  | 'agent:message:delta'
   | 'agent:closed'
   | 'session:cost:update';
 
 export interface AgentEvent {
   agentId: string;
   agentRole: AgentRole;
-  source: 'sdk' | 'transcript' | 'opencode' | 'claude-process';
+  source: 'sdk';
   type: AgentEventType;
   toolName?: string;
   toolId?: string;
@@ -56,10 +63,66 @@ export interface AgentEvent {
   timestamp: number;
 }
 
-export interface ConnectionStatus {
-  claudeCode: 'connected' | 'disconnected' | 'error';
-  openCode: 'connected' | 'disconnected' | 'error';
+// ── Auth ──
+
+export interface AuthStatus {
+  connected: boolean;
+  account?: string;
+  method?: 'api-key' | 'cli-auth';
 }
+
+// ── Projects ──
+
+export type Phase = 'idle' | 'imagine' | 'warroom' | 'build' | 'complete';
+
+export interface ProjectInfo {
+  name: string;
+  path: string;
+  lastPhase: Phase | null;
+  lastOpened: number;
+}
+
+export interface ProjectState {
+  name: string;
+  path: string;
+  currentPhase: Phase;
+  completedPhases: Phase[];
+  interrupted: boolean;
+}
+
+export interface PhaseInfo {
+  phase: Phase;
+  status: 'starting' | 'active' | 'completing' | 'completed' | 'failed' | 'interrupted';
+}
+
+// ── Chat ──
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'agent';
+  agentRole?: AgentRole;
+  text: string;
+  timestamp: number;
+}
+
+// ── Permissions ──
+
+export interface PermissionRequest {
+  requestId: string;
+  agentRole: AgentRole;
+  toolName: string;
+  input: Record<string, unknown>;
+}
+
+// ── Build ──
+
+export interface BuildConfig {
+  modelPreset: 'default' | 'fast' | 'quality';
+  retryLimit: number;
+  permissionMode: 'ask' | 'auto-safe' | 'auto-all';
+}
+
+// ── Kanban ──
 
 export interface KanbanTask {
   id: string;
@@ -76,78 +139,91 @@ export interface KanbanState {
   tasks: KanbanTask[];
 }
 
-export interface SessionInfo {
-  sessionId: string;
-  agentRole: AgentRole;
-  source: 'sdk' | 'transcript' | 'opencode' | 'claude-process';
-  startedAt: number;
+// ── Stats ──
+
+export interface SessionStats {
+  totalCost: number;
+  totalTokens: number;
+  sessionTime: number;
+  activeAgents: number;
 }
 
-export interface SessionListItem {
-  sessionId: string;
-  title: string;
-  directory: string;
-  projectName: string;
-  status: 'busy' | 'waiting' | 'stale';
-  lastUpdated: number;
-  createdAt: number;
-  source: 'opencode' | 'claude-code';
-}
-
-export interface TerminalConfig {
-  id: string;
-  name: string;
-  path: string;
-  isBuiltIn: boolean;
-}
+// ── Settings ──
 
 export interface AppSettings {
-  terminals: TerminalConfig[];
-  defaultTerminalId: string;
+  defaultModelPreset: BuildConfig['modelPreset'];
+  defaultPermissionMode: BuildConfig['permissionMode'];
+  windowBounds?: { x: number; y: number; width: number; height: number };
 }
 
+// ── IPC Channels ──
+
 export const IPC_CHANNELS = {
-  AGENT_EVENT: 'office:agent-event',
-  CONNECTION_STATUS: 'office:connection-status',
-  KANBAN_UPDATE: 'office:kanban-update',
-  DISPATCH: 'office:dispatch',
-  GET_SESSIONS: 'office:get-sessions',
-  APPROVE_PERMISSION: 'office:approve-permission',
-  DENY_PERMISSION: 'office:deny-permission',
-  GET_KANBAN: 'office:get-kanban',
-  SESSION_LIST_UPDATE: 'office:session-list-update',
-  CREATE_SESSION: 'office:create-session',
+  // Auth
+  GET_AUTH_STATUS: 'office:get-auth-status',
+  CONNECT_API_KEY: 'office:connect-api-key',
+  DISCONNECT: 'office:disconnect',
+  AUTH_STATUS_CHANGE: 'office:auth-status-change',
+  // Projects
+  GET_RECENT_PROJECTS: 'office:get-recent-projects',
+  OPEN_PROJECT: 'office:open-project',
+  CREATE_PROJECT: 'office:create-project',
   PICK_DIRECTORY: 'office:pick-directory',
-  SESSION_LINKED: 'office:session-linked',
-  SESSION_LINK_FAILED: 'office:session-link-failed',
-  DISPATCH_ERROR: 'office:dispatch-error',
-  CANCEL_SESSION: 'office:cancel-session',
+  GET_PROJECT_STATE: 'office:get-project-state',
+  // Phase
+  START_IMAGINE: 'office:start-imagine',
+  START_WARROOM: 'office:start-warroom',
+  START_BUILD: 'office:start-build',
+  PHASE_CHANGE: 'office:phase-change',
+  // Chat
+  SEND_MESSAGE: 'office:send-message',
+  CHAT_MESSAGE: 'office:chat-message',
+  // Agent Events
+  AGENT_EVENT: 'office:agent-event',
+  // Permissions
+  PERMISSION_REQUEST: 'office:permission-request',
+  RESPOND_PERMISSION: 'office:respond-permission',
+  // Kanban
+  KANBAN_UPDATE: 'office:kanban-update',
+  // Stats
+  STATS_UPDATE: 'office:stats-update',
+  // Settings
   GET_SETTINGS: 'office:get-settings',
   SAVE_SETTINGS: 'office:save-settings',
-  DETECT_TERMINALS: 'office:detect-terminals',
-  BROWSE_TERMINAL_APP: 'office:browse-terminal-app',
 } as const;
 
+// ── OfficeAPI (exposed via preload) ──
+
 export interface OfficeAPI {
-  onAgentEvent(callback: (event: AgentEvent) => void): () => void;
-  onConnectionStatus(callback: (status: ConnectionStatus) => void): () => void;
-  dispatch(prompt: string, agentRole?: AgentRole): Promise<{ sessionId: string }>;
-  getActiveSessions(): Promise<SessionInfo[]>;
-  approvePermission(agentId: string, toolId: string): Promise<void>;
-  denyPermission(agentId: string, toolId: string): Promise<void>;
-  getKanbanState(): Promise<KanbanState>;
-  onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
-  onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void;
-  createSession(tool: string, directory: string, terminalId?: string): Promise<{ ok: true }>;
+  getAuthStatus(): Promise<AuthStatus>;
+  connectApiKey(key: string): Promise<{ success: boolean; error?: string }>;
+  disconnect(): Promise<void>;
+  onAuthStatusChange(callback: (status: AuthStatus) => void): () => void;
+
+  getRecentProjects(): Promise<ProjectInfo[]>;
+  openProject(path: string): Promise<{ success: boolean; error?: string }>;
+  createProject(name: string, path: string): Promise<{ success: boolean; error?: string }>;
   pickDirectory(): Promise<string | null>;
-  onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void;
-  onSessionLinkFailed(callback: (data: { error: string }) => void): () => void;
-  onDispatchError(callback: (data: { error: string }) => void): () => void;
-  cancelSession(): Promise<void>;
+  getProjectState(): Promise<ProjectState>;
+
+  startImagine(userIdea: string): Promise<void>;
+  startWarroom(): Promise<void>;
+  startBuild(config: BuildConfig): Promise<void>;
+  onPhaseChange(callback: (phase: PhaseInfo) => void): () => void;
+
+  sendMessage(message: string): Promise<void>;
+  onChatMessage(callback: (msg: ChatMessage) => void): () => void;
+
+  onAgentEvent(callback: (event: AgentEvent) => void): () => void;
+
+  onPermissionRequest(callback: (req: PermissionRequest) => void): () => void;
+  respondPermission(requestId: string, approved: boolean): Promise<void>;
+
+  onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
+  onStatsUpdate(callback: (stats: SessionStats) => void): () => void;
+
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
-  detectTerminals(): Promise<TerminalConfig[]>;
-  browseTerminalApp(): Promise<TerminalConfig | null>;
 }
 
 declare global {
