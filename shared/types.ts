@@ -93,6 +93,18 @@ export interface SessionListItem {
   createdAt: number;
 }
 
+export interface TerminalConfig {
+  id: string;
+  name: string;
+  path: string;
+  isBuiltIn: boolean;
+}
+
+export interface AppSettings {
+  terminals: TerminalConfig[];
+  defaultTerminalId: string;
+}
+
 export const IPC_CHANNELS = {
   AGENT_EVENT: 'office:agent-event',
   CONNECTION_STATUS: 'office:connection-status',
@@ -109,6 +121,10 @@ export const IPC_CHANNELS = {
   SESSION_LINK_FAILED: 'office:session-link-failed',
   DISPATCH_ERROR: 'office:dispatch-error',
   CANCEL_SESSION: 'office:cancel-session',
+  GET_SETTINGS: 'office:get-settings',
+  SAVE_SETTINGS: 'office:save-settings',
+  DETECT_TERMINALS: 'office:detect-terminals',
+  BROWSE_TERMINAL_APP: 'office:browse-terminal-app',
 } as const;
 
 export interface OfficeAPI {
@@ -121,12 +137,16 @@ export interface OfficeAPI {
   getKanbanState(): Promise<KanbanState>;
   onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
   onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void;
-  createSession(tool: string, directory: string): Promise<{ ok: true }>;
+  createSession(tool: string, directory: string, terminalId?: string): Promise<{ ok: true }>;
   pickDirectory(): Promise<string | null>;
   onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void;
   onSessionLinkFailed(callback: (data: { error: string }) => void): () => void;
   onDispatchError(callback: (data: { error: string }) => void): () => void;
   cancelSession(): Promise<void>;
+  getSettings(): Promise<AppSettings>;
+  saveSettings(settings: AppSettings): Promise<void>;
+  detectTerminals(): Promise<TerminalConfig[]>;
+  browseTerminalApp(): Promise<TerminalConfig | null>;
 }
 
 declare global {
