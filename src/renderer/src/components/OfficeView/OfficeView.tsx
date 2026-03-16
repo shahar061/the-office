@@ -502,7 +502,7 @@ export default function OfficeView() {
               {/* Chat tab (full width) */}
               <div style={{
                 ...styles.expandedChatPanel,
-                display: activeTab === 'chat' ? 'flex' : 'none',
+                ...(activeTab !== 'chat' ? { position: 'absolute' as const, inset: 0, visibility: 'hidden' as const } : {}),
               }}>
                 {showEmpty ? (
                   <div style={styles.emptyState}>
@@ -547,7 +547,7 @@ export default function OfficeView() {
               {/* Office tab (canvas) */}
               <div style={{
                 ...styles.canvasArea,
-                display: activeTab === 'office' ? 'flex' : 'none',
+                ...(activeTab !== 'office' ? { position: 'absolute' as const, inset: 0, visibility: 'hidden' as const } : {}),
               }}>
                 <OfficeCanvas onSceneReady={handleSceneReady} />
               </div>
