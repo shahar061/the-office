@@ -11,11 +11,13 @@ import type {
   AppSettings,
   BuildConfig,
   ChatMessage,
+  Phase,
   PhaseInfo,
   PermissionRequest,
   SessionStats,
 } from '../shared/types';
 import { ArtifactStore } from './project/artifact-store';
+import { ChatHistoryStore } from './project/chat-history-store';
 import { AuthManager } from './auth/auth-manager';
 import { ProjectManager } from './project/project-manager';
 import { PhaseMachine } from './orchestrator/phase-machine';
@@ -38,6 +40,10 @@ let artifactStore: ArtifactStore | null = null;
 let phaseMachine: PhaseMachine | null = null;
 let permissionHandler: PermissionHandler | null = null;
 let activeAbort: (() => void) | null = null;
+let chatHistoryStore: ChatHistoryStore | null = null;
+let currentChatPhase: Phase | null = null;
+let currentChatAgentRole: AgentRole | null = null;
+let currentChatRunNumber: number = 0;
 
 const sessionStats: SessionStats = {
   totalCost: 0,
@@ -62,25 +68,46 @@ function send(channel: string, data: unknown): void {
   }
 }
 
-function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>): void {
+function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>, persist: boolean = true): void {
   const chatMsg: ChatMessage = {
     id: randomUUID(),
     timestamp: Date.now(),
     ...msg,
   };
   send(IPC_CHANNELS.CHAT_MESSAGE, chatMsg);
+
+  if (persist && chatHistoryStore && currentChatPhase && currentChatRunNumber > 0) {
+    const agentRole = msg.agentRole ?? currentChatAgentRole;
+    if (agentRole) {
+      chatHistoryStore.appendMessage(currentChatPhase, agentRole, currentChatRunNumber, chatMsg);
+    }
+  }
 }
 
 function onAgentEvent(event: AgentEvent): void {
   send(IPC_CHANNELS.AGENT_EVENT, event);
 
-  // Extract chat messages from agent:message events
+  // Track agent session boundaries for run numbering
+  // Only respond to top-level init events (isTopLevel === true), not sub-task delegation
+  if (event.type === 'agent:created' && event.isTopLevel && chatHistoryStore && currentChatPhase) {
+    if (event.agentRole !== currentChatAgentRole) {
+      currentChatAgentRole = event.agentRole;
+      currentChatRunNumber = chatHistoryStore.nextRunNumber(currentChatPhase, event.agentRole);
+    }
+  }
+
+  // Persist agent text messages
   if (event.type === 'agent:message' && event.message) {
     sendChat({
       role: 'agent',
       agentRole: event.agentRole,
       text: event.message,
     });
+  }
+
+  // Flush on agent close
+  if (event.type === 'agent:closed') {
+    chatHistoryStore?.flush();
   }
 
   // Extract cost updates for stats
@@ -174,6 +201,8 @@ function setupIPC(): void {
       projectManager.openProject(projectPath);
       currentProjectDir = projectPath;
       artifactStore = new ArtifactStore(projectPath);
+      chatHistoryStore?.flush();
+      chatHistoryStore = new ChatHistoryStore(projectPath);
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to open project';
@@ -186,6 +215,8 @@ function setupIPC(): void {
       projectManager.createProject(name, projectPath);
       currentProjectDir = projectPath;
       artifactStore = new ArtifactStore(projectPath);
+      chatHistoryStore?.flush();
+      chatHistoryStore = new ChatHistoryStore(projectPath);
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
@@ -215,7 +246,22 @@ function setupIPC(): void {
     if (!currentProjectDir) throw new Error('No project open');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated — connect via CLI or API key');
 
+    currentChatPhase = 'imagine';
+    currentChatAgentRole = 'ceo';
+    currentChatRunNumber = chatHistoryStore?.nextRunNumber('imagine', 'ceo') ?? 1;
+
     sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
+
+    // Persist user's initial idea
+    if (chatHistoryStore) {
+      const ideaMsg: ChatMessage = {
+        id: randomUUID(),
+        role: 'user',
+        text: userIdea,
+        timestamp: Date.now(),
+      };
+      chatHistoryStore.appendMessage('imagine', 'ceo', currentChatRunNumber, ideaMsg);
+    }
 
     const state = projectManager.getProjectState(currentProjectDir);
     phaseMachine = new PhaseMachine(state.currentPhase, state.completedPhases);
@@ -263,6 +309,10 @@ function setupIPC(): void {
     if (!phaseMachine) throw new Error('No phase machine — start imagine first');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
 
+    currentChatPhase = 'warroom';
+    currentChatAgentRole = null;
+    currentChatRunNumber = 0;
+
     phaseMachine.transition('warroom');
 
     if (!permissionHandler) {
@@ -293,6 +343,10 @@ function setupIPC(): void {
     if (!currentProjectDir) throw new Error('No project open');
     if (!phaseMachine) throw new Error('No phase machine — start imagine first');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+
+    currentChatPhase = 'build';
+    currentChatAgentRole = null;
+    currentChatRunNumber = 0;
 
     phaseMachine.transition('build');
 
@@ -331,9 +385,26 @@ function setupIPC(): void {
     // This handler exists for future use (routing messages to active SDK sessions).
   });
 
+  ipcMain.handle(IPC_CHANNELS.GET_CHAT_HISTORY, async (_event, phase: string) => {
+    if (!currentProjectDir || !chatHistoryStore) return [];
+    return chatHistoryStore.getPhaseHistory(phase as Phase);
+  });
+
   ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
     const pending = pendingQuestions.get(sessionId);
     if (pending) {
+      // Persist user's answer
+      const answerText = Object.values(answers).join('\n');
+      if (answerText && chatHistoryStore && currentChatPhase && currentChatAgentRole && currentChatRunNumber > 0) {
+        const userMsg: ChatMessage = {
+          id: randomUUID(),
+          role: 'user',
+          text: answerText,
+          timestamp: Date.now(),
+        };
+        chatHistoryStore.appendMessage(currentChatPhase, currentChatAgentRole, currentChatRunNumber, userMsg);
+      }
+
       pendingQuestions.delete(sessionId);
       pending.resolve(answers);
     }
@@ -454,6 +525,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  chatHistoryStore?.flush();
+
   // Mark interrupted if a phase is active
   if (phaseMachine && phaseMachine.currentPhase !== 'idle' && phaseMachine.currentPhase !== 'complete') {
     phaseMachine.markInterrupted();
