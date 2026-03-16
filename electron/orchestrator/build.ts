@@ -1,9 +1,8 @@
-import { SDKBridge } from '../sdk/sdk-bridge';
-import { loadAllAgents } from '../sdk/agent-loader';
 import { ArtifactStore } from '../project/artifact-store';
 import type { PermissionHandler } from '../sdk/permission-handler';
-import type { AgentEvent, BuildConfig, KanbanState, KanbanTask } from '../../shared/types';
+import type { AgentEvent, AgentRole, AskQuestion, BuildConfig, KanbanState, KanbanTask } from '../../shared/types';
 import { resolveRole } from '../sdk/sdk-bridge';
+import { runAgentSession } from './run-agent-session';
 import yaml from 'js-yaml';
 
 export interface BuildPhase {
@@ -22,6 +21,8 @@ export interface BuildOrchestratorConfig {
   buildConfig: BuildConfig;
   onEvent: (event: AgentEvent) => void;
   onKanbanUpdate: (state: KanbanState) => void;
+  onWaiting: (agentRole: AgentRole, questions: AskQuestion[]) => Promise<Record<string, string>>;
+  onSystemMessage: (text: string) => void;
 }
 
 export async function runBuild(config: BuildOrchestratorConfig): Promise<void> {
@@ -37,7 +38,6 @@ export async function runBuild(config: BuildOrchestratorConfig): Promise<void> {
     tasks: p.tasks || [],
   }));
 
-  const agents = loadAllAgents(config.agentsDir);
   const completed = new Set<string>();
   const failed = new Set<string>();
 
@@ -49,7 +49,7 @@ export async function runBuild(config: BuildOrchestratorConfig): Promise<void> {
     if (ready.length === 0) break;
 
     const results = await Promise.allSettled(
-      ready.map(phase => runPhaseSession(phase, agents, config))
+      ready.map(phase => runPhaseSession(phase, config))
     );
 
     for (let i = 0; i < results.length; i++) {
@@ -62,37 +62,34 @@ export async function runBuild(config: BuildOrchestratorConfig): Promise<void> {
 
 async function runPhaseSession(
   phase: BuildPhase,
-  agents: Record<string, any>,
   config: BuildOrchestratorConfig,
 ): Promise<void> {
-  const bridge = new SDKBridge();
-  bridge.on('agentEvent', (event: AgentEvent) => config.onEvent(event));
+  const primaryRole = phase.tasks.length > 0
+    ? resolveRole(phase.tasks[0].assignedAgent)
+    : 'backend-engineer' as const;
 
   const taskList = phase.tasks
     .map(t => `- ${t.id}: ${t.description} (assigned: ${t.assignedAgent})`)
     .join('\n');
 
-  const prompt = [
-    `You are executing build phase: ${phase.name} (${phase.id}).`,
-    'Implement the following tasks sequentially using TDD:',
-    taskList,
-    '',
-    'For each task: write failing test → implement → verify pass → commit.',
-    'Read the spec files in spec/ for implementation details.',
-  ].join('\n');
-
-  // Derive agent role from the first task's assignedAgent, or fall back to backend-engineer
-  const primaryRole = phase.tasks.length > 0
-    ? resolveRole(phase.tasks[0].assignedAgent)
-    : 'backend-engineer' as const;
-
-  await bridge.runSession({
-    agentId: phase.id,
-    agentRole: primaryRole,
-    prompt,
+  await runAgentSession({
+    agentName: phase.tasks[0]?.assignedAgent || 'backend-engineer',
+    agentsDir: config.agentsDir,
+    prompt: [
+      `You are executing build phase: ${phase.name} (${phase.id}).`,
+      'Implement the following tasks sequentially using TDD:',
+      taskList,
+      '',
+      'For each task: write failing test → implement → verify pass → commit.',
+      'Read the spec files in spec/ for implementation details.',
+    ].join('\n'),
     cwd: config.projectDir,
-    agents,
-    env: config.authEnv,
+    env: config.authEnv || {},
+    excludeAskUser: true,  // Build agents work autonomously
+    onEvent: config.onEvent,
+    onWaiting: async () => ({}),  // No-op — AskUserQuestion excluded
+    onToolPermission: (toolName, input) =>
+      config.permissionHandler.handleToolRequest(toolName, input, primaryRole),
   });
 }
 
