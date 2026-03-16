@@ -110,7 +110,6 @@ export class OfficeScene {
       });
 
       this.characters.set(config.role, character);
-      this.characterLayer.addChild(character.sprite.container);
     }
 
     // Set up camera with zone data
@@ -120,6 +119,8 @@ export class OfficeScene {
       this.mapRenderer.height * this.mapRenderer.tileSize,
     );
     this.camera.setViewSize(this.app.screen.width, this.app.screen.height);
+    // Start with map fitted to screen, then focus on initial phase
+    this.camera.fitToScreen();
     this.camera.focusOnPhase('imagine');
 
     this.app.ticker.add(() => this.update());
@@ -143,6 +144,35 @@ export class OfficeScene {
 
   getWorldContainer(): Container {
     return this.worldContainer;
+  }
+
+  getCharacter(role: string): Character | undefined {
+    return this.characters.get(role);
+  }
+
+  getAllCharacters(): Map<string, Character> {
+    return this.characters;
+  }
+
+  showCharacter(role: AgentRole): void {
+    const character = this.characters.get(role);
+    if (!character || character.isVisible) return;
+    const entrance = this.getEntrancePosition();
+    character.repositionTo(entrance.x, entrance.y);
+    character.show(this.characterLayer);
+  }
+
+  hideCharacter(role: AgentRole): void {
+    const character = this.characters.get(role);
+    if (!character || !character.isVisible) return;
+    character.hide(3000);
+  }
+
+  getEntrancePosition(): { x: number; y: number } {
+    const sp = this.mapRenderer.getSpawnPoint('entrance');
+    if (sp) return sp;
+    // Fallback: bottom-center of the map
+    return { x: Math.floor(this.mapRenderer.width / 2), y: this.mapRenderer.height - 2 };
   }
 
   onResize(width: number, height: number): void {

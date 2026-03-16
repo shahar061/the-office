@@ -1,27 +1,118 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
-import fs from 'fs';
-import os from 'os';
-import { spawn, type ChildProcess } from 'child_process';
-import { SessionManager } from './session-manager';
-import { ClaudeCodeTranscriptAdapter } from './adapters/claude-transcript.adapter';
-import { OpenCodeAdapter } from './adapters/opencode.adapter';
+import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
 import { IPC_CHANNELS } from '../shared/types';
-import type { ConnectionStatus, SessionListItem } from '../shared/types';
-import { loadSettings, saveSettings, detectTerminals, browseTerminalApp } from './settings';
-import type { AppSettings } from '../shared/types';
+import type {
+  AgentEvent,
+  AgentRole,
+  AgentWaitingPayload,
+  AskQuestion,
+  AppSettings,
+  BuildConfig,
+  ChatMessage,
+  PhaseInfo,
+  PermissionRequest,
+  SessionStats,
+} from '../shared/types';
+import { AuthManager } from './auth/auth-manager';
+import { ProjectManager } from './project/project-manager';
+import { PhaseMachine } from './orchestrator/phase-machine';
+import { PermissionHandler } from './sdk/permission-handler';
+import { runImagine } from './orchestrator/imagine';
+import { runWarroom } from './orchestrator/warroom';
+import { runBuild } from './orchestrator/build';
+
+// ── State ──
 
 let mainWindow: BrowserWindow | null = null;
-let sessionManager: SessionManager | null = null;
-let windowReady = false;
-let pendingSession: { tool: string; directory: string; terminalId?: string; createdAt: number } | null = null;
-let linkedSessionId: string | null = null;
-let dispatchInFlight = false;
-let linkingTimer: ReturnType<typeof setTimeout> | null = null;
-const activeProcesses = new Set<ChildProcess>();
-let claudeTerminalLaunched = false;
 
-function createWindow() {
+const dataDir = path.join(app.getPath('userData'), 'the-office');
+const authManager = new AuthManager(dataDir);
+const projectManager = new ProjectManager(dataDir);
+const agentsDir = path.join(__dirname, '../../agents');
+
+let currentProjectDir: string | null = null;
+let phaseMachine: PhaseMachine | null = null;
+let permissionHandler: PermissionHandler | null = null;
+let activeAbort: (() => void) | null = null;
+
+const sessionStats: SessionStats = {
+  totalCost: 0,
+  totalTokens: 0,
+  sessionTime: 0,
+  activeAgents: 0,
+};
+
+// Pending AskUserQuestion promises, keyed by session ID
+interface PendingQuestion {
+  resolve: (answers: Record<string, string>) => void;
+  reject: (error: Error) => void;
+}
+const pendingQuestions = new Map<string, PendingQuestion>();
+let nextSessionId = 0;
+
+// ── Helpers ──
+
+function send(channel: string, data: unknown): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, data);
+  }
+}
+
+function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>): void {
+  const chatMsg: ChatMessage = {
+    id: randomUUID(),
+    timestamp: Date.now(),
+    ...msg,
+  };
+  send(IPC_CHANNELS.CHAT_MESSAGE, chatMsg);
+}
+
+function onAgentEvent(event: AgentEvent): void {
+  send(IPC_CHANNELS.AGENT_EVENT, event);
+
+  // Extract chat messages from agent:message events
+  if (event.type === 'agent:message' && event.message) {
+    sendChat({
+      role: 'agent',
+      agentRole: event.agentRole,
+      text: event.message,
+    });
+  }
+
+  // Extract cost updates for stats
+  if (event.type === 'session:cost:update') {
+    if (event.cost !== undefined) sessionStats.totalCost += event.cost;
+    if (event.tokens !== undefined) sessionStats.totalTokens += event.tokens;
+    send(IPC_CHANNELS.STATS_UPDATE, { ...sessionStats });
+  }
+}
+
+function handleAgentWaiting(agentRole: AgentRole, questions: AskQuestion[]): Promise<Record<string, string>> {
+  return new Promise<Record<string, string>>((resolve, reject) => {
+    const sessionId = `session-${++nextSessionId}`;
+    pendingQuestions.set(sessionId, { resolve, reject });
+
+    const payload: AgentWaitingPayload = { sessionId, agentRole, questions };
+    send(IPC_CHANNELS.AGENT_WAITING, payload);
+  });
+}
+
+function onSystemMessage(text: string): void {
+  sendChat({ role: 'system', text });
+}
+
+function rejectPendingQuestions(reason: string): void {
+  for (const [id, pending] of pendingQuestions) {
+    pending.reject(new Error(reason));
+  }
+  pendingQuestions.clear();
+}
+
+// ── Window ──
+
+function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -29,6 +120,7 @@ function createWindow() {
     minHeight: 640,
     title: 'The Office',
     backgroundColor: '#0f0f1a',
+    fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -44,219 +136,57 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-    windowReady = false;
-  });
-
-  windowReady = true;
-}
-
-function setupAdapters() {
-  const projectDir = process.cwd();
-  console.log('[Main] Setting up adapters for project:', projectDir);
-
-  const adapters = [
-    new ClaudeCodeTranscriptAdapter(),
-    new OpenCodeAdapter(),
-  ];
-
-  sessionManager = new SessionManager(adapters);
-
-  sessionManager.on('agentEvent', (event) => {
-    console.log('[Main] Agent event:', event.type, event.agentId);
-    if (mainWindow) {
-      mainWindow.webContents.send(IPC_CHANNELS.AGENT_EVENT, event);
-    }
-  });
-
-  sessionManager.on('sessionListUpdate', (sessions: SessionListItem[]) => {
-    if (mainWindow && windowReady) {
-      mainWindow.webContents.send(IPC_CHANNELS.SESSION_LIST_UPDATE, sessions);
-    }
-
-    // Session linking: match new session to pending config
-    if (pendingSession && !linkedSessionId && dispatchInFlight) {
-      const expectedSource = pendingSession!.tool === 'claude-code' ? 'claude-code' : 'opencode';
-      const match = sessions.find(s =>
-        s.source === expectedSource &&
-        s.directory === pendingSession!.directory &&
-        s.createdAt > pendingSession!.createdAt - 2000
-      );
-      if (match) {
-        linkedSessionId = match.sessionId;
-        dispatchInFlight = false;
-        if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
-        console.log('[Main] Session linked:', match.sessionId, match.title);
-        if (mainWindow) {
-          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINKED, {
-            sessionId: match.sessionId,
-            title: match.title,
-          });
-        }
-      }
-    }
-  });
-
-  sessionManager.start({ projectDir }).catch(err => console.error('[Main] Failed to start adapters:', err));
-
-  const status: ConnectionStatus = {
-    claudeCode: 'connected',
-    openCode: 'connected',
-  };
-
-  if (mainWindow) {
-    mainWindow.webContents.send(IPC_CHANNELS.CONNECTION_STATUS, status);
-  }
-  console.log('[Main] Adapters initialized and event forwarding active');
-}
-
-function spawnOpenCode(args: string[]): void {
-  console.log('[Main] Spawning: opencode', args.join(' '));
-  const child = spawn('opencode', args, {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  activeProcesses.add(child);
-
-  child.stdout?.on('data', (data: Buffer) => {
-    console.log('[OpenCode stdout]', data.toString().trim());
-  });
-
-  child.stderr?.on('data', (data: Buffer) => {
-    console.error('[OpenCode stderr]', data.toString().trim());
-  });
-
-  child.on('error', (err) => {
-    console.error('[Main] opencode spawn error:', err.message);
-    activeProcesses.delete(child);
-    dispatchInFlight = false;
-    if (mainWindow) {
-      mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
-        error: err.message,
-      });
-    }
-  });
-
-  child.on('exit', (code) => {
-    activeProcesses.delete(child);
-    if (code !== 0 && code !== null) {
-      console.error('[Main] opencode exited with code:', code);
-      dispatchInFlight = false;
-      if (mainWindow) {
-        mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, {
-          error: `opencode exited with code ${code}`,
-        });
-      }
-    }
   });
 }
 
-function setupIPC() {
-  ipcMain.handle(IPC_CHANNELS.DISPATCH, async (_event, prompt: string) => {
-    console.log('[Main] DISPATCH called, tool:', pendingSession?.tool, 'prompt:', prompt.slice(0, 50));
-    if (!pendingSession) return { error: 'no-session' };
+// ── IPC Setup ──
 
-    // ── Claude Code path: open terminal window ──
-    if (pendingSession.tool === 'claude-code') {
-      if (!claudeTerminalLaunched) {
-        claudeTerminalLaunched = true;
-        const dir = pendingSession.directory;
-        const escapedDir = dir.replace(/'/g, "'\\''");
-        const escapedPrompt = prompt.replace(/'/g, "'\\''");
-        const cmd = `cd '${escapedDir}' && claude '${escapedPrompt}'`;
+function setupIPC(): void {
+  // ── Auth ──
 
-        // Resolve which terminal to launch
-        const settings = loadSettings();
-        const terminalId = pendingSession.terminalId || settings.defaultTerminalId || 'terminal';
-        const terminalConfig = settings.terminals.find(t => t.id === terminalId);
-        const terminalAppName = terminalConfig
-          ? terminalConfig.name
-          : 'Terminal';
-
-        let child: ChildProcess;
-        if (terminalAppName === 'Terminal') {
-          // Terminal.app supports AppleScript's `do script`
-          child = spawn('osascript', [
-            '-e', 'tell application "Terminal"',
-            '-e', 'activate',
-            '-e', `do script ${JSON.stringify(cmd)}`,
-            '-e', 'end tell',
-          ]);
-        } else {
-          // Other terminals: write a temp script and launch via --command
-          // This avoids shell escaping issues with `open --args -e`
-          const scriptPath = path.join(os.tmpdir(), `office-launch-${Date.now()}.sh`);
-          fs.writeFileSync(scriptPath, `#!/bin/bash\n${cmd}\n`, { mode: 0o755 });
-          child = spawn('open', ['-na', terminalAppName + '.app', '--args', `--command=${scriptPath}`]);
-        }
-        child.on('error', handleTerminalError);
-        child.on('exit', (code) => { if (code !== 0) handleTerminalError(new Error(`osascript exit ${code}`)); });
-        function handleTerminalError(err: Error) {
-          console.error('[Main] Failed to open terminal:', err.message);
-          if (mainWindow) {
-            mainWindow.webContents.send(IPC_CHANNELS.DISPATCH_ERROR, { error: err.message });
-          }
-          claudeTerminalLaunched = false;
-        }
-        console.log(`[Main] Opening ${terminalAppName} with claude in:`, pendingSession.directory);
-      }
-      // Session linking happens via ClaudeCodeTranscriptAdapter (file watching)
-      // when claude creates its transcript file in ~/.claude/projects/
-      return { sessionId: linkedSessionId ?? 'pending' };
-    }
-
-    // ── OpenCode path (unchanged) ──
-    if (linkedSessionId) {
-      const args = ['run', prompt, '--session', linkedSessionId, '--dir', pendingSession.directory, '--format', 'json'];
-      spawnOpenCode(args);
-      return { sessionId: linkedSessionId };
-    }
-
-    if (!dispatchInFlight) {
-      dispatchInFlight = true;
-      const args = ['run', prompt, '--dir', pendingSession.directory, '--format', 'json'];
-      spawnOpenCode(args);
-
-      linkingTimer = setTimeout(() => {
-        if (!linkedSessionId && mainWindow) {
-          mainWindow.webContents.send(IPC_CHANNELS.SESSION_LINK_FAILED, {
-            error: 'Timed out waiting for session to appear',
-          });
-          dispatchInFlight = false;
-        }
-      }, 30_000);
-
-      return { sessionId: 'pending' };
-    }
-
-    if (dispatchInFlight) {
-      return { error: 'session-starting' };
-    }
-
-    return { error: 'no-session' };
+  ipcMain.handle(IPC_CHANNELS.GET_AUTH_STATUS, async () => {
+    return authManager.getStatus();
   });
 
-  ipcMain.handle(IPC_CHANNELS.GET_SESSIONS, async () => {
-    return sessionManager?.getActiveSessions() ?? [];
+  ipcMain.handle(IPC_CHANNELS.CONNECT_API_KEY, async (_event, key: string) => {
+    const result = authManager.connectApiKey(key);
+    if (result.success) {
+      send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
+    }
+    return result;
   });
 
-  ipcMain.handle(IPC_CHANNELS.APPROVE_PERMISSION, async (_event, agentId: string, toolId: string) => {
-    // TODO: Implement permission approval
-    console.log('Permission approved:', agentId, toolId);
+  ipcMain.handle(IPC_CHANNELS.DISCONNECT, async () => {
+    authManager.disconnect();
+    send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
   });
 
-  ipcMain.handle(IPC_CHANNELS.DENY_PERMISSION, async (_event, agentId: string, toolId: string) => {
-    // TODO: Implement permission denial
-    console.log('Permission denied:', agentId, toolId);
+  // ── Projects ──
+
+  ipcMain.handle(IPC_CHANNELS.GET_RECENT_PROJECTS, async () => {
+    return projectManager.getRecentProjects();
   });
 
-  ipcMain.handle(IPC_CHANNELS.GET_KANBAN, async () => {
-    // TODO: Implement Kanban state retrieval
-    return {
-      projectName: 'The Office',
-      currentPhase: 'imagine',
-      completionPercent: 0,
-      tasks: [],
-    };
+  ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async (_event, projectPath: string) => {
+    try {
+      projectManager.openProject(projectPath);
+      currentProjectDir = projectPath;
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to open project';
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_PROJECT, async (_event, name: string, projectPath: string) => {
+    try {
+      projectManager.createProject(name, projectPath);
+      currentProjectDir = projectPath;
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create project';
+      return { success: false, error: message };
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.PICK_DIRECTORY, async () => {
@@ -268,59 +198,238 @@ function setupIPC() {
     return result.filePaths[0];
   });
 
-  ipcMain.handle(IPC_CHANNELS.CREATE_SESSION, async (_event, tool: string, directory: string, terminalId?: string) => {
-    pendingSession = { tool, directory, terminalId, createdAt: Date.now() };
-    linkedSessionId = null;
-    dispatchInFlight = false;
-    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
-    console.log('[Main] Session created:', { tool, directory });
-    return { ok: true };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async () => {
-    return loadSettings();
-  });
-
-  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, settings: AppSettings) => {
-    saveSettings(settings);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.DETECT_TERMINALS, async () => {
-    const current = loadSettings();
-    return detectTerminals(current.terminals);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.BROWSE_TERMINAL_APP, async () => {
-    if (!mainWindow) return null;
-    return browseTerminalApp(mainWindow);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.CANCEL_SESSION, async () => {
-    console.log('[Main] Session cancelled');
-    claudeTerminalLaunched = false;
-    for (const proc of activeProcesses) {
-      proc.kill();
+  ipcMain.handle(IPC_CHANNELS.GET_PROJECT_STATE, async () => {
+    if (!currentProjectDir) {
+      return { name: '', path: '', currentPhase: 'idle', completedPhases: [], interrupted: false };
     }
-    activeProcesses.clear();
-    pendingSession = null;
-    linkedSessionId = null;
-    dispatchInFlight = false;
-    if (linkingTimer) { clearTimeout(linkingTimer); linkingTimer = null; }
+    return projectManager.getProjectState(currentProjectDir);
+  });
+
+  // ── Phases ──
+
+  ipcMain.handle(IPC_CHANNELS.START_IMAGINE, async (_event, userIdea: string) => {
+    if (!currentProjectDir) throw new Error('No project open');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated — connect via CLI or API key');
+
+    sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
+
+    const state = projectManager.getProjectState(currentProjectDir);
+    phaseMachine = new PhaseMachine(state.currentPhase, state.completedPhases);
+    phaseMachine.on('change', (info: PhaseInfo) => {
+      send(IPC_CHANNELS.PHASE_CHANGE, info);
+      if (currentProjectDir) {
+        projectManager.updateProjectState(currentProjectDir, {
+          currentPhase: info.phase,
+          completedPhases: phaseMachine!.completedPhases,
+        });
+      }
+    });
+
+    phaseMachine.transition('imagine');
+
+    permissionHandler = new PermissionHandler(
+      'auto-all',
+      (req: PermissionRequest) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    );
+
+    try {
+      await runImagine(userIdea, {
+        projectDir: currentProjectDir,
+        agentsDir,
+        env: authManager.getAuthEnv() || {},
+        onEvent: onAgentEvent,
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
+      });
+      phaseMachine.markCompleted('imagine');
+    } catch (err: any) {
+      console.error('[Main] Imagine failed:', err);
+      const errMsg = err.stderr || err.message || 'Unknown error';
+      sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
+      rejectPendingQuestions('Imagine phase failed');
+      phaseMachine.markFailed();
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.START_WARROOM, async () => {
+    if (!currentProjectDir) throw new Error('No project open');
+    if (!phaseMachine) throw new Error('No phase machine — start imagine first');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+
+    phaseMachine.transition('warroom');
+
+    if (!permissionHandler) {
+      permissionHandler = new PermissionHandler(
+        'auto-all',
+        (req: PermissionRequest) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+      );
+    }
+
+    try {
+      await runWarroom({
+        projectDir: currentProjectDir,
+        agentsDir,
+        env: authManager.getAuthEnv() || {},
+        onEvent: onAgentEvent,
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
+      });
+      phaseMachine.markCompleted('warroom');
+    } catch (err) {
+      console.error('[Main] Warroom failed:', err);
+      rejectPendingQuestions('Warroom phase failed');
+      phaseMachine.markFailed();
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.START_BUILD, async (_event, config: BuildConfig) => {
+    if (!currentProjectDir) throw new Error('No project open');
+    if (!phaseMachine) throw new Error('No phase machine — start imagine first');
+    if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+
+    phaseMachine.transition('build');
+
+    permissionHandler = new PermissionHandler(
+      config.permissionMode,
+      (req: PermissionRequest) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    );
+
+    try {
+      await runBuild({
+        projectDir: currentProjectDir,
+        agentsDir,
+        apiKey: authManager.getApiKey() || '',
+        authEnv: authManager.getAuthEnv(),
+        permissionHandler: permissionHandler!,
+        buildConfig: config,
+        onEvent: onAgentEvent,
+        onKanbanUpdate: (state) => send(IPC_CHANNELS.KANBAN_UPDATE, state),
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
+      });
+      phaseMachine.markCompleted('build');
+      phaseMachine.transition('complete');
+      phaseMachine.markCompleted('complete');
+    } catch (err) {
+      console.error('[Main] Build failed:', err);
+      rejectPendingQuestions('Build phase failed');
+      phaseMachine.markFailed();
+    }
+  });
+
+  // ── Chat ──
+
+  ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, _message: string) => {
+    // User messages are added to the chat store locally by the renderer.
+    // This handler exists for future use (routing messages to active SDK sessions).
+  });
+
+  ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
+    const pending = pendingQuestions.get(sessionId);
+    if (pending) {
+      pendingQuestions.delete(sessionId);
+      pending.resolve(answers);
+    }
+  });
+
+  // ── Permissions ──
+
+  ipcMain.handle(IPC_CHANNELS.RESPOND_PERMISSION, async (_event, requestId: string, approved: boolean) => {
+    if (permissionHandler) {
+      permissionHandler.resolvePermission(requestId, approved);
+    }
+  });
+
+  // ── Settings ──
+
+  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async (): Promise<AppSettings> => {
+    return {
+      defaultModelPreset: 'default',
+      defaultPermissionMode: 'auto-safe',
+    };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, _settings: AppSettings) => {
+    // Placeholder — will persist to disk in a future iteration
   });
 }
 
-app.whenReady().then(() => {
+// ── App Lifecycle ──
+
+// Fix PATH for macOS — ensure Node 20+ is first in PATH.
+// The Agent SDK's cli.js uses `using` declarations requiring Node 20+.
+function fixPath(): void {
+  if (process.platform !== 'darwin') return;
+
+  const homeDir = process.env.HOME || '';
+
+  // Find the newest Node 20+ from nvm
+  const nvmDir = path.join(homeDir, '.nvm', 'versions', 'node');
+  try {
+    const fs = require('fs');
+    if (fs.existsSync(nvmDir)) {
+      const versions = fs.readdirSync(nvmDir)
+        .filter((v: string) => {
+          const major = parseInt(v.replace('v', '').split('.')[0], 10);
+          return major >= 20;
+        })
+        .sort((a: string, b: string) => {
+          // Sort descending by major version
+          const ma = parseInt(a.replace('v', '').split('.')[0], 10);
+          const mb = parseInt(b.replace('v', '').split('.')[0], 10);
+          return mb - ma;
+        });
+
+      if (versions.length > 0) {
+        const nvmNodeBin = path.join(nvmDir, versions[0], 'bin');
+        // Prepend nvm Node 20+ to PATH so it's found first
+        process.env.PATH = `${nvmNodeBin}:${process.env.PATH}`;
+        console.log(`[Main] Prepended nvm Node ${versions[0]} to PATH`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Main] Could not check nvm versions:', err);
+  }
+
+  // Verify
+  try {
+    const nodeVersion = execSync('node --version', { encoding: 'utf-8' }).trim();
+    const major = parseInt(nodeVersion.replace('v', '').split('.')[0], 10);
+    console.log('[Main] System Node:', nodeVersion);
+    if (major < 20) {
+      console.error(`[Main] WARNING: Node ${nodeVersion} still in PATH. Agent SDK requires Node 20+.`);
+    }
+  } catch {
+    console.error('[Main] WARNING: Could not detect Node version');
+  }
+}
+
+app.whenReady().then(async () => {
+  fixPath();
   createWindow();
   setupIPC();
-  setupAdapters();
+  // Detect CLI auth on startup and notify renderer
+  await authManager.detectCliAuth();
+  send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
 });
 
 app.on('window-all-closed', () => {
-  for (const proc of activeProcesses) {
-    proc.kill();
+  // Mark interrupted if a phase is active
+  if (phaseMachine && phaseMachine.currentPhase !== 'idle' && phaseMachine.currentPhase !== 'complete') {
+    phaseMachine.markInterrupted();
+    if (currentProjectDir) {
+      projectManager.updateProjectState(currentProjectDir, { interrupted: true });
+    }
   }
-  activeProcesses.clear();
-  if (linkingTimer) clearTimeout(linkingTimer);
-  sessionManager?.stop();
+
+  // Abort any running SDK sessions
+  if (activeAbort) {
+    activeAbort();
+    activeAbort = null;
+  }
+
+  // Reject any pending AskUserQuestion promises
+  rejectPendingQuestions('App closing');
+
   app.quit();
 });

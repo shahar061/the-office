@@ -1,95 +1,61 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/types';
-import type { AgentEvent, ConnectionStatus, KanbanState, AgentRole, SessionInfo, SessionListItem, AppSettings, TerminalConfig } from '../shared/types';
+import type {
+  AuthStatus, ProjectInfo, ProjectState, PhaseInfo,
+  ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
+  SessionStats, BuildConfig, AppSettings,
+} from '../shared/types';
+
+function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
+  const handler = (_: Electron.IpcRendererEvent, data: T) => callback(data);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
 
 contextBridge.exposeInMainWorld('office', {
-  onAgentEvent(callback: (event: AgentEvent) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, event: AgentEvent) => callback(event);
-    ipcRenderer.on(IPC_CHANNELS.AGENT_EVENT, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.AGENT_EVENT, handler);
-  },
+  // Auth
+  getAuthStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTH_STATUS),
+  connectApiKey: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.CONNECT_API_KEY, key),
+  disconnect: () => ipcRenderer.invoke(IPC_CHANNELS.DISCONNECT),
+  onAuthStatusChange: (cb: (s: AuthStatus) => void) => onEvent(IPC_CHANNELS.AUTH_STATUS_CHANGE, cb),
 
-  onConnectionStatus(callback: (status: ConnectionStatus) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, status: ConnectionStatus) => callback(status);
-    ipcRenderer.on(IPC_CHANNELS.CONNECTION_STATUS, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.CONNECTION_STATUS, handler);
-  },
+  // Projects
+  getRecentProjects: () => ipcRenderer.invoke(IPC_CHANNELS.GET_RECENT_PROJECTS),
+  openProject: (p: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_PROJECT, p),
+  createProject: (name: string, p: string) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_PROJECT, name, p),
+  pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PICK_DIRECTORY),
+  getProjectState: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROJECT_STATE),
 
-  onKanbanUpdate(callback: (state: KanbanState) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, state: KanbanState) => callback(state);
-    ipcRenderer.on(IPC_CHANNELS.KANBAN_UPDATE, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.KANBAN_UPDATE, handler);
-  },
+  // Phase Control
+  startImagine: (idea: string) => ipcRenderer.invoke(IPC_CHANNELS.START_IMAGINE, idea),
+  startWarroom: () => ipcRenderer.invoke(IPC_CHANNELS.START_WARROOM),
+  startBuild: (config: BuildConfig) => ipcRenderer.invoke(IPC_CHANNELS.START_BUILD, config),
+  onPhaseChange: (cb: (p: PhaseInfo) => void) => onEvent(IPC_CHANNELS.PHASE_CHANGE, cb),
 
-  onSessionListUpdate(callback: (sessions: SessionListItem[]) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, sessions: SessionListItem[]) => callback(sessions);
-    ipcRenderer.on(IPC_CHANNELS.SESSION_LIST_UPDATE, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LIST_UPDATE, handler);
-  },
+  // Chat
+  sendMessage: (msg: string) => ipcRenderer.invoke(IPC_CHANNELS.SEND_MESSAGE, msg),
+  onChatMessage: (cb: (m: ChatMessage) => void) => onEvent(IPC_CHANNELS.CHAT_MESSAGE, cb),
 
-  onSessionLinked(callback: (data: { sessionId: string; title: string }) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, data: { sessionId: string; title: string }) => callback(data);
-    ipcRenderer.on(IPC_CHANNELS.SESSION_LINKED, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LINKED, handler);
-  },
+  // Agent Events
+  onAgentEvent: (cb: (e: AgentEvent) => void) => onEvent(IPC_CHANNELS.AGENT_EVENT, cb),
 
-  onSessionLinkFailed(callback: (data: { error: string }) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, data: { error: string }) => callback(data);
-    ipcRenderer.on(IPC_CHANNELS.SESSION_LINK_FAILED, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.SESSION_LINK_FAILED, handler);
-  },
+  // Permissions
+  onPermissionRequest: (cb: (r: PermissionRequest) => void) => onEvent(IPC_CHANNELS.PERMISSION_REQUEST, cb),
+  respondPermission: (id: string, approved: boolean) => ipcRenderer.invoke(IPC_CHANNELS.RESPOND_PERMISSION, id, approved),
 
-  onDispatchError(callback: (data: { error: string }) => void): () => void {
-    const handler = (_: Electron.IpcRendererEvent, data: { error: string }) => callback(data);
-    ipcRenderer.on(IPC_CHANNELS.DISPATCH_ERROR, handler);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.DISPATCH_ERROR, handler);
-  },
+  // Agent Interaction
+  respondToAgent: (sessionId: string, answers: Record<string, string>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.USER_RESPONSE, sessionId, answers),
+  onAgentWaiting: (cb: (payload: AgentWaitingPayload) => void) =>
+    onEvent(IPC_CHANNELS.AGENT_WAITING, cb),
 
-  createSession(tool: string, directory: string, terminalId?: string): Promise<{ ok: true }> {
-    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_SESSION, tool, directory, terminalId);
-  },
+  // Kanban
+  onKanbanUpdate: (cb: (s: KanbanState) => void) => onEvent(IPC_CHANNELS.KANBAN_UPDATE, cb),
 
-  pickDirectory(): Promise<string | null> {
-    return ipcRenderer.invoke(IPC_CHANNELS.PICK_DIRECTORY);
-  },
+  // Stats
+  onStatsUpdate: (cb: (s: SessionStats) => void) => onEvent(IPC_CHANNELS.STATS_UPDATE, cb),
 
-  cancelSession(): Promise<void> {
-    return ipcRenderer.invoke(IPC_CHANNELS.CANCEL_SESSION);
-  },
-
-  dispatch(prompt: string, agentRole?: AgentRole): Promise<{ sessionId: string }> {
-    return ipcRenderer.invoke(IPC_CHANNELS.DISPATCH, prompt, agentRole);
-  },
-
-  getActiveSessions(): Promise<SessionInfo[]> {
-    return ipcRenderer.invoke(IPC_CHANNELS.GET_SESSIONS);
-  },
-
-  approvePermission(agentId: string, toolId: string): Promise<void> {
-    return ipcRenderer.invoke(IPC_CHANNELS.APPROVE_PERMISSION, agentId, toolId);
-  },
-
-  denyPermission(agentId: string, toolId: string): Promise<void> {
-    return ipcRenderer.invoke(IPC_CHANNELS.DENY_PERMISSION, agentId, toolId);
-  },
-
-  getKanbanState(): Promise<KanbanState> {
-    return ipcRenderer.invoke(IPC_CHANNELS.GET_KANBAN);
-  },
-
-  getSettings(): Promise<AppSettings> {
-    return ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS);
-  },
-
-  saveSettings(settings: AppSettings): Promise<void> {
-    return ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
-  },
-
-  detectTerminals(): Promise<TerminalConfig[]> {
-    return ipcRenderer.invoke(IPC_CHANNELS.DETECT_TERMINALS);
-  },
-
-  browseTerminalApp(): Promise<TerminalConfig | null> {
-    return ipcRenderer.invoke(IPC_CHANNELS.BROWSE_TERMINAL_APP);
-  },
+  // Settings
+  getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
+  saveSettings: (s: AppSettings) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, s),
 });

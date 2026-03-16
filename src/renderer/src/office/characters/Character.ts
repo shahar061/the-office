@@ -31,6 +31,12 @@ export class Character {
   private idleTimer = 0;
   private idleWanderDelay = 3 + Math.random() * 5;
 
+  public isVisible: boolean = false;
+  private fadeDirection: 'in' | 'out' | null = null;
+  private fadeDuration: number = 0;
+  private fadeElapsed: number = 0;
+  private hideTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(options: CharacterOptions) {
     this.agentId = options.agentId;
     this.role = options.role;
@@ -89,7 +95,56 @@ export class Character {
     this.sprite.setAnimation('idle', this.direction);
   }
 
+  getDeskTile(): { x: number; y: number } {
+    return this.deskTile;
+  }
+
+  repositionTo(tx: number, ty: number): void {
+    const pos = this.mapRenderer.tileToPixel(tx, ty);
+    this.px = pos.x + this.mapRenderer.tileSize / 2;
+    this.py = pos.y + this.mapRenderer.tileSize;
+    this.sprite.setPosition(this.px, this.py);
+  }
+
+  show(parent: import('pixi.js').Container): void {
+    if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    this.isVisible = true;
+    this.sprite.setAlpha(0);
+    parent.addChild(this.sprite.container);
+    this.fadeDirection = 'in';
+    this.fadeDuration = 0.5;
+    this.fadeElapsed = 0;
+  }
+
+  hide(delay: number = 3000): void {
+    if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    this.hideTimer = setTimeout(() => {
+      this.hideTimer = null;
+      this.fadeDirection = 'out';
+      this.fadeDuration = 1.0;
+      this.fadeElapsed = 0;
+    }, delay);
+  }
+
   update(dt: number): void {
+    // Process fade animation even when not fully visible
+    if (this.fadeDirection) {
+      this.fadeElapsed += dt;
+      const t = Math.min(this.fadeElapsed / this.fadeDuration, 1);
+      const alpha = this.fadeDirection === 'in' ? t : 1 - t;
+      this.sprite.setAlpha(alpha);
+      if (t >= 1) {
+        this.fadeDirection = null;
+        if (alpha === 0) {
+          this.isVisible = false;
+          this.sprite.container.parent?.removeChild(this.sprite.container);
+        }
+      }
+    }
+
+    // Skip movement/idle logic when not visible
+    if (!this.isVisible) return;
+
     if (this.state === 'walk') {
       this.updateWalk(dt);
     } else if (this.state === 'idle') {
@@ -163,6 +218,7 @@ export class Character {
   }
 
   destroy(): void {
+    if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.sprite.destroy();
   }
 }
