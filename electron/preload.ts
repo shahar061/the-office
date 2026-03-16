@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/types';
 import type {
   AuthStatus, ProjectInfo, ProjectState, PhaseInfo,
-  ChatMessage, AgentEvent, PermissionRequest, KanbanState,
+  ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
   SessionStats, BuildConfig, AppSettings,
 } from '../shared/types';
 
@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld('office', {
   // Permissions
   onPermissionRequest: (cb: (r: PermissionRequest) => void) => onEvent(IPC_CHANNELS.PERMISSION_REQUEST, cb),
   respondPermission: (id: string, approved: boolean) => ipcRenderer.invoke(IPC_CHANNELS.RESPOND_PERMISSION, id, approved),
+
+  // Agent Interaction
+  respondToAgent: (sessionId: string, answers: Record<string, string>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.USER_RESPONSE, sessionId, answers),
+  onAgentWaiting: (cb: (payload: AgentWaitingPayload) => void) =>
+    onEvent(IPC_CHANNELS.AGENT_WAITING, cb),
 
   // Kanban
   onKanbanUpdate: (cb: (s: KanbanState) => void) => onEvent(IPC_CHANNELS.KANBAN_UPDATE, cb),
