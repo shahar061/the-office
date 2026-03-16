@@ -55,6 +55,7 @@ export interface AgentEvent {
   agentRole: AgentRole;
   source: 'sdk';
   type: AgentEventType;
+  isTopLevel?: boolean;
   toolName?: string;
   toolId?: string;
   message?: string;
@@ -103,6 +104,18 @@ export interface ChatMessage {
   agentRole?: AgentRole;
   text: string;
   timestamp: number;
+}
+
+// ── Chat History ──
+
+export interface ChatRun {
+  runNumber: number;
+  messages: ChatMessage[];
+}
+
+export interface PhaseHistory {
+  agentRole: AgentRole;
+  runs: ChatRun[];  // sorted by runNumber ascending
 }
 
 // ── Permissions ──
@@ -201,6 +214,7 @@ export const IPC_CHANNELS = {
   // Chat
   SEND_MESSAGE: 'office:send-message',
   CHAT_MESSAGE: 'office:chat-message',
+  GET_CHAT_HISTORY: 'office:get-chat-history',
   // Agent Events
   AGENT_EVENT: 'office:agent-event',
   // Permissions
@@ -241,6 +255,7 @@ export interface OfficeAPI {
 
   sendMessage(message: string): Promise<void>;
   onChatMessage(callback: (msg: ChatMessage) => void): () => void;
+  getChatHistory(phase: Phase): Promise<PhaseHistory[]>;
 
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
 
