@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
+import type { ArchivedRun } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { AgentRole, ChatMessage } from '@shared/types';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
@@ -303,10 +304,11 @@ const styles = {
 
 export default function OfficeView() {
   const { authStatus, projectState, currentPhase } = useProjectStore();
-  const { messages, addMessage, waitingForResponse, waitingAgentRole, waitingSessionId, waitingQuestions, setWaiting } = useChatStore();
+  const { messages, addMessage, archivedRuns, loadHistory, waitingForResponse, waitingAgentRole, waitingSessionId, waitingQuestions, setWaiting } = useChatStore();
 
   const [inputValue, setInputValue] = useState('');
   const [officeScene, setOfficeScene] = useState<OfficeScene | null>(null);
+  const [expandedArchived, setExpandedArchived] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -321,6 +323,20 @@ export default function OfficeView() {
 
   // Bridge store → PixiJS scene
   useSceneSync(officeScene);
+
+  // Load chat history when returning to a project with existing phases
+  useEffect(() => {
+    if (!projectState || projectState.currentPhase === 'idle') return;
+
+    let cancelled = false;
+    window.office.getChatHistory(projectState.currentPhase).then((history) => {
+      if (!cancelled && history.length > 0) {
+        loadHistory(history);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [projectState?.path, projectState?.currentPhase]);
 
   const handleSceneReady = useCallback((scene: OfficeScene) => {
     setOfficeScene(scene);
@@ -383,7 +399,84 @@ export default function OfficeView() {
   const phaseStatus = currentPhase?.status;
   const phaseText = phaseLabel(phase, phaseStatus);
 
-  const showEmpty = messages.length === 0;
+  const showEmpty = messages.length === 0 && archivedRuns.length === 0;
+
+  function toggleArchived(key: string) {
+    setExpandedArchived(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function renderArchivedRuns() {
+    if (archivedRuns.length === 0) return null;
+
+    return (
+      <>
+        {archivedRuns.map((run) => {
+          const key = `${run.agentRole}-${run.runNumber}`;
+          const isOpen = expandedArchived.has(key);
+          const msgCount = run.messages.length;
+          const dateStr = new Date(run.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+          const color = run.agentRole ? AGENT_COLORS[run.agentRole] ?? '#94a3b8' : '#94a3b8';
+
+          return (
+            <div key={key}>
+              <button
+                onClick={() => toggleArchived(key)}
+                style={{
+                  background: '#111122',
+                  border: '1px solid #2a2a3a',
+                  borderRadius: '6px',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  width: '100%',
+                  fontSize: '11px',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <span style={{ color: '#666' }}>{isOpen ? '▼' : '▶'}</span>
+                <span style={{ color, fontWeight: 600 }}>
+                  Run {run.runNumber} — {agentDisplayName(run.agentRole)}
+                </span>
+                <span style={{ color: '#555' }}>
+                  ({msgCount} message{msgCount !== 1 ? 's' : ''}, {dateStr})
+                </span>
+              </button>
+              {isOpen && (
+                <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: '6px', opacity: 0.7 }}>
+                  {run.messages.map((msg) => renderMessage(msg, false))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div style={{
+          borderBottom: '1px solid #333',
+          margin: '4px 0',
+          position: 'relative',
+        }}>
+          <span style={{
+            position: 'absolute',
+            top: '-8px',
+            left: '12px',
+            background: '#0f0f1a',
+            padding: '0 8px',
+            fontSize: '10px',
+            color: '#555',
+          }}>
+            Current
+          </span>
+        </div>
+      </>
+    );
+  }
 
   function renderMessage(msg: ChatMessage, isLast: boolean = false) {
     const isUser = msg.role === 'user';
@@ -562,6 +655,7 @@ export default function OfficeView() {
                   </div>
                 ) : (
                   <div style={{ ...styles.messageList, paddingTop: '48px' }}>
+                    {renderArchivedRuns()}
                     {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
                     {renderQuestionBubble()}
                     <div ref={messagesEndRef} />
@@ -615,6 +709,7 @@ export default function OfficeView() {
                 </div>
               ) : (
                 <div style={styles.messageList}>
+                  {renderArchivedRuns()}
                   {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
                   {renderQuestionBubble()}
                   <div ref={messagesEndRef} />
