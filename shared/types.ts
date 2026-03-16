@@ -216,6 +216,8 @@ export const IPC_CHANNELS = {
   // Settings
   GET_SETTINGS: 'office:get-settings',
   SAVE_SETTINGS: 'office:save-settings',
+  // Utilities
+  OPEN_EXTERNAL: 'office:open-external',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -252,6 +254,7 @@ export interface OfficeAPI {
 
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
+  openExternal(url: string): Promise<void>;
 }
 
 declare global {

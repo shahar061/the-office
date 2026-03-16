@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'path';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
@@ -351,6 +351,12 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, _settings: AppSettings) => {
     // Placeholder — will persist to disk in a future iteration
+  });
+
+  ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (_event, url: string) => {
+    if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+      await shell.openExternal(url);
+    }
   });
 }
 
