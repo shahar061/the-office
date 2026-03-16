@@ -29,6 +29,11 @@ export class Camera {
   private manualOverride = false;
   private mapWidth = 640;
   private mapHeight = 480;
+  private nudgeOffsetX: number = 0;
+  private nudgeOffsetY: number = 0;
+  private nudgeElapsed: number = 0;
+  private nudgeDuration: number = 0;
+  private nudgeStrength: number = 0.3;
 
   constructor(container: Container, zones?: Map<string, ZoneRect>) {
     this.container = container;
@@ -146,10 +151,34 @@ export class Camera {
     this.focusOnPhase(phase);
   }
 
+  nudgeToward(worldX: number, worldY: number, duration: number = 1500): void {
+    if (this.manualOverride) return;
+    const dx = worldX - this.targetX;
+    const dy = worldY - this.targetY;
+    this.nudgeOffsetX = dx * this.nudgeStrength;
+    this.nudgeOffsetY = dy * this.nudgeStrength;
+    this.nudgeElapsed = 0;
+    this.nudgeDuration = duration / 1000;
+  }
+
   update(): void {
     this.currentX += (this.targetX - this.currentX) * LERP_SPEED;
     this.currentY += (this.targetY - this.currentY) * LERP_SPEED;
     this.currentZoom += (this.targetZoom - this.currentZoom) * LERP_SPEED;
+
+    // Apply and decay nudge offset
+    if (this.nudgeDuration > 0) {
+      this.nudgeElapsed += 1 / 60;
+      const t = Math.min(this.nudgeElapsed / this.nudgeDuration, 1);
+      const ease = 1 - t;
+      this.currentX += this.nudgeOffsetX * ease;
+      this.currentY += this.nudgeOffsetY * ease;
+      if (t >= 1) {
+        this.nudgeDuration = 0;
+        this.nudgeOffsetX = 0;
+        this.nudgeOffsetY = 0;
+      }
+    }
 
     this.container.scale.set(this.currentZoom);
     this.container.x = this.viewWidth / 2 - this.currentX * this.currentZoom;
