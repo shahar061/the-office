@@ -10,6 +10,9 @@ import type { OfficeScene } from '../../office/OfficeScene';
 import { useUIStore } from '../../stores/ui.store';
 import { TabBar } from '../TabBar/TabBar';
 import { MessageRenderer } from './MessageRenderer';
+import { ArtifactToolbox } from './ArtifactToolbox';
+import { ArtifactOverlay } from './ArtifactOverlay';
+import { useArtifactStore } from '../../stores/artifact.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -494,6 +497,7 @@ export default function OfficeView() {
           <button
             onClick={() => {
               useChatStore.getState().clearMessages();
+              useArtifactStore.getState().reset();
               useProjectStore.getState().setProjectState(null);
             }}
             style={{
@@ -594,8 +598,10 @@ export default function OfficeView() {
 
               {/* Office tab (canvas) — only mount when visible to ensure valid WebGL context */}
               {activeTab === 'office' && (
-                <div style={styles.canvasArea}>
+                <div style={{ ...styles.canvasArea, position: 'relative' }}>
                   <OfficeCanvas onSceneReady={handleSceneReady} />
+                  <ArtifactToolbox />
+                  <ArtifactOverlay />
                 </div>
               )}
             </div>
@@ -663,8 +669,10 @@ export default function OfficeView() {
             </button>
 
             {/* PixiJS office canvas */}
-            <div style={styles.canvasArea}>
+            <div style={{ ...styles.canvasArea, position: 'relative' }}>
               <OfficeCanvas onSceneReady={handleSceneReady} />
+              <ArtifactToolbox />
+              <ArtifactOverlay />
             </div>
           </>
         )}
