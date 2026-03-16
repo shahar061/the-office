@@ -7,6 +7,8 @@ import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
 import { OfficeCanvas } from '../../office/OfficeCanvas';
 import { useSceneSync } from '../../office/useSceneSync';
 import type { OfficeScene } from '../../office/OfficeScene';
+import { useUIStore } from '../../stores/ui.store';
+import { TabBar } from '../TabBar/TabBar';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -216,6 +218,52 @@ const styles = {
     fontStyle: 'italic',
     userSelect: 'none' as const,
   },
+
+  // Chevron toggle button
+  chevronButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    background: '#1a1a2e',
+    border: 'none',
+    borderLeft: '1px solid #333',
+    borderRight: '1px solid #333',
+    color: '#666',
+    cursor: 'pointer',
+    fontSize: '14px',
+    flexShrink: 0,
+    transition: 'background 0.15s, color 0.15s',
+    fontFamily: 'inherit',
+  },
+
+  // Expanded mode: full-width content area
+  expandedContent: {
+    position: 'relative' as const,
+    flex: 1,
+    display: 'flex',
+    overflow: 'hidden',
+  },
+  // Expanded chat panel (full width)
+  expandedChatPanel: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    width: '100%',
+    background: '#0f0f1a',
+    overflow: 'hidden',
+  },
+  // Expanded input row capped at 720px
+  expandedInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#1a1a2e',
+    border: '1px solid #333',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    maxWidth: '720px',
+    margin: '0 auto',
+    width: '100%',
+  },
 } as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -228,6 +276,8 @@ export default function OfficeView() {
   const [officeScene, setOfficeScene] = useState<OfficeScene | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { isExpanded, activeTab, toggleExpanded, setActiveTab } = useUIStore();
 
   // Bridge store → PixiJS scene
   useSceneSync(officeScene);
@@ -357,53 +407,150 @@ export default function OfficeView() {
 
       {/* Main area */}
       <div style={styles.main}>
-        {/* Chat panel */}
-        <div style={styles.chatPanel}>
-          {/* Message list */}
-          {showEmpty ? (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyTitle}>The Office</div>
-              <div style={styles.emptySubtitle}>
-                {isIdle
-                  ? 'Describe what you want to build and the team will get to work.'
-                  : 'No messages yet.'}
+        {isExpanded ? (
+          <>
+            {/* Collapse chevron */}
+            <button
+              style={styles.chevronButton}
+              onClick={toggleExpanded}
+              title="Collapse to side-by-side"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2a2a4a';
+                e.currentTarget.style.color = '#e5e5e5';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#1a1a2e';
+                e.currentTarget.style.color = '#666';
+              }}
+            >
+              ‹
+            </button>
+
+            {/* Expanded content area */}
+            <div style={styles.expandedContent}>
+              <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+              {/* Chat tab (full width) */}
+              <div style={{
+                ...styles.expandedChatPanel,
+                display: activeTab === 'chat' ? 'flex' : 'none',
+              }}>
+                {showEmpty ? (
+                  <div style={styles.emptyState}>
+                    <div style={styles.emptyTitle}>The Office</div>
+                    <div style={styles.emptySubtitle}>
+                      {isIdle
+                        ? 'Describe what you want to build and the team will get to work.'
+                        : 'No messages yet.'}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ ...styles.messageList, paddingTop: '48px' }}>
+                    {messages.map(renderMessage)}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+
+                {/* Input area (capped width) */}
+                <div style={styles.inputArea}>
+                  <div style={styles.expandedInputRow}>
+                    <textarea
+                      ref={inputRef}
+                      rows={1}
+                      style={styles.inputField}
+                      placeholder={inputPlaceholder}
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                    />
+                    <button
+                      style={styles.sendButton(canSend)}
+                      onClick={handleSend}
+                      disabled={!canSend}
+                      aria-label="Send message"
+                    >
+                      ↑
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Office tab (canvas) */}
+              <div style={{
+                ...styles.canvasArea,
+                display: activeTab === 'office' ? 'flex' : 'none',
+              }}>
+                <OfficeCanvas onSceneReady={handleSceneReady} />
               </div>
             </div>
-          ) : (
-            <div style={styles.messageList}>
-              {messages.map(renderMessage)}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+          </>
+        ) : (
+          <>
+            {/* Default: side-by-side layout */}
+            <div style={styles.chatPanel}>
+              {showEmpty ? (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyTitle}>The Office</div>
+                  <div style={styles.emptySubtitle}>
+                    {isIdle
+                      ? 'Describe what you want to build and the team will get to work.'
+                      : 'No messages yet.'}
+                  </div>
+                </div>
+              ) : (
+                <div style={styles.messageList}>
+                  {messages.map(renderMessage)}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
 
-          {/* Input area */}
-          <div style={styles.inputArea}>
-            <div style={styles.inputRow}>
-              <textarea
-                ref={inputRef}
-                rows={1}
-                style={styles.inputField}
-                placeholder={inputPlaceholder}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-              <button
-                style={styles.sendButton(canSend)}
-                onClick={handleSend}
-                disabled={!canSend}
-                aria-label="Send message"
-              >
-                ↑
-              </button>
+              {/* Input area */}
+              <div style={styles.inputArea}>
+                <div style={styles.inputRow}>
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    style={styles.inputField}
+                    placeholder={inputPlaceholder}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <button
+                    style={styles.sendButton(canSend)}
+                    onClick={handleSend}
+                    disabled={!canSend}
+                    aria-label="Send message"
+                  >
+                    ↑
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* PixiJS office canvas */}
-        <div style={styles.canvasArea}>
-          <OfficeCanvas onSceneReady={handleSceneReady} />
-        </div>
+            {/* Expand chevron */}
+            <button
+              style={styles.chevronButton}
+              onClick={toggleExpanded}
+              title="Expand chat to full width"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2a2a4a';
+                e.currentTarget.style.color = '#e5e5e5';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#1a1a2e';
+                e.currentTarget.style.color = '#666';
+              }}
+            >
+              ›
+            </button>
+
+            {/* PixiJS office canvas */}
+            <div style={styles.canvasArea}>
+              <OfficeCanvas onSceneReady={handleSceneReady} />
+            </div>
+          </>
+        )}
       </div>
       <PermissionPrompt />
     </div>
