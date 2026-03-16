@@ -240,6 +240,44 @@ const styles = {
     fontFamily: 'inherit',
   },
 
+  // Question bubble styles
+  questionBubble: (accentColor: string) => ({
+    background: '#151528',
+    borderRadius: '8px',
+    padding: '12px',
+    border: `1px solid ${accentColor}44`,
+    borderLeft: `3px solid ${accentColor}`,
+  }),
+  questionText: (isExpanded: boolean) => ({
+    fontSize: isExpanded ? '13px' : '11px',
+    color: '#e2e8f0',
+    fontWeight: 600,
+    marginBottom: '10px',
+  }),
+  questionOption: (isExpanded: boolean) => ({
+    padding: isExpanded ? '10px 14px' : '8px 12px',
+    fontSize: isExpanded ? '12px' : '11px',
+    background: '#1a1a3e',
+    border: '1px solid #333',
+    borderRadius: '8px',
+    color: '#cbd5e1',
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    fontFamily: 'inherit',
+  }),
+  questionOptionsGrid: (isExpanded: boolean) => ({
+    display: isExpanded ? 'grid' : 'flex',
+    gridTemplateColumns: isExpanded ? '1fr 1fr' : undefined,
+    flexDirection: isExpanded ? undefined : 'column' as const,
+    gap: '6px',
+  }),
+  questionHint: (accentColor: string) => ({
+    fontSize: '10px',
+    color: accentColor,
+    fontStyle: 'italic',
+    marginTop: '8px',
+  }),
+
   // Expanded mode: full-width content area
   expandedContent: {
     position: 'relative' as const,
@@ -381,14 +419,15 @@ export default function OfficeView() {
           : '#94a3b8';
 
     const isWaiting = isLast && waitingForResponse;
+    const hasQuestionBubble = isWaiting && waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0;
 
     return (
       <div
         key={msg.id}
-        className={isWaiting ? 'bubble-waiting' : undefined}
+        className={isWaiting && !hasQuestionBubble ? 'bubble-waiting' : undefined}
         style={{
           ...styles.messageBubble(msg.role, accentColor),
-          ...(isWaiting ? { '--accent-color': accentColor } as React.CSSProperties : {}),
+          ...(isWaiting && !hasQuestionBubble ? { '--accent-color': accentColor } as React.CSSProperties : {}),
         }}
       >
         <span style={styles.messageSender(senderColor)}>
@@ -396,39 +435,52 @@ export default function OfficeView() {
         </span>
         <span style={styles.messageText}>{msg.text}</span>
         <div style={styles.messageTimestamp}>{formatTime(msg.timestamp)}</div>
-        {isWaiting && (
-          <>
-            <div style={{ fontSize: '10px', color: '#666', fontStyle: 'italic', marginTop: '6px' }}>
-              Awaiting your response
-            </div>
-            {waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                {waitingQuestions[0].options.map((opt) => (
-                  <button
-                    key={opt.label}
-                    onClick={() => {
-                      setInputValue(opt.label);
-                      inputRef.current?.focus();
-                    }}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      background: '#2a2a4a',
-                      border: '1px solid #444',
-                      borderRadius: '12px',
-                      color: '#cbd5e1',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                    title={opt.description}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
+        {isWaiting && !hasQuestionBubble && (
+          <div style={{ fontSize: '10px', color: '#666', fontStyle: 'italic', marginTop: '6px' }}>
+            Awaiting your response
+          </div>
         )}
+      </div>
+    );
+  }
+
+  function renderQuestionBubble() {
+    if (!waitingForResponse || waitingQuestions.length === 0 || waitingQuestions[0].options.length === 0) {
+      return null;
+    }
+
+    const question = waitingQuestions[0];
+    const accentColor = waitingAgentRole ? AGENT_COLORS[waitingAgentRole] : '#94a3b8';
+
+    return (
+      <div
+        className="bubble-waiting"
+        style={{
+          ...styles.questionBubble(accentColor),
+          '--accent-color': accentColor,
+        } as React.CSSProperties}
+      >
+        <div style={styles.questionText(isExpanded)}>
+          {question.question}
+        </div>
+        <div style={styles.questionOptionsGrid(isExpanded)}>
+          {question.options.map((opt) => (
+            <button
+              key={opt.label}
+              onClick={() => {
+                setInputValue(opt.label);
+                inputRef.current?.focus();
+              }}
+              title={opt.description}
+              style={styles.questionOption(isExpanded)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div style={styles.questionHint(accentColor)}>
+          Click to select or type your own answer
+        </div>
       </div>
     );
   }
@@ -519,6 +571,7 @@ export default function OfficeView() {
                 ) : (
                   <div style={{ ...styles.messageList, paddingTop: '48px' }}>
                     {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
+                    {renderQuestionBubble()}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
@@ -571,6 +624,7 @@ export default function OfficeView() {
               ) : (
                 <div style={styles.messageList}>
                   {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
+                  {renderQuestionBubble()}
                   <div ref={messagesEndRef} />
                 </div>
               )}
