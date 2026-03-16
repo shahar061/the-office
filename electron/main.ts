@@ -5,6 +5,9 @@ import { randomUUID } from 'crypto';
 import { IPC_CHANNELS } from '../shared/types';
 import type {
   AgentEvent,
+  AgentRole,
+  AgentWaitingPayload,
+  AskQuestion,
   AppSettings,
   BuildConfig,
   ChatMessage,
@@ -41,6 +44,14 @@ const sessionStats: SessionStats = {
   activeAgents: 0,
 };
 
+// Pending AskUserQuestion promises, keyed by session ID
+interface PendingQuestion {
+  resolve: (answers: Record<string, string>) => void;
+  reject: (error: Error) => void;
+}
+const pendingQuestions = new Map<string, PendingQuestion>();
+let nextSessionId = 0;
+
 // ── Helpers ──
 
 function send(channel: string, data: unknown): void {
@@ -76,6 +87,27 @@ function onAgentEvent(event: AgentEvent): void {
     if (event.tokens !== undefined) sessionStats.totalTokens += event.tokens;
     send(IPC_CHANNELS.STATS_UPDATE, { ...sessionStats });
   }
+}
+
+function handleAgentWaiting(agentRole: AgentRole, questions: AskQuestion[]): Promise<Record<string, string>> {
+  return new Promise<Record<string, string>>((resolve, reject) => {
+    const sessionId = `session-${++nextSessionId}`;
+    pendingQuestions.set(sessionId, { resolve, reject });
+
+    const payload: AgentWaitingPayload = { sessionId, agentRole, questions };
+    send(IPC_CHANNELS.AGENT_WAITING, payload);
+  });
+}
+
+function onSystemMessage(text: string): void {
+  sendChat({ role: 'system', text });
+}
+
+function rejectPendingQuestions(reason: string): void {
+  for (const [id, pending] of pendingQuestions) {
+    pending.reject(new Error(reason));
+  }
+  pendingQuestions.clear();
 }
 
 // ── Window ──
@@ -204,16 +236,17 @@ function setupIPC(): void {
       await runImagine(userIdea, {
         projectDir: currentProjectDir,
         agentsDir,
-        apiKey: authManager.getApiKey() || '',
-        authEnv: authManager.getAuthEnv(),
-        permissionHandler,
+        env: authManager.getAuthEnv() || {},
         onEvent: onAgentEvent,
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
       });
       phaseMachine.markCompleted('imagine');
     } catch (err: any) {
       console.error('[Main] Imagine failed:', err);
       const errMsg = err.stderr || err.message || 'Unknown error';
       sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
+      rejectPendingQuestions('Imagine phase failed');
       phaseMachine.markFailed();
     }
   });
@@ -236,14 +269,15 @@ function setupIPC(): void {
       await runWarroom({
         projectDir: currentProjectDir,
         agentsDir,
-        apiKey: authManager.getApiKey() || '',
-        authEnv: authManager.getAuthEnv(),
-        permissionHandler,
+        env: authManager.getAuthEnv() || {},
         onEvent: onAgentEvent,
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
       });
       phaseMachine.markCompleted('warroom');
     } catch (err) {
       console.error('[Main] Warroom failed:', err);
+      rejectPendingQuestions('Warroom phase failed');
       phaseMachine.markFailed();
     }
   });
@@ -266,16 +300,19 @@ function setupIPC(): void {
         agentsDir,
         apiKey: authManager.getApiKey() || '',
         authEnv: authManager.getAuthEnv(),
-        permissionHandler,
+        permissionHandler: permissionHandler!,
         buildConfig: config,
         onEvent: onAgentEvent,
         onKanbanUpdate: (state) => send(IPC_CHANNELS.KANBAN_UPDATE, state),
+        onWaiting: handleAgentWaiting,
+        onSystemMessage,
       });
       phaseMachine.markCompleted('build');
       phaseMachine.transition('complete');
       phaseMachine.markCompleted('complete');
     } catch (err) {
       console.error('[Main] Build failed:', err);
+      rejectPendingQuestions('Build phase failed');
       phaseMachine.markFailed();
     }
   });
@@ -285,6 +322,14 @@ function setupIPC(): void {
   ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, _message: string) => {
     // User messages are added to the chat store locally by the renderer.
     // This handler exists for future use (routing messages to active SDK sessions).
+  });
+
+  ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
+    const pending = pendingQuestions.get(sessionId);
+    if (pending) {
+      pendingQuestions.delete(sessionId);
+      pending.resolve(answers);
+    }
   });
 
   // ── Permissions ──
@@ -382,6 +427,9 @@ app.on('window-all-closed', () => {
     activeAbort();
     activeAbort = null;
   }
+
+  // Reject any pending AskUserQuestion promises
+  rejectPendingQuestions('App closing');
 
   app.quit();
 });
