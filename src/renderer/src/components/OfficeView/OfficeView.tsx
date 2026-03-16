@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
-import type { AgentRole } from '@shared/types';
+import type { AgentRole, ChatMessage } from '@shared/types';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
 import { OfficeCanvas } from '../../office/OfficeCanvas';
 import { useSceneSync } from '../../office/useSceneSync';
@@ -24,6 +24,13 @@ function agentDisplayName(role: AgentRole): string {
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+function formatTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -103,12 +110,7 @@ const styles = {
     padding: '12px 12px 6px',
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '10px',
-  },
-  messageItem: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '2px',
+    gap: '8px',
   },
   messageSender: (color: string) => ({
     fontSize: '10px',
@@ -123,6 +125,21 @@ const styles = {
     lineHeight: 1.5,
     whiteSpace: 'pre-wrap' as const,
     wordBreak: 'break-word' as const,
+  },
+
+  // Chat bubble styles
+  messageBubble: (role: 'user' | 'agent' | 'system', accentColor: string) => ({
+    padding: '10px 12px',
+    borderRadius: '8px',
+    borderLeft: `3px solid ${accentColor}`,
+    background: role === 'user' ? '#1a2a3a' : role === 'system' ? '#1a1a1a' : '#1a1a2e',
+    marginBottom: '0px', // gap handled by parent flex gap
+  }),
+  messageTimestamp: {
+    fontSize: '10px',
+    color: '#666',
+    textAlign: 'right' as const,
+    marginTop: '4px',
   },
 
   // Empty state
@@ -267,6 +284,42 @@ export default function OfficeView() {
 
   const showEmpty = messages.length === 0;
 
+  function renderMessage(msg: ChatMessage) {
+    const isUser = msg.role === 'user';
+    const isSystem = msg.role === 'system';
+    const senderLabel = isUser
+      ? 'You'
+      : isSystem
+        ? 'System'
+        : msg.agentRole
+          ? agentDisplayName(msg.agentRole)
+          : 'Agent';
+    const accentColor = isUser
+      ? '#3b82f6'
+      : isSystem
+        ? '#666'
+        : msg.agentRole
+          ? AGENT_COLORS[msg.agentRole]
+          : '#94a3b8';
+    const senderColor = isUser
+      ? '#3b82f6'
+      : isSystem
+        ? '#999'
+        : msg.agentRole
+          ? AGENT_COLORS[msg.agentRole]
+          : '#94a3b8';
+
+    return (
+      <div key={msg.id} style={styles.messageBubble(msg.role, accentColor)}>
+        <span style={styles.messageSender(senderColor)}>
+          {senderLabel}
+        </span>
+        <span style={styles.messageText}>{msg.text}</span>
+        <div style={styles.messageTimestamp}>{formatTime(msg.timestamp)}</div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.root}>
       {/* Top bar */}
@@ -318,28 +371,7 @@ export default function OfficeView() {
             </div>
           ) : (
             <div style={styles.messageList}>
-              {messages.map((msg) => {
-                const isUser = msg.role === 'user';
-                const senderLabel = isUser
-                  ? 'You'
-                  : msg.agentRole
-                  ? agentDisplayName(msg.agentRole)
-                  : 'Agent';
-                const senderColor = isUser
-                  ? '#94a3b8'
-                  : msg.agentRole
-                  ? AGENT_COLORS[msg.agentRole]
-                  : '#94a3b8';
-
-                return (
-                  <div key={msg.id} style={styles.messageItem}>
-                    <span style={styles.messageSender(senderColor)}>
-                      {senderLabel}
-                    </span>
-                    <span style={styles.messageText}>{msg.text}</span>
-                  </div>
-                );
-              })}
+              {messages.map(renderMessage)}
               <div ref={messagesEndRef} />
             </div>
           )}
