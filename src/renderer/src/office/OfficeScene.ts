@@ -110,7 +110,6 @@ export class OfficeScene {
       });
 
       this.characters.set(config.role, character);
-      this.characterLayer.addChild(character.sprite.container);
     }
 
     // Set up camera with zone data
@@ -153,6 +152,27 @@ export class OfficeScene {
 
   getAllCharacters(): Map<string, Character> {
     return this.characters;
+  }
+
+  showCharacter(role: AgentRole): void {
+    const character = this.characters.get(role);
+    if (!character || character.isVisible) return;
+    const entrance = this.getEntrancePosition();
+    character.repositionTo(entrance.x, entrance.y);
+    character.show(this.characterLayer);
+  }
+
+  hideCharacter(role: AgentRole): void {
+    const character = this.characters.get(role);
+    if (!character || !character.isVisible) return;
+    character.hide(3000);
+  }
+
+  getEntrancePosition(): { x: number; y: number } {
+    const sp = this.mapRenderer.getSpawnPoint('entrance');
+    if (sp) return sp;
+    // Fallback: bottom-center of the map
+    return { x: Math.floor(this.mapRenderer.width / 2), y: this.mapRenderer.height - 2 };
   }
 
   onResize(width: number, height: number): void {
