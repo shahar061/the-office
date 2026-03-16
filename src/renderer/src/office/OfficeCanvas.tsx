@@ -31,7 +31,8 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     const init = async () => {
       await app.init({
         background: '#1a1a2e',
-        resizeTo: container,
+        width: container.clientWidth,
+        height: container.clientHeight,
         antialias: false,
         roundPixels: true,
         resolution: 1,
@@ -67,16 +68,25 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
       }
     });
 
-    const onResize = () => {
-      if (sceneRef.current && container) {
-        sceneRef.current.onResize(container.clientWidth, container.clientHeight);
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        // Guard: skip when container is hidden (display: none → 0×0)
+        if (width === 0 || height === 0) continue;
+        // Resize renderer and scene/camera atomically
+        if (appRef.current) {
+          appRef.current.renderer.resize(width, height);
+        }
+        if (sceneRef.current) {
+          sceneRef.current.onResize(width, height);
+        }
       }
-    };
-    window.addEventListener('resize', onResize);
+    });
+    resizeObserver.observe(container);
 
     return () => {
       destroyedRef.current = true;
-      window.removeEventListener('resize', onResize);
+      resizeObserver.disconnect();
       // Remove canvas from DOM
       while (container.firstChild) {
         container.removeChild(container.firstChild);
