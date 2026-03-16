@@ -99,7 +99,7 @@ export interface PhaseInfo {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'agent';
+  role: 'user' | 'agent' | 'system';
   agentRole?: AgentRole;
   text: string;
   timestamp: number;

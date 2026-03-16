@@ -14,6 +14,7 @@ export default defineConfig({
     alias: {
       '@': resolve(process.cwd(), 'src'),
       '@electron': resolve(process.cwd(), 'electron'),
+      '@shared': resolve(process.cwd(), 'shared'),
     },
   },
 });
