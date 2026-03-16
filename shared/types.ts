@@ -114,12 +114,35 @@ export interface PermissionRequest {
   input: Record<string, unknown>;
 }
 
+// ── Agent Interaction ──
+
+export interface AskQuestion {
+  question: string;
+  header: string;
+  options: { label: string; description: string }[];
+  multiSelect: boolean;
+}
+
+export interface AgentWaitingPayload {
+  sessionId: string;
+  agentRole: AgentRole;
+  questions: AskQuestion[];
+}
+
 // ── Build ──
 
 export interface BuildConfig {
   modelPreset: 'default' | 'fast' | 'quality';
   retryLimit: number;
   permissionMode: 'ask' | 'auto-safe' | 'auto-all';
+}
+
+export interface PhaseConfig {
+  projectDir: string;
+  agentsDir: string;
+  env: Record<string, string>;
+  onEvent: (event: AgentEvent) => void;
+  onWaiting: (agentRole: AgentRole, questions: AskQuestion[]) => Promise<Record<string, string>>;
 }
 
 // ── Kanban ──
@@ -187,6 +210,9 @@ export const IPC_CHANNELS = {
   KANBAN_UPDATE: 'office:kanban-update',
   // Stats
   STATS_UPDATE: 'office:stats-update',
+  // Agent Interaction
+  AGENT_WAITING: 'office:agent-waiting',
+  USER_RESPONSE: 'office:user-response',
   // Settings
   GET_SETTINGS: 'office:get-settings',
   SAVE_SETTINGS: 'office:save-settings',
@@ -218,6 +244,8 @@ export interface OfficeAPI {
 
   onPermissionRequest(callback: (req: PermissionRequest) => void): () => void;
   respondPermission(requestId: string, approved: boolean): Promise<void>;
+  respondToAgent(sessionId: string, answers: Record<string, string>): Promise<void>;
+  onAgentWaiting(callback: (payload: AgentWaitingPayload) => void): () => void;
 
   onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
   onStatsUpdate(callback: (stats: SessionStats) => void): () => void;
