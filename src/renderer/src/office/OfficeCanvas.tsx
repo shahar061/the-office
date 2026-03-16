@@ -31,8 +31,7 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     const init = async () => {
       await app.init({
         background: '#1a1a2e',
-        width: container.clientWidth,
-        height: container.clientHeight,
+        resizeTo: container,
         antialias: false,
         roundPixels: true,
         resolution: 1,
@@ -68,15 +67,12 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
       }
     });
 
+    // ResizeObserver notifies the scene/camera of container size changes.
+    // PixiJS handles canvas element resizing via resizeTo: container.
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        // Guard: skip when container is hidden (display: none → 0×0)
         if (width === 0 || height === 0) continue;
-        // Resize renderer and scene/camera atomically
-        if (appRef.current) {
-          appRef.current.renderer.resize(width, height);
-        }
         if (sceneRef.current) {
           sceneRef.current.onResize(width, height);
         }
