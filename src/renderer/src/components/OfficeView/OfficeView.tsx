@@ -9,6 +9,7 @@ import { useSceneSync } from '../../office/useSceneSync';
 import type { OfficeScene } from '../../office/OfficeScene';
 import { useUIStore } from '../../stores/ui.store';
 import { TabBar } from '../TabBar/TabBar';
+import { MessageRenderer } from './MessageRenderer';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -123,15 +124,6 @@ const styles = {
     letterSpacing: '0.05em',
     marginBottom: '4px',
   }),
-  messageText: {
-    display: 'block',
-    fontSize: '12px',
-    color: '#cbd5e1',
-    lineHeight: 1.5,
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
-  },
-
   // Chat bubble styles
   messageBubble: (role: 'user' | 'agent' | 'system', accentColor: string) => ({
     padding: '10px 12px',
@@ -433,7 +425,7 @@ export default function OfficeView() {
         <span style={styles.messageSender(senderColor)}>
           {senderLabel}
         </span>
-        <span style={styles.messageText}>{msg.text}</span>
+        <MessageRenderer text={msg.text} role={msg.role} />
         <div style={styles.messageTimestamp}>{formatTime(msg.timestamp)}</div>
         {isWaiting && !hasQuestionBubble && (
           <div style={{ fontSize: '10px', color: '#666', fontStyle: 'italic', marginTop: '6px' }}>
