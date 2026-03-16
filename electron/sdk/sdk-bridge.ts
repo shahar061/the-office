@@ -65,6 +65,7 @@ export function translateMessage(
         {
           ...base,
           type: 'agent:created',
+          isTopLevel: true,
           message: sessionId,
         },
       ];
@@ -78,6 +79,7 @@ export function translateMessage(
           ...base,
           agentRole: role,
           type: 'agent:created',
+          isTopLevel: false,
           message: taskName,
         },
       ];
