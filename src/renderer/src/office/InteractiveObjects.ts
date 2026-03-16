@@ -1,4 +1,4 @@
-import { Container, Sprite, Text, Graphics } from 'pixi.js';
+import { Container, Sprite, Text, Graphics, Rectangle } from 'pixi.js';
 import { OutlineFilter } from 'pixi-filters';
 import type { ZoneRect } from './engine/TiledMapRenderer';
 import { AGENT_COLORS, type AgentRole } from '../../../../shared/types';
@@ -72,6 +72,12 @@ export class InteractiveObjects {
     });
     sprite.filters = [outlineFilter];
 
+    // Set explicit hit area so pointer events work even on transparent pixels
+    // Account for center-anchored sprites (from tile flip transforms)
+    const anchorOffsetX = -sprite.anchor.x * this.tileSize;
+    const anchorOffsetY = -sprite.anchor.y * this.tileSize;
+    sprite.hitArea = new Rectangle(anchorOffsetX, anchorOffsetY, this.tileSize, this.tileSize);
+
     // Make sprite interactive (disabled until available)
     sprite.eventMode = 'none';
     sprite.cursor = 'default';
@@ -127,9 +133,9 @@ export class InteractiveObjects {
 
     tooltip.addChild(tooltipBg, tooltipText);
 
-    // Position above the sprite
-    const spritePx = sprite.x;
-    const spritePy = sprite.y;
+    // Position above the sprite (account for center-anchored sprites)
+    const spritePx = sprite.x - sprite.anchor.x * this.tileSize;
+    const spritePy = sprite.y - sprite.anchor.y * this.tileSize;
     const spritePw = this.tileSize;
     tooltip.x = spritePx + spritePw / 2 - tooltipW / 2;
     tooltip.y = spritePy - tooltipH - 4;

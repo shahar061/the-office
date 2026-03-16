@@ -211,6 +211,9 @@ export class TiledMapRenderer {
    */
   private findInteractiveObjectAt(tx: number, ty: number): string | undefined {
     for (const [name, rect] of this.interactiveObjects) {
+      // Only extract from single-tile (1x1) rects — larger rects would
+      // remove multiple tiles from the tilemap and only keep the last one
+      if (rect.width !== 1 || rect.height !== 1) continue
       if (tx >= rect.x && tx < rect.x + rect.width &&
           ty >= rect.y && ty < rect.y + rect.height) {
         return name
