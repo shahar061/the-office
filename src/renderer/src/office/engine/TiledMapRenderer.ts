@@ -77,6 +77,7 @@ export class TiledMapRenderer {
   private walkabilityGrid: boolean[][] = []
   private spawnPoints: Map<string, Point> = new Map()
   private zones: Map<string, ZoneRect> = new Map()
+  private interactiveObjects: Map<string, ZoneRect> = new Map()
   private layerContainers: Map<string, Container> = new Map()
   private characterContainer: Container
   private rootContainer: Container
@@ -93,6 +94,7 @@ export class TiledMapRenderer {
     this.parseCollisionLayer()
     this.parseSpawnPoints()
     this.parseZones()
+    this.parseInteractiveObjects()
     this.buildTileLayers()
   }
 
@@ -174,6 +176,23 @@ export class TiledMapRenderer {
         height: Math.floor((obj.height ?? 0) / this.tileSize),
       })
     }
+  }
+
+  private parseInteractiveObjects(): void {
+    const layer = this.findLayer('interactive-objects', 'objectgroup')
+    if (!layer?.objects) return
+    for (const obj of layer.objects) {
+      this.interactiveObjects.set(obj.name, {
+        x: Math.floor(obj.x / this.tileSize),
+        y: Math.floor(obj.y / this.tileSize),
+        width: Math.ceil((obj.width ?? 0) / this.tileSize),
+        height: Math.ceil((obj.height ?? 0) / this.tileSize),
+      })
+    }
+  }
+
+  getInteractiveObjects(): Map<string, ZoneRect> {
+    return this.interactiveObjects
   }
 
   private resolveTileset(tileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
