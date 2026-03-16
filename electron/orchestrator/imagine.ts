@@ -4,10 +4,11 @@ import type { PhaseConfig } from '../../shared/types';
 
 export interface ImagineConfig extends PhaseConfig {
   onSystemMessage: (text: string) => void;
+  onArtifactAvailable: (payload: { key: string; filename: string; agentRole: string }) => void;
 }
 
 export async function runImagine(userIdea: string, config: ImagineConfig): Promise<void> {
-  const { projectDir, agentsDir, env, onEvent, onWaiting, onSystemMessage } = config;
+  const { projectDir, agentsDir, env, onEvent, onWaiting, onSystemMessage, onArtifactAvailable } = config;
   const artifactStore = new ArtifactStore(projectDir);
 
   // 1. CEO — Discovery
@@ -29,6 +30,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onWaiting,
   });
   onSystemMessage('CEO completed Discovery phase. Product Manager starting Definition...');
+  onArtifactAvailable({ key: 'vision-brief', filename: '01-vision-brief.md', agentRole: 'ceo' });
 
   // 2. PM — Definition
   const visionBrief = artifactStore.readArtifact('01-vision-brief.md');
@@ -51,6 +53,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onWaiting,
   });
   onSystemMessage('Product Manager completed Definition. Market Researcher starting Validation...');
+  onArtifactAvailable({ key: 'prd', filename: '02-prd.md', agentRole: 'product-manager' });
 
   // 3. Market Researcher — Validation
   const prd = artifactStore.readArtifact('02-prd.md');
@@ -77,6 +80,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onWaiting,
   });
   onSystemMessage('Market Researcher completed Validation. Chief Architect starting Architecture...');
+  onArtifactAvailable({ key: 'market-analysis', filename: '03-market-analysis.md', agentRole: 'market-researcher' });
 
   // 4. Chief Architect — Architecture
   const allDocs = artifactStore.getImagineContext();
@@ -98,4 +102,5 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onWaiting,
   });
   onSystemMessage('Chief Architect completed Architecture. Imagine phase complete.');
+  onArtifactAvailable({ key: 'system-design', filename: '04-system-design.md', agentRole: 'chief-architect' });
 }

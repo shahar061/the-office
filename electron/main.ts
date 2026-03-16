@@ -15,6 +15,7 @@ import type {
   PermissionRequest,
   SessionStats,
 } from '../shared/types';
+import { ArtifactStore } from './project/artifact-store';
 import { AuthManager } from './auth/auth-manager';
 import { ProjectManager } from './project/project-manager';
 import { PhaseMachine } from './orchestrator/phase-machine';
@@ -33,6 +34,7 @@ const projectManager = new ProjectManager(dataDir);
 const agentsDir = path.join(__dirname, '../../agents');
 
 let currentProjectDir: string | null = null;
+let artifactStore: ArtifactStore | null = null;
 let phaseMachine: PhaseMachine | null = null;
 let permissionHandler: PermissionHandler | null = null;
 let activeAbort: (() => void) | null = null;
@@ -171,6 +173,7 @@ function setupIPC(): void {
     try {
       projectManager.openProject(projectPath);
       currentProjectDir = projectPath;
+      artifactStore = new ArtifactStore(projectPath);
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to open project';
@@ -182,6 +185,7 @@ function setupIPC(): void {
     try {
       projectManager.createProject(name, projectPath);
       currentProjectDir = projectPath;
+      artifactStore = new ArtifactStore(projectPath);
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
@@ -240,6 +244,9 @@ function setupIPC(): void {
         onEvent: onAgentEvent,
         onWaiting: handleAgentWaiting,
         onSystemMessage,
+        onArtifactAvailable: (info) => {
+          send(IPC_CHANNELS.ARTIFACT_AVAILABLE, info);
+        },
       });
       phaseMachine.markCompleted('imagine');
     } catch (err: any) {
@@ -357,6 +364,33 @@ function setupIPC(): void {
     if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
       await shell.openExternal(url);
     }
+  });
+
+  // ── Artifacts ──
+
+  ipcMain.handle(IPC_CHANNELS.READ_ARTIFACT, async (_event, filename: string) => {
+    if (!artifactStore) return { error: 'No project open' };
+    try {
+      const content = artifactStore.readArtifact(filename);
+      return { content };
+    } catch {
+      return { error: 'Artifact not found' };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_ARTIFACT_STATUS, async () => {
+    if (!artifactStore) return {};
+    const filenames = ['01-vision-brief.md', '02-prd.md', '03-market-analysis.md', '04-system-design.md'];
+    const status: Record<string, boolean> = {};
+    for (const f of filenames) {
+      try {
+        artifactStore.readArtifact(f);
+        status[f] = true;
+      } catch {
+        status[f] = false;
+      }
+    }
+    return status;
   });
 }
 

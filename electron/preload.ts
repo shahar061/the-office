@@ -61,4 +61,9 @@ contextBridge.exposeInMainWorld('office', {
 
   // Utilities
   openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
+
+  // Artifacts
+  onArtifactAvailable: (cb: (payload: any) => void) => onEvent(IPC_CHANNELS.ARTIFACT_AVAILABLE, cb),
+  readArtifact: (filename: string) => ipcRenderer.invoke(IPC_CHANNELS.READ_ARTIFACT, filename),
+  getArtifactStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ARTIFACT_STATUS),
 });
