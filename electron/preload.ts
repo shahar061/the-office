@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types';
 import type {
   AuthStatus, ProjectInfo, ProjectState, PhaseInfo,
   ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
-  SessionStats, BuildConfig, AppSettings,
+  SessionStats, BuildConfig, AppSettings, Phase, PhaseHistory,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('office', {
   // Chat
   sendMessage: (msg: string) => ipcRenderer.invoke(IPC_CHANNELS.SEND_MESSAGE, msg),
   onChatMessage: (cb: (m: ChatMessage) => void) => onEvent(IPC_CHANNELS.CHAT_MESSAGE, cb),
+  getChatHistory: (phase: Phase) => ipcRenderer.invoke(IPC_CHANNELS.GET_CHAT_HISTORY, phase),
 
   // Agent Events
   onAgentEvent: (cb: (e: AgentEvent) => void) => onEvent(IPC_CHANNELS.AGENT_EVENT, cb),
