@@ -142,6 +142,12 @@ export interface AgentWaitingPayload {
   questions: AskQuestion[];
 }
 
+export interface ArtifactAvailablePayload {
+  key: string;
+  filename: string;
+  agentRole: AgentRole;
+}
+
 // ── Build ──
 
 export interface BuildConfig {
@@ -232,6 +238,10 @@ export const IPC_CHANNELS = {
   SAVE_SETTINGS: 'office:save-settings',
   // Utilities
   OPEN_EXTERNAL: 'office:open-external',
+  // Artifacts
+  ARTIFACT_AVAILABLE: 'office:artifact-available',
+  READ_ARTIFACT: 'office:read-artifact',
+  GET_ARTIFACT_STATUS: 'office:get-artifact-status',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -270,6 +280,9 @@ export interface OfficeAPI {
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
   openExternal(url: string): Promise<void>;
+  onArtifactAvailable(callback: (payload: ArtifactAvailablePayload) => void): () => void;
+  readArtifact(filename: string): Promise<{ content: string } | { error: string }>;
+  getArtifactStatus(): Promise<Record<string, boolean>>;
 }
 
 declare global {
