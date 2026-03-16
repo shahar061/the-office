@@ -194,11 +194,23 @@ export class SDKBridge extends EventEmitter {
     if (config.systemPrompt) options.systemPrompt = config.systemPrompt;
     if (config.cwd) options.cwd = config.cwd;
     if (config.agents) options.agents = config.agents;
-    if (config.env) options.env = config.env;
     if (config.allowedTools) options.allowedTools = config.allowedTools;
     if (config.maxTurns) options.maxTurns = config.maxTurns;
+
+    // Pass full process.env merged with any auth overrides
+    options.env = config.env
+      ? { ...process.env, ...config.env }
+      : { ...process.env };
+
     // Default to bypassing permissions — the app handles them via UI
     options.permissionMode = config.permissionMode || 'bypassPermissions';
+    // REQUIRED when using bypassPermissions
+    options.dangerouslySkipPermissions = true;
+
+    // Capture stderr from the claude subprocess
+    options.stderr = (data: string) => {
+      console.error('[SDKBridge] claude stderr:', data);
+    };
 
     console.log('[SDKBridge] Starting query with options:', JSON.stringify({
       prompt: config.prompt.slice(0, 100) + '...',

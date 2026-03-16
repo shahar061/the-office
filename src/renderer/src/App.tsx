@@ -31,7 +31,7 @@ export default function App() {
   const view = projectState ? 'office' : 'picker';
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0f0f1a', color: '#e5e5e5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#0f0f1a', color: '#e5e5e5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>Loading...</div>}>
         {view === 'picker' ? (
           <ProjectPicker onProjectOpened={(state) => setProjectState(state)} />
