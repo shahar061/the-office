@@ -270,7 +270,7 @@ const styles = {
 
 export default function OfficeView() {
   const { authStatus, projectState, currentPhase } = useProjectStore();
-  const { messages, addMessage } = useChatStore();
+  const { messages, addMessage, waitingForResponse, waitingAgentRole, waitingSessionId, waitingQuestions, setWaiting } = useChatStore();
 
   const [inputValue, setInputValue] = useState('');
   const [officeScene, setOfficeScene] = useState<OfficeScene | null>(null);
@@ -278,6 +278,13 @@ export default function OfficeView() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { isExpanded, activeTab, toggleExpanded, setActiveTab } = useUIStore();
+
+  useEffect(() => {
+    const unsub = window.office.onAgentWaiting((payload) => {
+      setWaiting(payload);
+    });
+    return unsub;
+  }, []);
 
   // Bridge store → PixiJS scene
   useSceneSync(officeScene);
@@ -289,9 +296,11 @@ export default function OfficeView() {
   const phase = projectState?.currentPhase ?? 'idle';
   const isIdle = phase === 'idle';
 
-  const inputPlaceholder = isIdle
-    ? 'What would you like to build?'
-    : 'Type a message...';
+  const inputPlaceholder = waitingForResponse && waitingAgentRole
+    ? `Responding to ${agentDisplayName(waitingAgentRole)}...`
+    : isIdle
+      ? 'What would you like to build?'
+      : 'Type a message...';
 
   const canSend = inputValue.trim().length > 0;
 
@@ -306,13 +315,22 @@ export default function OfficeView() {
 
     setInputValue('');
 
-    // Add user message to store
     addMessage({
       id: `user-${Date.now()}`,
       role: 'user',
       text,
       timestamp: Date.now(),
     });
+
+    if (waitingForResponse && waitingSessionId) {
+      const answers: Record<string, string> = {};
+      if (waitingQuestions.length > 0) {
+        answers[waitingQuestions[0].question] = text;
+      }
+      await window.office.respondToAgent(waitingSessionId, answers);
+      setWaiting(null);
+      return;
+    }
 
     if (isIdle) {
       await window.office.startImagine(text);
@@ -334,7 +352,7 @@ export default function OfficeView() {
 
   const showEmpty = messages.length === 0;
 
-  function renderMessage(msg: ChatMessage) {
+  function renderMessage(msg: ChatMessage, isLast: boolean = false) {
     const isUser = msg.role === 'user';
     const isSystem = msg.role === 'system';
     const senderLabel = isUser
@@ -359,19 +377,70 @@ export default function OfficeView() {
           ? AGENT_COLORS[msg.agentRole]
           : '#94a3b8';
 
+    const isWaiting = isLast && waitingForResponse;
+
     return (
-      <div key={msg.id} style={styles.messageBubble(msg.role, accentColor)}>
+      <div
+        key={msg.id}
+        className={isWaiting ? 'bubble-waiting' : undefined}
+        style={{
+          ...styles.messageBubble(msg.role, accentColor),
+          ...(isWaiting ? { '--accent-color': accentColor } as React.CSSProperties : {}),
+        }}
+      >
         <span style={styles.messageSender(senderColor)}>
           {senderLabel}
         </span>
         <span style={styles.messageText}>{msg.text}</span>
         <div style={styles.messageTimestamp}>{formatTime(msg.timestamp)}</div>
+        {isWaiting && (
+          <>
+            <div style={{ fontSize: '10px', color: '#666', fontStyle: 'italic', marginTop: '6px' }}>
+              Awaiting your response
+            </div>
+            {waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                {waitingQuestions[0].options.map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => {
+                      setInputValue(opt.label);
+                      inputRef.current?.focus();
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      background: '#2a2a4a',
+                      border: '1px solid #444',
+                      borderRadius: '12px',
+                      color: '#cbd5e1',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                    title={opt.description}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   }
 
   return (
     <div style={styles.root}>
+      <style>{`
+        @keyframes pulse-border {
+          0%, 100% { border-left-color: var(--accent-color); }
+          50% { border-left-color: rgba(255,255,255,0.1); }
+        }
+        .bubble-waiting {
+          animation: pulse-border 1.5s ease-in-out infinite;
+        }
+      `}</style>
       {/* Top bar */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
@@ -446,7 +515,7 @@ export default function OfficeView() {
                   </div>
                 ) : (
                   <div style={{ ...styles.messageList, paddingTop: '48px' }}>
-                    {messages.map(renderMessage)}
+                    {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
@@ -499,7 +568,7 @@ export default function OfficeView() {
                 </div>
               ) : (
                 <div style={styles.messageList}>
-                  {messages.map(renderMessage)}
+                  {messages.map((msg, i) => renderMessage(msg, i === messages.length - 1))}
                   <div ref={messagesEndRef} />
                 </div>
               )}
