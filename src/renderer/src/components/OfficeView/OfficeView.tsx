@@ -322,6 +322,30 @@ export default function OfficeView() {
     return unsub;
   }, []);
 
+  // Handle artifact clicks from Pixi canvas
+  useEffect(() => {
+    async function handleArtifactClick(e: Event) {
+      const key = (e as CustomEvent).detail.key;
+      const artifacts = useArtifactStore.getState().artifacts;
+      const artifact = artifacts.find((a: any) => a.key === key);
+      if (!artifact?.available) return;
+
+      const { openArtifact, openDocument, closeDocument } = useArtifactStore.getState();
+      if (openArtifact?.key === key) {
+        closeDocument();
+        return;
+      }
+
+      const result = await window.office.readArtifact(artifact.filename);
+      if ('content' in result) {
+        openDocument(key, result.content);
+      }
+    }
+
+    window.addEventListener('artifact-click', handleArtifactClick);
+    return () => window.removeEventListener('artifact-click', handleArtifactClick);
+  }, []);
+
   // Bridge store → PixiJS scene
   useSceneSync(officeScene);
 

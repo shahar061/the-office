@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useOfficeStore, type CharacterInfo } from '../stores/office.store';
 import { useProjectStore } from '../stores/project.store';
+import { useArtifactStore } from '../stores/artifact.store';
 import type { OfficeScene } from './OfficeScene';
 import type { AgentRole } from '../../../../shared/types';
 
@@ -101,6 +102,20 @@ export function useSceneSync(scene: OfficeScene | null) {
 
       prevActive.clear();
       for (const role of current) prevActive.add(role);
+    });
+
+    return unsub;
+  }, [scene]);
+
+  // Sync artifact availability → interactive objects
+  useEffect(() => {
+    if (!scene) return;
+
+    const unsub = useArtifactStore.subscribe((state) => {
+      const interactiveObjs = scene.getInteractiveObjects();
+      for (const artifact of state.artifacts) {
+        interactiveObjs.setAvailable(`artifact-${artifact.key}`, artifact.available);
+      }
     });
 
     return unsub;

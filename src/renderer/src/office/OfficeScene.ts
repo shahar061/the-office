@@ -4,6 +4,7 @@ import { Camera } from './engine/camera';
 import { Character } from './characters/Character';
 import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
+import { InteractiveObjects } from './InteractiveObjects';
 import type { AgentRole } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
@@ -29,6 +30,7 @@ export class OfficeScene {
   private camera!: Camera;
   private characters: Map<string, Character> = new Map();
   private characterLayer!: Container;
+  private interactiveObjects!: InteractiveObjects;
 
   constructor(app: Application) {
     this.app = app;
@@ -123,6 +125,16 @@ export class OfficeScene {
     this.camera.fitToScreen();
     this.camera.focusOnPhase('imagine');
 
+    // Interactive objects for artifact viewing
+    this.interactiveObjects = new InteractiveObjects(
+      this.mapRenderer.getInteractiveObjects(),
+      this.mapRenderer.tileSize,
+      (artifactKey) => {
+        window.dispatchEvent(new CustomEvent('artifact-click', { detail: { key: artifactKey } }));
+      },
+    );
+    this.worldContainer.addChild(this.interactiveObjects.container);
+
     this.app.ticker.add(() => this.update());
   }
 
@@ -132,6 +144,11 @@ export class OfficeScene {
     for (const character of this.characters.values()) {
       character.update(dt);
     }
+    this.interactiveObjects.update(dt);
+  }
+
+  getInteractiveObjects(): InteractiveObjects {
+    return this.interactiveObjects;
   }
 
   getMapRenderer(): TiledMapRenderer {
