@@ -225,8 +225,13 @@ export class SDKBridge extends EventEmitter {
       }
     } catch (err: any) {
       console.error('[SDKBridge] Session error:', err.message);
-      if (err.stderr) console.error('[SDKBridge] stderr:', err.stderr);
-      if (err.exitCode) console.error('[SDKBridge] exit code:', err.exitCode);
+      // Dump all enumerable and non-enumerable properties for debugging
+      const allKeys = Object.getOwnPropertyNames(err);
+      for (const key of allKeys) {
+        if (key !== 'stack' && key !== 'message') {
+          try { console.error(`[SDKBridge] err.${key}:`, JSON.stringify(err[key]).slice(0, 500)); } catch { /* skip */ }
+        }
+      }
       throw err;
     } finally {
       this.activeQuery = null;
