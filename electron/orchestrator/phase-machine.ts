@@ -34,10 +34,12 @@ export class PhaseMachine extends EventEmitter {
   transition(target: Phase): void {
     const from = this._currentPhase;
 
+    // Allow re-entering the same phase (restart after failure)
+    const isSame = from === target;
     const isForward = FORWARD_TRANSITIONS[from] === target;
     const isBackwardToImagine = target === 'imagine' && BACKWARD_TO_IMAGINE.has(from);
 
-    if (!isForward && !isBackwardToImagine) {
+    if (!isSame && !isForward && !isBackwardToImagine) {
       throw new Error(
         `Invalid transition: '${from}' → '${target}'`
       );
