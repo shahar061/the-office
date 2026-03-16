@@ -309,35 +309,48 @@ function setupIPC(): void {
 
 // ── App Lifecycle ──
 
-// Fix PATH for macOS GUI apps — they don't inherit shell PATH.
-// Also ensure Node 20+ is available (required by Agent SDK's cli.js).
+// Fix PATH for macOS — ensure Node 20+ is first in PATH.
+// The Agent SDK's cli.js uses `using` declarations requiring Node 20+.
 function fixPath(): void {
   if (process.platform !== 'darwin') return;
+
+  const homeDir = process.env.HOME || '';
+
+  // Find the newest Node 20+ from nvm
+  const nvmDir = path.join(homeDir, '.nvm', 'versions', 'node');
   try {
-    // Get the full shell PATH (includes nvm, homebrew, etc.)
-    // Use login shell to source .zshrc/.zprofile where nvm is initialized
-    const shellPath = execSync('zsh -ilc "echo $PATH"', {
-      encoding: 'utf-8',
-      env: { ...process.env, npm_config_prefix: '' }, // Clear to avoid nvm conflict
-    }).trim();
-    if (shellPath) {
-      // Filter out noise (some shells print extra lines)
-      const cleanPath = shellPath.split('\n').pop() || shellPath;
-      process.env.PATH = cleanPath;
-      console.log('[Main] Fixed PATH from shell');
+    const fs = require('fs');
+    if (fs.existsSync(nvmDir)) {
+      const versions = fs.readdirSync(nvmDir)
+        .filter((v: string) => {
+          const major = parseInt(v.replace('v', '').split('.')[0], 10);
+          return major >= 20;
+        })
+        .sort((a: string, b: string) => {
+          // Sort descending by major version
+          const ma = parseInt(a.replace('v', '').split('.')[0], 10);
+          const mb = parseInt(b.replace('v', '').split('.')[0], 10);
+          return mb - ma;
+        });
+
+      if (versions.length > 0) {
+        const nvmNodeBin = path.join(nvmDir, versions[0], 'bin');
+        // Prepend nvm Node 20+ to PATH so it's found first
+        process.env.PATH = `${nvmNodeBin}:${process.env.PATH}`;
+        console.log(`[Main] Prepended nvm Node ${versions[0]} to PATH`);
+      }
     }
   } catch (err) {
-    console.warn('[Main] Could not fix PATH:', err);
+    console.warn('[Main] Could not check nvm versions:', err);
   }
 
-  // Verify Node version — Agent SDK requires 20+
+  // Verify
   try {
     const nodeVersion = execSync('node --version', { encoding: 'utf-8' }).trim();
     const major = parseInt(nodeVersion.replace('v', '').split('.')[0], 10);
     console.log('[Main] System Node:', nodeVersion);
     if (major < 20) {
-      console.error(`[Main] WARNING: Node ${nodeVersion} detected. Agent SDK requires Node 20+.`);
-      console.error('[Main] Run: nvm install 22 && nvm alias default 22');
+      console.error(`[Main] WARNING: Node ${nodeVersion} still in PATH. Agent SDK requires Node 20+.`);
     }
   } catch {
     console.error('[Main] WARNING: Could not detect Node version');
