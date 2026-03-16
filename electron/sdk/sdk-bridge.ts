@@ -11,10 +11,22 @@ export interface SessionConfig {
   systemPrompt?: string;
   cwd?: string;
   agents?: Record<string, { description: string; prompt: string; tools?: string[] }>;
-  permissionMode?: string;
   allowedTools?: string[];
   env?: Record<string, string>;
   maxTurns?: number;
+  // User interaction callback for AskUserQuestion
+  onWaiting?: (questions: Array<{
+    question: string;
+    header: string;
+    options: { label: string; description: string }[];
+    multiSelect: boolean;
+  }>) => Promise<Record<string, string>>;
+  // Tool permission callback for non-AskUserQuestion tools
+  onToolPermission?: (toolName: string, input: Record<string, unknown>) => Promise<{
+    behavior: 'allow' | 'deny';
+    updatedInput?: Record<string, unknown>;
+    message?: string;
+  }>;
 }
 
 // ── Role resolution ──
@@ -204,10 +216,32 @@ export class SDKBridge extends EventEmitter {
       ? { ...process.env, ...config.env }
       : { ...process.env };
 
-    // Default to bypassing permissions — the app handles them via UI
-    options.permissionMode = config.permissionMode || 'bypassPermissions';
-    // REQUIRED when using bypassPermissions
-    options.dangerouslySkipPermissions = true;
+    // Use 'default' permission mode so canUseTool callback fires
+    options.permissionMode = 'default';
+
+    // Route tool permissions through canUseTool callback
+    options.canUseTool = async (toolName: string, input: Record<string, unknown>) => {
+      // AskUserQuestion → route to user interaction
+      if (toolName === 'AskUserQuestion' && config.onWaiting) {
+        const questions = (input as any).questions || [];
+        const answers = await config.onWaiting(questions);
+        return {
+          behavior: 'allow' as const,
+          updatedInput: { questions, answers },
+        };
+      }
+
+      // Tools in agent's allowed list → auto-approve
+      if (config.allowedTools?.includes(toolName)) {
+        return { behavior: 'allow' as const };
+      }
+
+      // Other tools → delegate to permission callback (or auto-approve if no callback)
+      if (config.onToolPermission) {
+        return config.onToolPermission(toolName, input);
+      }
+      return { behavior: 'allow' as const };
+    };
 
     // Capture stderr from the claude subprocess
     options.stderr = (data: string) => {
