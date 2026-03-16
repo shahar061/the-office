@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import { IPC_CHANNELS } from '../shared/types';
 import type {
@@ -308,7 +309,22 @@ function setupIPC(): void {
 
 // ── App Lifecycle ──
 
+// Fix PATH for macOS GUI apps — they don't inherit shell PATH
+function fixPath(): void {
+  if (process.platform !== 'darwin') return;
+  try {
+    const shellPath = execSync('zsh -ilc "echo $PATH"', { encoding: 'utf-8' }).trim();
+    if (shellPath) {
+      process.env.PATH = shellPath;
+      console.log('[Main] Fixed PATH from shell');
+    }
+  } catch (err) {
+    console.warn('[Main] Could not fix PATH:', err);
+  }
+}
+
 app.whenReady().then(async () => {
+  fixPath();
   createWindow();
   setupIPC();
   // Detect CLI auth on startup and notify renderer
