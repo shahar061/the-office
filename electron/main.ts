@@ -179,6 +179,8 @@ function setupIPC(): void {
     if (!currentProjectDir) throw new Error('No project open');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated — connect via CLI or API key');
 
+    sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
+
     const state = projectManager.getProjectState(currentProjectDir);
     phaseMachine = new PhaseMachine(state.currentPhase, state.completedPhases);
     phaseMachine.on('change', (info: PhaseInfo) => {

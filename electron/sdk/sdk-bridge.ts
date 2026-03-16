@@ -86,9 +86,10 @@ export function translateMessage(
     return [];
   }
 
-  // assistant messages
+  // assistant messages — SDK wraps content in msg.message.content
   if (type === 'assistant') {
-    const content = msg.content as unknown[] | undefined;
+    const message = msg.message as Record<string, unknown> | undefined;
+    const content = (message?.content ?? msg.content) as unknown[] | undefined;
     if (!Array.isArray(content)) return [];
 
     const events: AgentEvent[] = [];
@@ -116,11 +117,12 @@ export function translateMessage(
 
   // user messages (tool results)
   if (type === 'user') {
-    const toolUseResult = msg.tool_use_result;
-    if (!toolUseResult) return [];
-
-    const content = msg.content as unknown[] | undefined;
+    const userMessage = msg.message as Record<string, unknown> | undefined;
+    const content = (userMessage?.content ?? msg.content) as unknown[] | undefined;
     if (!Array.isArray(content)) return [];
+    // Check if any block is a tool_result
+    const hasToolResult = content.some((b: any) => b.type === 'tool_result');
+    if (!hasToolResult) return [];
 
     const events: AgentEvent[] = [];
 
