@@ -115,13 +115,16 @@ const styles = {
     gap: '8px',
   },
   messageSender: (color: string) => ({
+    display: 'block',
     fontSize: '10px',
     fontWeight: 700,
     color,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
+    marginBottom: '4px',
   }),
   messageText: {
+    display: 'block',
     fontSize: '12px',
     color: '#cbd5e1',
     lineHeight: 1.5,
