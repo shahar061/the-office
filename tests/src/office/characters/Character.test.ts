@@ -31,6 +31,10 @@ const mockMapRenderer = {
 describe('Character', () => {
   let character: Character;
 
+  function makeVisible(char: Character): void {
+    (char as any).isVisible = true;
+  }
+
   beforeEach(() => {
     character = new Character({
       agentId: 'agent-1',
@@ -62,6 +66,7 @@ describe('Character', () => {
   });
 
   it('advances along path on update', () => {
+    makeVisible(character);
     character.moveTo({ x: 7, y: 5 });
     const startPos = character.getPixelPosition();
     for (let i = 0; i < 60; i++) {
