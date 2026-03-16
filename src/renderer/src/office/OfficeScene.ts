@@ -125,9 +125,10 @@ export class OfficeScene {
     this.camera.fitToScreen();
     this.camera.focusOnPhase('imagine');
 
-    // Interactive objects for artifact viewing
+    // Interactive objects for artifact viewing (using extracted sprites from tilemap)
     this.interactiveObjects = new InteractiveObjects(
       this.mapRenderer.getInteractiveObjects(),
+      this.mapRenderer.getExtractedSprites(),
       this.mapRenderer.tileSize,
       (artifactKey) => {
         window.dispatchEvent(new CustomEvent('artifact-click', { detail: { key: artifactKey } }));

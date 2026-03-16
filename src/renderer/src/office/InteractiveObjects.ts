@@ -1,4 +1,5 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Sprite, Text, Graphics } from 'pixi.js';
+import { OutlineFilter } from 'pixi-filters';
 import type { ZoneRect } from './engine/TiledMapRenderer';
 import { AGENT_COLORS, type AgentRole } from '../../../../shared/types';
 
@@ -9,15 +10,13 @@ interface InteractiveObjectConfig {
   rect: ZoneRect;
 }
 
-interface HitboxState {
+interface ObjectState {
   config: InteractiveObjectConfig;
-  hitbox: Graphics;
-  glowFrame: Graphics;
+  sprite: Sprite;
+  outlineFilter: OutlineFilter;
   tooltip: Container;
   available: boolean;
   hovered: boolean;
-  glowAlpha: number;
-  glowDirection: number;
 }
 
 const ARTIFACT_MAP: Record<string, { label: string; agentRole: AgentRole }> = {
@@ -29,12 +28,13 @@ const ARTIFACT_MAP: Record<string, { label: string; agentRole: AgentRole }> = {
 
 export class InteractiveObjects {
   readonly container: Container;
-  private states: Map<string, HitboxState> = new Map();
+  private states: Map<string, ObjectState> = new Map();
   private tileSize: number;
   private onClick: (artifactKey: string) => void;
 
   constructor(
     interactiveRects: Map<string, ZoneRect>,
+    extractedSprites: Map<string, Sprite>,
     tileSize: number,
     onClick: (artifactKey: string) => void,
   ) {
@@ -47,39 +47,63 @@ export class InteractiveObjects {
       const info = ARTIFACT_MAP[name];
       if (!info) continue;
 
+      const sprite = extractedSprites.get(name);
+      if (!sprite) continue;
+
       const config: InteractiveObjectConfig = { name, label: info.label, agentRole: info.agentRole, rect };
-      const state = this.createHitbox(config);
+      const state = this.setupSprite(config, sprite);
       this.states.set(name, state);
     }
   }
 
-  private createHitbox(config: InteractiveObjectConfig): HitboxState {
-    const { rect } = config;
+  private setupSprite(config: InteractiveObjectConfig, sprite: Sprite): ObjectState {
     const color = AGENT_COLORS[config.agentRole];
     const colorNum = parseInt(color.slice(1), 16);
 
-    const px = rect.x * this.tileSize;
-    const py = rect.y * this.tileSize;
-    const pw = rect.width * this.tileSize;
-    const ph = rect.height * this.tileSize;
+    // Add sprite to our container (it was extracted from the tilemap)
+    this.container.addChild(sprite);
 
-    // Invisible hitbox
-    const hitbox = new Graphics();
-    hitbox.rect(px, py, pw, ph);
-    hitbox.fill({ color: 0x000000, alpha: 0.001 });
-    hitbox.eventMode = 'none';
-    hitbox.cursor = 'default';
-    this.container.addChild(hitbox);
+    // Create outline filter (hidden by default via alpha 0)
+    const outlineFilter = new OutlineFilter({
+      thickness: 2,
+      color: colorNum,
+      alpha: 0,
+      quality: 0.5,
+    });
+    sprite.filters = [outlineFilter];
 
-    // Glow frame (hidden by default)
-    const glowFrame = new Graphics();
-    glowFrame.setStrokeStyle({ width: 2, color: colorNum });
-    glowFrame.rect(px - 1, py - 1, pw + 2, ph + 2);
-    glowFrame.stroke();
-    glowFrame.alpha = 0;
-    this.container.addChild(glowFrame);
+    // Make sprite interactive (disabled until available)
+    sprite.eventMode = 'none';
+    sprite.cursor = 'default';
 
     // Tooltip (hidden by default)
+    const tooltip = this.createTooltip(config, sprite, color, colorNum);
+    this.container.addChild(tooltip);
+
+    // Events
+    sprite.on('pointerover', () => this.onHover(config.name, true));
+    sprite.on('pointerout', () => this.onHover(config.name, false));
+    sprite.on('pointertap', () => {
+      const key = config.name.replace('artifact-', '');
+      this.onClick(key);
+    });
+
+    return {
+      config,
+      sprite,
+      outlineFilter,
+      tooltip,
+      available: false,
+      hovered: false,
+    };
+  }
+
+  private createTooltip(
+    config: InteractiveObjectConfig,
+    sprite: Sprite,
+    color: string,
+    colorNum: number,
+  ): Container {
     const tooltip = new Container();
     tooltip.visible = false;
 
@@ -102,28 +126,15 @@ export class InteractiveObjects {
     tooltipText.y = tooltipPadY;
 
     tooltip.addChild(tooltipBg, tooltipText);
-    tooltip.x = px + pw / 2 - tooltipW / 2;
-    tooltip.y = py - tooltipH - 4;
-    this.container.addChild(tooltip);
 
-    // Events
-    hitbox.on('pointerover', () => this.onHover(config.name, true));
-    hitbox.on('pointerout', () => this.onHover(config.name, false));
-    hitbox.on('pointertap', () => {
-      const key = config.name.replace('artifact-', '');
-      this.onClick(key);
-    });
+    // Position above the sprite
+    const spritePx = sprite.x;
+    const spritePy = sprite.y;
+    const spritePw = this.tileSize;
+    tooltip.x = spritePx + spritePw / 2 - tooltipW / 2;
+    tooltip.y = spritePy - tooltipH - 4;
 
-    return {
-      config,
-      hitbox,
-      glowFrame,
-      tooltip,
-      available: false,
-      hovered: false,
-      glowAlpha: 0.4,
-      glowDirection: 1,
-    };
+    return tooltip;
   }
 
   private onHover(name: string, hovered: boolean): void {
@@ -131,33 +142,24 @@ export class InteractiveObjects {
     if (!state || !state.available) return;
     state.hovered = hovered;
     state.tooltip.visible = hovered;
-    if (!hovered) {
-      state.glowFrame.alpha = 0;
-    }
+    state.outlineFilter.alpha = hovered ? 1 : 0;
   }
 
   setAvailable(objectName: string, available: boolean): void {
     const state = this.states.get(objectName);
     if (!state) return;
     state.available = available;
-    state.hitbox.eventMode = available ? 'static' : 'none';
-    state.hitbox.cursor = available ? 'pointer' : 'default';
+    state.sprite.eventMode = available ? 'static' : 'none';
+    state.sprite.cursor = available ? 'pointer' : 'default';
     if (!available) {
       state.tooltip.visible = false;
-      state.glowFrame.alpha = 0;
+      state.outlineFilter.alpha = 0;
       state.hovered = false;
     }
   }
 
-  update(dt: number): void {
-    for (const state of this.states.values()) {
-      if (state.hovered && state.available) {
-        // Pulse glow between 0.4 and 0.8
-        state.glowAlpha += state.glowDirection * dt * 0.8;
-        if (state.glowAlpha >= 0.8) { state.glowAlpha = 0.8; state.glowDirection = -1; }
-        if (state.glowAlpha <= 0.4) { state.glowAlpha = 0.4; state.glowDirection = 1; }
-        state.glowFrame.alpha = state.glowAlpha;
-      }
-    }
+  update(_dt: number): void {
+    // No-op for now — outline filter doesn't need per-frame animation
+    // Could add pulse animation here if desired
   }
 }

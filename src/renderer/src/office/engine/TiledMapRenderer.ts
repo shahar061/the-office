@@ -57,6 +57,11 @@ export interface ZoneRect {
   height: number
 }
 
+export interface ExtractedSprite {
+  name: string
+  sprite: Sprite
+}
+
 export interface Point {
   x: number
   y: number
@@ -81,6 +86,7 @@ export class TiledMapRenderer {
   private layerContainers: Map<string, Container> = new Map()
   private characterContainer: Container
   private rootContainer: Container
+  private extractedSprites: Map<string, Sprite> = new Map()
 
   constructor(private mapData: TiledMap, private tilesetTextures: Texture[]) {
     this.width = mapData.width
@@ -195,6 +201,24 @@ export class TiledMapRenderer {
     return this.interactiveObjects
   }
 
+  getExtractedSprites(): Map<string, Sprite> {
+    return this.extractedSprites
+  }
+
+  /**
+   * Check if a tile position falls within any interactive object rect.
+   * Returns the object name if found, undefined otherwise.
+   */
+  private findInteractiveObjectAt(tx: number, ty: number): string | undefined {
+    for (const [name, rect] of this.interactiveObjects) {
+      if (tx >= rect.x && tx < rect.x + rect.width &&
+          ty >= rect.y && ty < rect.y + rect.height) {
+        return name
+      }
+    }
+    return undefined
+  }
+
   private resolveTileset(tileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
     for (let i = this.mapData.tilesets.length - 1; i >= 0; i--) {
       if (tileId >= this.mapData.tilesets[i].firstgid) {
@@ -265,7 +289,17 @@ export class TiledMapRenderer {
               sprite.y = y * this.tileSize
             }
 
-            container.addChild(sprite)
+            // Extract tiles from furniture-above that overlap interactive objects
+            // instead of rendering them into the static layer
+            const interactiveName = layerName === 'furniture-above'
+              ? this.findInteractiveObjectAt(x, y)
+              : undefined
+
+            if (interactiveName) {
+              this.extractedSprites.set(interactiveName, sprite)
+            } else {
+              container.addChild(sprite)
+            }
           }
         }
       }
