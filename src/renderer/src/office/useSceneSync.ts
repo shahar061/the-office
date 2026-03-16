@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useOfficeStore, type CharacterInfo } from '../stores/office.store';
 import { useProjectStore } from '../stores/project.store';
 import type { OfficeScene } from './OfficeScene';
+import type { AgentRole } from '../../../../shared/types';
 
 /**
  * Watches the Zustand office store and synchronizes character state
@@ -59,6 +60,47 @@ export function useSceneSync(scene: OfficeScene | null) {
         const camera = scene.getCamera();
         camera.focusOnPhase(phase as 'imagine' | 'warroom' | 'build');
       }
+    });
+
+    return unsub;
+  }, [scene]);
+
+  // Sync agent lifecycle → character show/hide
+  useEffect(() => {
+    if (!scene) return;
+
+    const prevActive = new Set<AgentRole>();
+
+    const unsub = useOfficeStore.subscribe((state) => {
+      const current = state.activeAgents;
+
+      // Detect newly active agents (entered)
+      for (const role of current) {
+        if (!prevActive.has(role)) {
+          scene.showCharacter(role);
+          const character = scene.getCharacter(role);
+          if (character) {
+            character.moveTo(character.getDeskTile());
+            const entrance = scene.getEntrancePosition();
+            const mapRenderer = scene.getMapRenderer();
+            const pos = mapRenderer.tileToPixel(entrance.x, entrance.y);
+            scene.getCamera().nudgeToward(
+              pos.x + mapRenderer.tileSize / 2,
+              pos.y + mapRenderer.tileSize,
+            );
+          }
+        }
+      }
+
+      // Detect deactivated agents (closed)
+      for (const role of prevActive) {
+        if (!current.has(role)) {
+          scene.hideCharacter(role);
+        }
+      }
+
+      prevActive.clear();
+      for (const role of current) prevActive.add(role);
     });
 
     return unsub;
