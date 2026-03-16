@@ -36,4 +36,12 @@ export class ArtifactStore {
     if (!fs.existsSync(filePath)) return null;
     return fs.readFileSync(filePath, 'utf-8');
   }
+
+  readArtifact(filename: string): string {
+    const filePath = path.join(this.officeDir, filename);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Artifact not found: ${filename}`);
+    }
+    return fs.readFileSync(filePath, 'utf-8');
+  }
 }

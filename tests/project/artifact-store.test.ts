@@ -129,6 +129,18 @@ describe('ArtifactStore', () => {
     });
   });
 
+  describe('readArtifact()', () => {
+    it('readArtifact returns file contents', () => {
+      fs.mkdirSync(path.join(tmpDir, 'docs/office'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, 'docs/office/01-vision-brief.md'), '# Vision');
+      expect(store.readArtifact('01-vision-brief.md')).toBe('# Vision');
+    });
+
+    it('readArtifact throws if file does not exist', () => {
+      expect(() => store.readArtifact('missing.md')).toThrow('Artifact not found');
+    });
+  });
+
   describe('officeDir getter', () => {
     it('returns the correct path', () => {
       expect(store.officeDir).toBe(path.join(tmpDir, 'docs/office'));
