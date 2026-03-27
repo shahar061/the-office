@@ -16,6 +16,7 @@ import { ArtifactOverlay } from './ArtifactOverlay';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { useArtifactStore } from '../../stores/artifact.store';
+import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -926,12 +927,8 @@ export default function OfficeView() {
               <div style={{
                 ...styles.expandedChatPanel,
                 display: activeTab === 'agents' ? 'flex' : 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
               }}>
-                <div style={{ color: '#64748b', fontSize: '14px' }}>
-                  Agents screen coming soon...
-                </div>
+                <AgentsScreen />
               </div>
             </div>
           </>
