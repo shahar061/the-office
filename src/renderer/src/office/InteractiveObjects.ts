@@ -1,4 +1,4 @@
-import { Container, Sprite, Text, Graphics, Rectangle } from 'pixi.js';
+import { Container, Text, Graphics, Rectangle } from 'pixi.js';
 import { OutlineFilter } from 'pixi-filters';
 import type { ZoneRect } from './engine/TiledMapRenderer';
 import { AGENT_COLORS, type AgentRole } from '../../../../shared/types';
@@ -12,7 +12,7 @@ interface InteractiveObjectConfig {
 
 interface ObjectState {
   config: InteractiveObjectConfig;
-  sprite: Sprite;
+  group: Container;
   outlineFilter: OutlineFilter;
   tooltip: Container;
   available: boolean;
@@ -34,7 +34,7 @@ export class InteractiveObjects {
 
   constructor(
     interactiveRects: Map<string, ZoneRect>,
-    extractedSprites: Map<string, Sprite>,
+    extractedGroups: Map<string, Container>,
     tileSize: number,
     onClick: (artifactKey: string) => void,
   ) {
@@ -47,21 +47,20 @@ export class InteractiveObjects {
       const info = ARTIFACT_MAP[name];
       if (!info) continue;
 
-      const sprite = extractedSprites.get(name);
-      if (!sprite) continue;
+      const group = extractedGroups.get(name);
+      if (!group) continue;
 
       const config: InteractiveObjectConfig = { name, label: info.label, agentRole: info.agentRole, rect };
-      const state = this.setupSprite(config, sprite);
+      const state = this.setupObject(config, group);
       this.states.set(name, state);
     }
   }
 
-  private setupSprite(config: InteractiveObjectConfig, sprite: Sprite): ObjectState {
+  private setupObject(config: InteractiveObjectConfig, group: Container): ObjectState {
     const color = AGENT_COLORS[config.agentRole];
     const colorNum = parseInt(color.slice(1), 16);
 
-    // Add sprite to our container (it was extracted from the tilemap)
-    this.container.addChild(sprite);
+    this.container.addChild(group);
 
     // Create outline filter (hidden by default via alpha 0)
     const outlineFilter = new OutlineFilter({
@@ -70,33 +69,32 @@ export class InteractiveObjects {
       alpha: 0,
       quality: 0.5,
     });
-    sprite.filters = [outlineFilter];
+    group.filters = [outlineFilter];
 
-    // Set explicit hit area so pointer events work even on transparent pixels
-    // Account for center-anchored sprites (from tile flip transforms)
-    const anchorOffsetX = -sprite.anchor.x * this.tileSize;
-    const anchorOffsetY = -sprite.anchor.y * this.tileSize;
-    sprite.hitArea = new Rectangle(anchorOffsetX, anchorOffsetY, this.tileSize, this.tileSize);
+    // Hit area covers the full multi-tile region (relative to container origin)
+    const hitW = config.rect.width * this.tileSize;
+    const hitH = config.rect.height * this.tileSize;
+    group.hitArea = new Rectangle(0, 0, hitW, hitH);
 
-    // Make sprite interactive (disabled until available)
-    sprite.eventMode = 'none';
-    sprite.cursor = 'default';
+    // Disabled until available
+    group.eventMode = 'none';
+    group.cursor = 'default';
 
-    // Tooltip (hidden by default)
-    const tooltip = this.createTooltip(config, sprite, color, colorNum);
+    // Tooltip above the group
+    const tooltip = this.createTooltip(config, group, color, colorNum);
     this.container.addChild(tooltip);
 
     // Events
-    sprite.on('pointerover', () => this.onHover(config.name, true));
-    sprite.on('pointerout', () => this.onHover(config.name, false));
-    sprite.on('pointertap', () => {
+    group.on('pointerover', () => this.onHover(config.name, true));
+    group.on('pointerout', () => this.onHover(config.name, false));
+    group.on('pointertap', () => {
       const key = config.name.replace('artifact-', '');
       this.onClick(key);
     });
 
     return {
       config,
-      sprite,
+      group,
       outlineFilter,
       tooltip,
       available: false,
@@ -106,7 +104,7 @@ export class InteractiveObjects {
 
   private createTooltip(
     config: InteractiveObjectConfig,
-    sprite: Sprite,
+    group: Container,
     color: string,
     colorNum: number,
   ): Container {
@@ -133,12 +131,10 @@ export class InteractiveObjects {
 
     tooltip.addChild(tooltipBg, tooltipText);
 
-    // Position above the sprite (account for center-anchored sprites)
-    const spritePx = sprite.x - sprite.anchor.x * this.tileSize;
-    const spritePy = sprite.y - sprite.anchor.y * this.tileSize;
-    const spritePw = this.tileSize;
-    tooltip.x = spritePx + spritePw / 2 - tooltipW / 2;
-    tooltip.y = spritePy - tooltipH - 4;
+    // Position centered above the full group width
+    const groupW = config.rect.width * this.tileSize;
+    tooltip.x = group.x + groupW / 2 - tooltipW / 2;
+    tooltip.y = group.y - tooltipH - 4;
 
     return tooltip;
   }
@@ -155,8 +151,8 @@ export class InteractiveObjects {
     const state = this.states.get(objectName);
     if (!state) return;
     state.available = available;
-    state.sprite.eventMode = available ? 'static' : 'none';
-    state.sprite.cursor = available ? 'pointer' : 'default';
+    state.group.eventMode = available ? 'static' : 'none';
+    state.group.cursor = available ? 'pointer' : 'default';
     if (!available) {
       state.tooltip.visible = false;
       state.outlineFilter.alpha = 0;
@@ -165,7 +161,6 @@ export class InteractiveObjects {
   }
 
   update(_dt: number): void {
-    // No-op for now — outline filter doesn't need per-frame animation
-    // Could add pulse animation here if desired
+    // No-op for now
   }
 }

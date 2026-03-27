@@ -86,7 +86,11 @@ export class TiledMapRenderer {
   private layerContainers: Map<string, Container> = new Map()
   private characterContainer: Container
   private rootContainer: Container
-  private extractedSprites: Map<string, Sprite> = new Map()
+  private extractedGroups: Map<string, Container> = new Map()
+  /** Set of "layer:tx:ty" keys to skip in normal rendering */
+  private extractionSkips: Set<string> = new Set()
+  /** Collected tiles per interactive object: objectName → array of { layer, tx, ty } */
+  private extractionCollected: Map<string, { layer: string; tx: number; ty: number }[]> = new Map()
 
   constructor(private mapData: TiledMap, private tilesetTextures: Texture[]) {
     this.width = mapData.width
@@ -101,6 +105,7 @@ export class TiledMapRenderer {
     this.parseSpawnPoints()
     this.parseZones()
     this.parseInteractiveObjects()
+    this.collectExtractionTargets()
     this.buildTileLayers()
   }
 
@@ -188,11 +193,13 @@ export class TiledMapRenderer {
     const layer = this.findLayer('interactive-objects', 'objectgroup')
     if (!layer?.objects) return
     for (const obj of layer.objects) {
+      // Use round for width/height — Tiled rects drawn around single sprites
+      // may be slightly larger or smaller than an exact tile
       this.interactiveObjects.set(obj.name, {
         x: Math.floor(obj.x / this.tileSize),
         y: Math.floor(obj.y / this.tileSize),
-        width: Math.ceil((obj.width ?? 0) / this.tileSize),
-        height: Math.ceil((obj.height ?? 0) / this.tileSize),
+        width: Math.max(1, Math.round((obj.width ?? 0) / this.tileSize)),
+        height: Math.max(1, Math.round((obj.height ?? 0) / this.tileSize)),
       })
     }
   }
@@ -201,25 +208,38 @@ export class TiledMapRenderer {
     return this.interactiveObjects
   }
 
-  getExtractedSprites(): Map<string, Sprite> {
-    return this.extractedSprites
+  getExtractedGroups(): Map<string, Container> {
+    return this.extractedGroups
   }
 
   /**
-   * Check if a tile position falls within any interactive object rect.
-   * Returns the object name if found, undefined otherwise.
+   * Collect ALL tiles within each interactive object's rect,
+   * from both furniture-below and furniture-above layers.
    */
-  private findInteractiveObjectAt(tx: number, ty: number): string | undefined {
-    for (const [name, rect] of this.interactiveObjects) {
-      // Only extract from single-tile (1x1) rects — larger rects would
-      // remove multiple tiles from the tilemap and only keep the last one
-      if (rect.width !== 1 || rect.height !== 1) continue
-      if (tx >= rect.x && tx < rect.x + rect.width &&
-          ty >= rect.y && ty < rect.y + rect.height) {
-        return name
+  private collectExtractionTargets(): void {
+    for (const layerName of ['furniture-below', 'furniture-above'] as const) {
+      const layer = this.findLayer(layerName, 'tilelayer')
+      if (!layer?.data) continue
+
+      for (const [name, rect] of this.interactiveObjects) {
+        for (let dy = 0; dy < rect.height; dy++) {
+          for (let dx = 0; dx < rect.width; dx++) {
+            const tx = rect.x + dx
+            const ty = rect.y + dy
+            if (tx < 0 || ty < 0 || tx >= this.width || ty >= this.height) continue
+            const rawId = layer.data[ty * this.width + tx]
+            if ((rawId & TILE_ID_MASK) !== 0) {
+              const key = `${layerName}:${tx}:${ty}`
+              this.extractionSkips.add(key)
+              if (!this.extractionCollected.has(name)) {
+                this.extractionCollected.set(name, [])
+              }
+              this.extractionCollected.get(name)!.push({ layer: layerName, tx, ty })
+            }
+          }
+        }
       }
     }
-    return undefined
   }
 
   private resolveTileset(tileId: number): { tileset: TiledTilesetRef; texture: Texture } | undefined {
@@ -292,17 +312,14 @@ export class TiledMapRenderer {
               sprite.y = y * this.tileSize
             }
 
-            // Extract tiles from furniture-above that overlap interactive objects
-            // instead of rendering them into the static layer
-            const interactiveName = layerName === 'furniture-above'
-              ? this.findInteractiveObjectAt(x, y)
-              : undefined
-
-            if (interactiveName) {
-              this.extractedSprites.set(interactiveName, sprite)
-            } else {
-              container.addChild(sprite)
+            // Skip tiles collected for interactive object extraction
+            const skipKey = `${layerName}:${x}:${y}`
+            if (this.extractionSkips.has(skipKey)) {
+              // Will be added to extracted groups below
+              continue
             }
+
+            container.addChild(sprite)
           }
         }
       }
@@ -313,6 +330,78 @@ export class TiledMapRenderer {
       if (layerName === 'furniture-below') {
         this.rootContainer.addChild(this.characterContainer)
       }
+    }
+
+    // Assemble extracted groups from collected tiles
+    for (const [name, tiles] of this.extractionCollected) {
+      const rect = this.interactiveObjects.get(name)
+      if (!rect) continue
+
+      const group = new Container()
+      group.label = name
+      group.x = rect.x * this.tileSize
+      group.y = rect.y * this.tileSize
+
+      for (const tile of tiles) {
+        const layer = this.findLayer(tile.layer, 'tilelayer')
+        if (!layer?.data) continue
+
+        const raw = layer.data[tile.ty * this.width + tile.tx]
+        if (raw === 0) continue
+
+        const flippedH = (raw & FLIPPED_H_FLAG) !== 0
+        const flippedV = (raw & FLIPPED_V_FLAG) !== 0
+        const flippedD = (raw & FLIPPED_D_FLAG) !== 0
+        const tileId = raw & TILE_ID_MASK
+
+        const resolved = this.resolveTileset(tileId)
+        if (!resolved) continue
+
+        const { tileset, texture } = resolved
+        const cols = tileset.columns ?? 16
+        const tw = tileset.tilewidth ?? this.tileSize
+        const th = tileset.tileheight ?? this.tileSize
+        const localId = tileId - tileset.firstgid
+        const srcX = (localId % cols) * tw
+        const srcY = Math.floor(localId / cols) * th
+
+        const frame = new Rectangle(srcX, srcY, tw, th)
+        const tileTexture = new Texture({ source: texture.source, frame })
+        const sprite = new Sprite(tileTexture)
+
+        // Position relative to group origin
+        const relX = (tile.tx - rect.x) * this.tileSize
+        const relY = (tile.ty - rect.y) * this.tileSize
+
+        if (flippedH || flippedV || flippedD) {
+          sprite.anchor.set(0.5, 0.5)
+          sprite.x = relX + this.tileSize / 2
+          sprite.y = relY + this.tileSize / 2
+          if (flippedD) {
+            if (flippedH && !flippedV) {
+              sprite.rotation = Math.PI / 2
+            } else if (!flippedH && flippedV) {
+              sprite.rotation = -Math.PI / 2
+            } else if (flippedH && flippedV) {
+              sprite.rotation = Math.PI / 2
+              sprite.scale.y = -1
+            } else {
+              sprite.rotation = Math.PI / 2
+              sprite.scale.x = -1
+            }
+          } else {
+            if (flippedH) sprite.scale.x = -1
+            if (flippedV) sprite.scale.y = -1
+          }
+        } else {
+          sprite.x = relX
+          sprite.y = relY
+        }
+
+        group.addChild(sprite)
+      }
+
+      this.extractedGroups.set(name, group)
     }
   }
 

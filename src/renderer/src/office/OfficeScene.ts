@@ -104,11 +104,21 @@ export class OfficeScene {
         framesPerDirection: 6,
       });
 
+      // Constrain wandering to the agent's idle zone
+      const zone = this.mapRenderer.getZone(config.idleZone);
+      const wanderBounds = zone ? {
+        tileX: Math.floor(zone.x / this.mapRenderer.tileSize),
+        tileY: Math.floor(zone.y / this.mapRenderer.tileSize),
+        tileW: Math.floor(zone.width / this.mapRenderer.tileSize),
+        tileH: Math.floor(zone.height / this.mapRenderer.tileSize),
+      } : undefined;
+
       const character = new Character({
         agentId: config.role,
         role: config.role,
         mapRenderer: this.mapRenderer,
         frames,
+        wanderBounds,
       });
 
       this.characters.set(config.role, character);
@@ -128,7 +138,7 @@ export class OfficeScene {
     // Interactive objects for artifact viewing (using extracted sprites from tilemap)
     this.interactiveObjects = new InteractiveObjects(
       this.mapRenderer.getInteractiveObjects(),
-      this.mapRenderer.getExtractedSprites(),
+      this.mapRenderer.getExtractedGroups(),
       this.mapRenderer.tileSize,
       (artifactKey) => {
         window.dispatchEvent(new CustomEvent('artifact-click', { detail: { key: artifactKey } }));
