@@ -17,7 +17,6 @@ const DEFAULT_BUILD_CONFIG: BuildConfig = {
 function getActionButton(
   phase: Phase,
   status: string | undefined,
-  completedPhases: Phase[],
 ): { label: string; action: 'continue' | 'retry'; targetPhase: Phase } | null {
   const isCompleted = status === 'completed';
   const isFailed = status === 'failed' || status === 'interrupted';
@@ -53,7 +52,7 @@ export function PhaseTracker() {
   const completedPhases = projectState?.completedPhases ?? [];
   const status = currentPhase?.status;
 
-  const actionButton = phase !== 'idle' ? getActionButton(phase, status, completedPhases) : null;
+  const actionButton = phase !== 'idle' ? getActionButton(phase, status) : null;
 
   const handleAction = useCallback(async () => {
     if (!actionButton || starting) return;
@@ -64,6 +63,8 @@ export function PhaseTracker() {
       } else if (actionButton.targetPhase === 'build') {
         await window.office.startBuild(DEFAULT_BUILD_CONFIG);
       }
+    } catch (err) {
+      console.error(`Failed to ${actionButton.action} phase:`, err);
     } finally {
       setStarting(false);
     }
