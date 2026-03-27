@@ -14,6 +14,12 @@ const DEFAULT_BUILD_CONFIG: BuildConfig = {
   permissionMode: 'auto-all',
 };
 
+const HIGHLIGHT_COLORS: Partial<Record<Phase, string>> = {
+  imagine: '#3b82f6',
+  warroom: '#f59e0b',
+  build: '#22c55e',
+};
+
 function getActionButton(
   phase: Phase,
   status: string | undefined,
@@ -44,13 +50,19 @@ function getActionButton(
   return null;
 }
 
-export function PhaseTracker() {
+interface PhaseTrackerProps {
+  highlightedPhases?: Phase[] | null;
+}
+
+export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
   const { projectState, currentPhase } = useProjectStore();
   const [starting, setStarting] = useState(false);
 
   const phase = projectState?.currentPhase ?? 'idle';
   const completedPhases = projectState?.completedPhases ?? [];
   const status = currentPhase?.status;
+
+  const introMode = highlightedPhases !== undefined && highlightedPhases !== null;
 
   const actionButton = phase !== 'idle' ? getActionButton(phase, status) : null;
 
@@ -70,12 +82,55 @@ export function PhaseTracker() {
     }
   }, [actionButton, starting]);
 
-  if (phase === 'idle') return null;
+  // Hide when idle UNLESS in intro mode
+  if (phase === 'idle' && !introMode) return null;
 
   return (
     <div style={styles.container}>
       <div style={styles.track}>
         {PHASES.map((p, i) => {
+          // Intro mode: highlight/dim based on highlightedPhases array
+          if (introMode) {
+            const isHighlighted = highlightedPhases.includes(p.key);
+            const highlightColor = HIGHLIGHT_COLORS[p.key] ?? '#3b82f6';
+
+            return (
+              <div key={p.key} style={styles.stepRow}>
+                {i > 0 && (
+                  <div style={{
+                    ...styles.connector(false),
+                    opacity: isHighlighted ? 1 : 0.3,
+                    background: isHighlighted ? highlightColor : '#333',
+                  }} />
+                )}
+                <div style={{ ...styles.step, opacity: isHighlighted ? 1 : 0.3, transition: 'opacity 0.3s' }}>
+                  <div
+                    className={isHighlighted ? 'phase-pulse' : undefined}
+                    style={{
+                      ...styles.circle(false, false, false, true),
+                      ...(isHighlighted ? {
+                        background: highlightColor,
+                        color: '#fff',
+                        border: `2px solid ${highlightColor}`,
+                        boxShadow: `0 0 8px ${highlightColor}66`,
+                      } : {}),
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <span style={{
+                    ...styles.label(false, isHighlighted, false, !isHighlighted),
+                    color: isHighlighted ? '#e2e8f0' : '#4b5563',
+                    fontWeight: isHighlighted ? 600 : 500,
+                  }}>
+                    {p.label}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          // Normal mode: existing logic
           const done = completedPhases.includes(p.key);
           const active = phase === p.key;
           const isCurrent = active && status !== 'completed' && status !== 'failed' && status !== 'interrupted';
@@ -109,7 +164,7 @@ export function PhaseTracker() {
         })}
       </div>
 
-      {actionButton && (
+      {!introMode && actionButton && (
         <button
           style={styles.actionBtn(starting)}
           onClick={handleAction}
