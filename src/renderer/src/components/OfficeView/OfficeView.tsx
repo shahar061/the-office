@@ -277,10 +277,10 @@ const styles = {
   }),
 
   // Expanded question card styles
-  expandedQuestionCard: (isRecommended: boolean) => ({
+  expandedQuestionCard: (isRecommended: boolean, accentColor: string) => ({
     padding: '14px 16px',
-    background: isRecommended ? '#1a1a3e' : '#151528',
-    border: isRecommended ? '1px solid #6366f188' : '1px solid #333',
+    background: isRecommended ? '#1a1a2e' : '#151528',
+    border: isRecommended ? `1px solid ${accentColor}88` : '1px solid #333',
     borderRadius: '10px',
     cursor: 'pointer',
     fontFamily: 'inherit',
@@ -699,7 +699,7 @@ export default function OfficeView() {
                     setInputValue(opt.label);
                     inputRef.current?.focus();
                   }}
-                  style={styles.expandedQuestionCard(isRecommended)}
+                  style={styles.expandedQuestionCard(isRecommended, accentColor)}
                 >
                   {isRecommended && (
                     <span style={styles.expandedCardBadge(accentColor)}>
