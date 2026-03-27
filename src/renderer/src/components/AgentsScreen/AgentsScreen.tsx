@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAgentsStore } from '../../stores/agents.store';
 import { AgentGrid } from './AgentGrid';
 import { AgentDetailPanel } from './AgentDetailPanel';
+import { AgentOrgChart } from './AgentOrgChart';
 
 type View = 'grid' | 'orgchart';
 
@@ -80,7 +81,7 @@ export function AgentsScreen() {
       ) : view === 'grid' ? (
         <AgentGrid agents={agents} onSelect={(a) => selectAgent(a.role)} />
       ) : (
-        <div style={styles.placeholder}>Org chart view coming next...</div>
+        <AgentOrgChart agents={agents} onSelect={(a) => selectAgent(a.role)} />
       )}
 
       {selectedInfo && (
