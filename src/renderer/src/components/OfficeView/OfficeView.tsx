@@ -330,6 +330,12 @@ export default function OfficeView() {
 
   const handleIntroComplete = useCallback(async () => {
     setIntroHighlights(null);
+    setIntroChatHighlight(false);
+    // Hide CEO character and reset camera
+    if (officeScene) {
+      officeScene.hideCharacter('ceo');
+      officeScene.getCamera().fitToScreen();
+    }
     try {
       await window.office.markIntroSeen();
       if (projectState) {
@@ -338,11 +344,33 @@ export default function OfficeView() {
     } catch (err) {
       console.error('Failed to mark intro seen:', err);
     }
-  }, [projectState]);
+  }, [projectState, officeScene]);
 
   const handleHighlightChange = useCallback((phases: Phase[]) => {
     setIntroHighlights(phases);
   }, []);
+
+  const [introChatHighlight, setIntroChatHighlight] = useState(false);
+
+  const handleChatHighlightChange = useCallback((highlight: boolean) => {
+    setIntroChatHighlight(highlight);
+  }, []);
+
+  // Focus camera on CEO room and show CEO character during intro
+  useEffect(() => {
+    if (!showIntro || !officeScene) return;
+    const camera = officeScene.getCamera();
+    // CEO room center: zone at (16,32) size 112x144 → center pixel (72, 104)
+    camera.panTo(72, 104);
+    camera.setZoom(2.5);
+    // Show CEO at their desk (showCharacter places at entrance, so reposition to desk)
+    officeScene.showCharacter('ceo');
+    const ceo = officeScene.getCharacter('ceo');
+    if (ceo) {
+      const desk = ceo.getDeskTile();
+      ceo.repositionTo(desk.x, desk.y);
+    }
+  }, [showIntro, officeScene]);
 
   useEffect(() => {
     const unsub = window.office.onAgentWaiting((payload) => {
@@ -415,14 +443,26 @@ export default function OfficeView() {
 
     setInputValue('');
 
-    addMessage({
-      id: `user-${Date.now()}`,
-      role: 'user',
-      text,
-      timestamp: Date.now(),
-    });
-
+    // If answering a question, inject the question as an agent message first
     if (waitingForResponse && waitingSessionId) {
+      if (waitingQuestions.length > 0) {
+        const questionMsg: ChatMessage = {
+          id: `question-${Date.now()}`,
+          role: 'agent',
+          agentRole: waitingAgentRole ?? undefined,
+          text: waitingQuestions[0].question,
+          timestamp: Date.now(),
+        };
+        addMessage(questionMsg);
+      }
+
+      addMessage({
+        id: `user-${Date.now()}`,
+        role: 'user',
+        text,
+        timestamp: Date.now(),
+      });
+
       const answers: Record<string, string> = {};
       if (waitingQuestions.length > 0) {
         answers[waitingQuestions[0].question] = text;
@@ -431,6 +471,13 @@ export default function OfficeView() {
       setWaiting(null);
       return;
     }
+
+    addMessage({
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text,
+      timestamp: Date.now(),
+    });
 
     if (isIdle) {
       await window.office.startImagine(text);
@@ -638,6 +685,20 @@ export default function OfficeView() {
         .phase-pulse {
           animation: phase-pulse 2s ease-in-out infinite;
         }
+        @keyframes chat-panel-pulse {
+          0%, 100% {
+            box-shadow: inset 0 0 20px rgba(59,130,246,0.1), 0 0 8px rgba(59,130,246,0.15);
+            border-right-color: rgba(59,130,246,0.3);
+          }
+          50% {
+            box-shadow: inset 0 0 30px rgba(59,130,246,0.25), 0 0 20px rgba(59,130,246,0.35);
+            border-right-color: rgba(59,130,246,0.7);
+          }
+        }
+        .chat-panel-highlight {
+          animation: chat-panel-pulse 1.5s ease-in-out infinite;
+          border-right: 2px solid rgba(59,130,246,0.3) !important;
+        }
         @keyframes blink-indicator {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
@@ -685,12 +746,6 @@ export default function OfficeView() {
 
       {/* Main area */}
       <div style={styles.main}>
-        {showIntro && (
-          <IntroSequence
-            onComplete={handleIntroComplete}
-            onHighlightChange={handleHighlightChange}
-          />
-        )}
         {isExpanded ? (
           <>
             {/* Collapse chevron */}
@@ -761,20 +816,25 @@ export default function OfficeView() {
                 </div>
               </div>
 
-              {/* Office tab (canvas) — only mount when visible to ensure valid WebGL context */}
-              {activeTab === 'office' && (
-                <div style={{ ...styles.canvasArea, position: 'relative' }}>
-                  <OfficeCanvas onSceneReady={handleSceneReady} />
-                  <ArtifactToolbox />
-                  <ArtifactOverlay />
-                </div>
-              )}
+              {/* Office tab (canvas) — always mounted, hidden when chat tab active */}
+              <div style={{
+                ...styles.canvasArea,
+                position: 'relative',
+                display: activeTab === 'office' ? 'flex' : 'none',
+              }}>
+                <OfficeCanvas onSceneReady={handleSceneReady} />
+                <ArtifactToolbox />
+                <ArtifactOverlay />
+              </div>
             </div>
           </>
         ) : (
           <>
             {/* Default: side-by-side layout */}
-            <div style={styles.chatPanel}>
+            <div
+              className={introChatHighlight ? 'chat-panel-highlight' : undefined}
+              style={styles.chatPanel}
+            >
               {showEmpty ? (
                 <div style={styles.emptyState}>
                   <div style={styles.emptyTitle}>The Office</div>
@@ -839,6 +899,13 @@ export default function OfficeView() {
               <OfficeCanvas onSceneReady={handleSceneReady} />
               <ArtifactToolbox />
               <ArtifactOverlay />
+              {showIntro && (
+                <IntroSequence
+                  onComplete={handleIntroComplete}
+                  onHighlightChange={handleHighlightChange}
+                  onChatHighlightChange={handleChatHighlightChange}
+                />
+              )}
             </div>
           </>
         )}

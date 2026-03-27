@@ -398,16 +398,31 @@ function setupIPC(): void {
   ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
     const pending = pendingQuestions.get(sessionId);
     if (pending) {
-      // Persist user's answer
-      const answerText = Object.values(answers).join('\n');
-      if (answerText && chatHistoryStore && currentChatPhase && currentChatAgentRole && currentChatRunNumber > 0) {
-        const userMsg: ChatMessage = {
-          id: randomUUID(),
-          role: 'user',
-          text: answerText,
-          timestamp: Date.now(),
-        };
-        chatHistoryStore.appendMessage(currentChatPhase, currentChatAgentRole, currentChatRunNumber, userMsg);
+      if (chatHistoryStore && currentChatPhase && currentChatAgentRole && currentChatRunNumber > 0) {
+        // Persist the question text as an agent message
+        const questionText = Object.keys(answers).join('\n');
+        if (questionText) {
+          const questionMsg: ChatMessage = {
+            id: randomUUID(),
+            role: 'agent',
+            agentRole: currentChatAgentRole,
+            text: questionText,
+            timestamp: Date.now(),
+          };
+          chatHistoryStore.appendMessage(currentChatPhase, currentChatAgentRole, currentChatRunNumber, questionMsg);
+        }
+
+        // Persist user's answer
+        const answerText = Object.values(answers).join('\n');
+        if (answerText) {
+          const userMsg: ChatMessage = {
+            id: randomUUID(),
+            role: 'user',
+            text: answerText,
+            timestamp: Date.now(),
+          };
+          chatHistoryStore.appendMessage(currentChatPhase, currentChatAgentRole, currentChatRunNumber, userMsg);
+        }
       }
 
       pendingQuestions.delete(sessionId);
