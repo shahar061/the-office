@@ -13,6 +13,7 @@ import { TabBar } from '../TabBar/TabBar';
 import { MessageRenderer } from './MessageRenderer';
 import { ArtifactToolbox } from './ArtifactToolbox';
 import { ArtifactOverlay } from './ArtifactOverlay';
+import { PhaseTracker } from './PhaseTracker';
 import { useArtifactStore } from '../../stores/artifact.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -607,6 +608,13 @@ export default function OfficeView() {
         .bubble-waiting {
           animation: pulse-border 1.5s ease-in-out infinite;
         }
+        @keyframes phase-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+          50% { box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+        }
+        .phase-pulse {
+          animation: phase-pulse 2s ease-in-out infinite;
+        }
       `}</style>
       {/* Top bar */}
       <div style={styles.topBar}>
@@ -641,6 +649,9 @@ export default function OfficeView() {
           title={authStatus.connected ? `Connected${authStatus.account ? ` as ${authStatus.account}` : ''}` : 'Disconnected'}
         />
       </div>
+
+      {/* Phase tracker */}
+      <PhaseTracker />
 
       {/* Main area */}
       <div style={styles.main}>
