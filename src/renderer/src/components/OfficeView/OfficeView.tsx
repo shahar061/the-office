@@ -3,7 +3,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import type { ArchivedRun } from '../../stores/chat.store';
 import { AGENT_COLORS } from '@shared/types';
-import type { AgentRole, ChatMessage } from '@shared/types';
+import type { AgentRole, ChatMessage, Phase } from '@shared/types';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
 import { OfficeCanvas } from '../../office/OfficeCanvas';
 import { useSceneSync } from '../../office/useSceneSync';
@@ -14,6 +14,7 @@ import { MessageRenderer } from './MessageRenderer';
 import { ArtifactToolbox } from './ArtifactToolbox';
 import { ArtifactOverlay } from './ArtifactOverlay';
 import { PhaseTracker } from './PhaseTracker';
+import { IntroSequence } from './IntroSequence';
 import { useArtifactStore } from '../../stores/artifact.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -318,6 +319,31 @@ export default function OfficeView() {
 
   const { isExpanded, activeTab, toggleExpanded, setActiveTab } = useUIStore();
 
+  const phase = projectState?.currentPhase ?? 'idle';
+  const isIdle = phase === 'idle';
+
+  const [introHighlights, setIntroHighlights] = useState<Phase[] | null>(
+    projectState && !projectState.introSeen && phase === 'idle' ? [] : null,
+  );
+
+  const showIntro = phase === 'idle' && projectState !== null && !projectState.introSeen && introHighlights !== null;
+
+  const handleIntroComplete = useCallback(async () => {
+    setIntroHighlights(null);
+    try {
+      await window.office.markIntroSeen();
+      if (projectState) {
+        useProjectStore.getState().setProjectState({ ...projectState, introSeen: true });
+      }
+    } catch (err) {
+      console.error('Failed to mark intro seen:', err);
+    }
+  }, [projectState]);
+
+  const handleHighlightChange = useCallback((phases: Phase[]) => {
+    setIntroHighlights(phases);
+  }, []);
+
   useEffect(() => {
     const unsub = window.office.onAgentWaiting((payload) => {
       setWaiting(payload);
@@ -369,9 +395,6 @@ export default function OfficeView() {
   const handleSceneReady = useCallback((scene: OfficeScene) => {
     setOfficeScene(scene);
   }, []);
-
-  const phase = projectState?.currentPhase ?? 'idle';
-  const isIdle = phase === 'idle';
 
   const inputPlaceholder = waitingForResponse && waitingAgentRole
     ? `Responding to ${agentDisplayName(waitingAgentRole)}...`
@@ -615,6 +638,13 @@ export default function OfficeView() {
         .phase-pulse {
           animation: phase-pulse 2s ease-in-out infinite;
         }
+        @keyframes blink-indicator {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .blink-indicator {
+          animation: blink-indicator 1s step-end infinite;
+        }
       `}</style>
       {/* Top bar */}
       <div style={styles.topBar}>
@@ -651,10 +681,16 @@ export default function OfficeView() {
       </div>
 
       {/* Phase tracker */}
-      <PhaseTracker />
+      <PhaseTracker highlightedPhases={introHighlights} />
 
       {/* Main area */}
       <div style={styles.main}>
+        {showIntro && (
+          <IntroSequence
+            onComplete={handleIntroComplete}
+            onHighlightChange={handleHighlightChange}
+          />
+        )}
         {isExpanded ? (
           <>
             {/* Collapse chevron */}
