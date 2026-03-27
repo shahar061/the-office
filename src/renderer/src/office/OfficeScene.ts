@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Texture } from 'pixi.js';
+import { Application, Assets, Container, Texture, Text, Graphics } from 'pixi.js';
 import { TiledMapRenderer } from './engine/TiledMapRenderer';
 import { Camera } from './engine/camera';
 import { Character } from './characters/Character';
@@ -31,6 +31,7 @@ export class OfficeScene {
   private characters: Map<string, Character> = new Map();
   private characterLayer!: Container;
   private interactiveObjects!: InteractiveObjects;
+  private characterPopup: Container | null = null;
 
   constructor(app: Application) {
     this.app = app;
@@ -146,6 +147,17 @@ export class OfficeScene {
     );
     this.worldContainer.addChild(this.interactiveObjects.container);
 
+    // Character popup: show on character click, dismiss on background click
+    window.addEventListener('character-click', (e: Event) => {
+      const { role } = (e as CustomEvent).detail;
+      this.showCharacterPopup(role);
+    });
+
+    this.app.stage.eventMode = 'static';
+    this.app.stage.on('pointertap', () => {
+      this.dismissCharacterPopup();
+    });
+
     this.app.ticker.add(() => this.update());
   }
 
@@ -180,6 +192,71 @@ export class OfficeScene {
 
   getAllCharacters(): Map<string, Character> {
     return this.characters;
+  }
+
+  showCharacterPopup(role: AgentRole): void {
+    this.dismissCharacterPopup();
+
+    const character = this.characters.get(role);
+    if (!character || !character.isVisible) return;
+
+    const config = AGENT_CONFIGS[role];
+    const color = parseInt(config.color.slice(1), 16);
+    const pos = character.getPixelPosition();
+
+    const popup = new Container();
+    popup.label = 'character-popup';
+
+    const bgW = 120;
+    const bgH = 52;
+    const bg = new Graphics();
+    bg.setStrokeStyle({ width: 1, color });
+    bg.roundRect(0, 0, bgW, bgH, 4);
+    bg.fill({ color: 0x1a1a2e, alpha: 0.95 });
+    bg.stroke();
+
+    const nameText = new Text({
+      text: config.displayName,
+      style: { fontSize: 9, fill: config.color, fontWeight: 'bold', fontFamily: 'monospace' },
+    });
+    nameText.x = 8;
+    nameText.y = 6;
+
+    const stateText = new Text({
+      text: character.getState(),
+      style: { fontSize: 8, fill: '#94a3b8', fontFamily: 'monospace' },
+    });
+    stateText.x = 8;
+    stateText.y = 20;
+
+    const linkText = new Text({
+      text: 'View details →',
+      style: { fontSize: 8, fill: '#6366f1', fontFamily: 'monospace' },
+    });
+    linkText.x = 8;
+    linkText.y = 35;
+    linkText.eventMode = 'static';
+    linkText.cursor = 'pointer';
+    linkText.on('pointertap', () => {
+      window.dispatchEvent(new CustomEvent('character-view-details', { detail: { role } }));
+    });
+
+    popup.addChild(bg, nameText, stateText, linkText);
+
+    // Position above character
+    popup.x = pos.x - bgW / 2;
+    popup.y = pos.y - 48 - bgH - 4;
+
+    this.worldContainer.addChild(popup);
+    this.characterPopup = popup;
+  }
+
+  dismissCharacterPopup(): void {
+    if (this.characterPopup) {
+      this.characterPopup.parent?.removeChild(this.characterPopup);
+      this.characterPopup.destroy({ children: true });
+      this.characterPopup = null;
+    }
   }
 
   showCharacter(role: AgentRole): void {

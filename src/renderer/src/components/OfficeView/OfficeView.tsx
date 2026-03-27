@@ -16,6 +16,7 @@ import { ArtifactOverlay } from './ArtifactOverlay';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { useArtifactStore } from '../../stores/artifact.store';
+import { useAgentsStore } from '../../stores/agents.store';
 import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -443,6 +444,19 @@ export default function OfficeView() {
     window.addEventListener('artifact-click', handleArtifactClick);
     return () => window.removeEventListener('artifact-click', handleArtifactClick);
   }, []);
+
+  // Handle character view-details click from Pixi canvas
+  useEffect(() => {
+    function handleViewDetails(e: Event) {
+      const { role } = (e as CustomEvent).detail;
+      const { selectAgent } = useAgentsStore.getState();
+      selectAgent(role);
+      if (!isExpanded) toggleExpanded();
+      setTimeout(() => useUIStore.getState().setActiveTab('agents'), 50);
+    }
+    window.addEventListener('character-view-details', handleViewDetails);
+    return () => window.removeEventListener('character-view-details', handleViewDetails);
+  }, [isExpanded, toggleExpanded]);
 
   // Bridge store → PixiJS scene
   useSceneSync(officeScene);

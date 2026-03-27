@@ -8,11 +8,19 @@ export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
 
 const SPEED = 48;
 
+interface WanderBounds {
+  tileX: number;
+  tileY: number;
+  tileW: number;
+  tileH: number;
+}
+
 interface CharacterOptions {
   agentId: string;
   role: AgentRole;
   mapRenderer: TiledMapRenderer;
   frames: Texture[][];
+  wanderBounds?: WanderBounds;
 }
 
 export class Character {
@@ -30,6 +38,7 @@ export class Character {
   private direction: Direction = 'down';
   private idleTimer = 0;
   private idleWanderDelay = 3 + Math.random() * 5;
+  private wanderBounds: WanderBounds | null = null;
 
   public isVisible: boolean = false;
   private fadeDirection: 'in' | 'out' | null = null;
@@ -46,6 +55,8 @@ export class Character {
     // Look up desk position from spawn points
     const spawnPoint = this.mapRenderer.getSpawnPoint('desk-' + options.role);
     this.deskTile = spawnPoint ?? { x: 1, y: 1 };
+
+    this.wanderBounds = options.wanderBounds ?? null;
 
     const pos = this.mapRenderer.tileToPixel(this.deskTile.x, this.deskTile.y);
     this.px = pos.x + this.mapRenderer.tileSize / 2;
@@ -106,11 +117,23 @@ export class Character {
     this.sprite.setPosition(this.px, this.py);
   }
 
+  enableClick(): void {
+    this.sprite.container.eventMode = 'static';
+    this.sprite.container.cursor = 'pointer';
+    this.sprite.container.on('pointertap', (e) => {
+      e.stopPropagation();
+      window.dispatchEvent(new CustomEvent('character-click', {
+        detail: { role: this.role, state: this.state },
+      }));
+    });
+  }
+
   show(parent: import('pixi.js').Container): void {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.isVisible = true;
     this.sprite.setAlpha(0);
     parent.addChild(this.sprite.container);
+    this.enableClick();
     this.fadeDirection = 'in';
     this.fadeDuration = 0.5;
     this.fadeElapsed = 0;
@@ -210,6 +233,12 @@ export class Character {
     for (let attempt = 0; attempt < 10; attempt++) {
       const tx = current.x + Math.floor(Math.random() * range * 2) - range;
       const ty = current.y + Math.floor(Math.random() * range * 2) - range;
+      if (this.wanderBounds) {
+        const { tileX, tileY, tileW, tileH } = this.wanderBounds;
+        if (tx < tileX || tx >= tileX + tileW || ty < tileY || ty >= tileY + tileH) {
+          continue;
+        }
+      }
       if (this.mapRenderer.isWalkable(tx, ty)) {
         this.moveTo({ x: tx, y: ty });
         return;
