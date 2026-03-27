@@ -1,15 +1,15 @@
 import type { CSSProperties } from 'react';
-
-type Tab = 'chat' | 'office';
+import type { AppTab } from '../../stores/ui.store';
 
 interface TabBarProps {
-  activeTab: Tab;
-  onTabChange: (tab: Tab) => void;
+  activeTab: AppTab;
+  onTabChange: (tab: AppTab) => void;
 }
 
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: AppTab; label: string }[] = [
   { id: 'chat', label: 'CHAT' },
   { id: 'office', label: 'OFFICE' },
+  { id: 'agents', label: 'AGENTS' },
 ];
 
 const styles = {

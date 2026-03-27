@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 
+export type AppTab = 'chat' | 'office' | 'agents';
+
 interface UIStore {
   isExpanded: boolean;
-  activeTab: 'chat' | 'office';
+  activeTab: AppTab;
   toggleExpanded: () => void;
-  setActiveTab: (tab: 'chat' | 'office') => void;
+  setActiveTab: (tab: AppTab) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({

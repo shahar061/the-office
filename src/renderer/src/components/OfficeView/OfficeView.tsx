@@ -810,6 +810,26 @@ export default function OfficeView() {
           </span>
           <span style={styles.phaseIndicator}>{phaseText}</span>
         </div>
+        <button
+          onClick={() => {
+            if (!isExpanded) toggleExpanded();
+            setTimeout(() => useUIStore.getState().setActiveTab('agents'), 50);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#6b7280',
+            cursor: 'pointer',
+            fontSize: 13,
+            padding: '0 8px',
+            display: 'flex',
+            alignItems: 'center',
+            fontFamily: 'inherit',
+          }}
+          title="View agents"
+        >
+          ⊞
+        </button>
         <div
           style={styles.authDot(authStatus.connected)}
           title={authStatus.connected ? `Connected${authStatus.account ? ` as ${authStatus.account}` : ''}` : 'Disconnected'}
@@ -900,6 +920,18 @@ export default function OfficeView() {
                 <OfficeCanvas onSceneReady={handleSceneReady} />
                 <ArtifactToolbox />
                 <ArtifactOverlay />
+              </div>
+
+              {/* Agents tab */}
+              <div style={{
+                ...styles.expandedChatPanel,
+                display: activeTab === 'agents' ? 'flex' : 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <div style={{ color: '#64748b', fontSize: '14px' }}>
+                  Agents screen coming soon...
+                </div>
               </div>
             </div>
           </>
