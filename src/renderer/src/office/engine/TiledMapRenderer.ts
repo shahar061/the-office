@@ -57,11 +57,6 @@ export interface ZoneRect {
   height: number
 }
 
-export interface ExtractedSprite {
-  name: string
-  sprite: Sprite
-}
-
 export interface Point {
   x: number
   y: number
@@ -265,6 +260,10 @@ export class TiledMapRenderer {
             const raw = layer.data[y * this.width + x]
             if (raw === 0) continue
 
+            // Skip tiles collected for interactive object extraction
+            const skipKey = `${layerName}:${x}:${y}`
+            if (this.extractionSkips.has(skipKey)) continue
+
             // Strip flip flags to get the actual tile ID
             const flippedH = (raw & FLIPPED_H_FLAG) !== 0
             const flippedV = (raw & FLIPPED_V_FLAG) !== 0
@@ -310,13 +309,6 @@ export class TiledMapRenderer {
             } else {
               sprite.x = x * this.tileSize
               sprite.y = y * this.tileSize
-            }
-
-            // Skip tiles collected for interactive object extraction
-            const skipKey = `${layerName}:${x}:${y}`
-            if (this.extractionSkips.has(skipKey)) {
-              // Will be added to extracted groups below
-              continue
             }
 
             container.addChild(sprite)
