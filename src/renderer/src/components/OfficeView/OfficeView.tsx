@@ -276,6 +276,46 @@ const styles = {
     marginTop: '8px',
   }),
 
+  // Expanded question card styles
+  expandedQuestionCard: (isRecommended: boolean) => ({
+    padding: '14px 16px',
+    background: isRecommended ? '#1a1a3e' : '#151528',
+    border: isRecommended ? '1px solid #6366f188' : '1px solid #333',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    textAlign: 'left' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+    transition: 'border-color 0.15s',
+  }),
+  expandedCardLabel: {
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#e2e8f0',
+  },
+  expandedCardDescription: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    lineHeight: 1.4,
+  },
+  expandedCardTradeoffs: {
+    fontSize: '11px',
+    color: '#64748b',
+    lineHeight: 1.4,
+    fontStyle: 'italic' as const,
+  },
+  expandedCardBadge: (accentColor: string) => ({
+    display: 'inline-block',
+    fontSize: '9px',
+    fontWeight: 700,
+    color: accentColor,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    marginBottom: '2px',
+  }),
+
   // Expanded mode: full-width content area
   expandedContent: {
     position: 'relative' as const,
@@ -646,21 +686,56 @@ export default function OfficeView() {
         <div style={styles.questionText(isExpanded)}>
           {question.question}
         </div>
-        <div style={styles.questionOptionsGrid(isExpanded)}>
-          {question.options.map((opt) => (
-            <button
-              key={opt.label}
-              onClick={() => {
-                setInputValue(opt.label);
-                inputRef.current?.focus();
-              }}
-              title={opt.description}
-              style={styles.questionOption(isExpanded)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+
+        {isExpanded ? (
+          /* Expanded mode: rich cards with description, tradeoffs, recommendation */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {question.options.map((opt) => {
+              const isRecommended = question.recommendation === opt.label;
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => {
+                    setInputValue(opt.label);
+                    inputRef.current?.focus();
+                  }}
+                  style={styles.expandedQuestionCard(isRecommended)}
+                >
+                  {isRecommended && (
+                    <span style={styles.expandedCardBadge(accentColor)}>
+                      ★ Recommended
+                    </span>
+                  )}
+                  <span style={styles.expandedCardLabel}>{opt.label}</span>
+                  {opt.description && (
+                    <span style={styles.expandedCardDescription}>{opt.description}</span>
+                  )}
+                  {opt.tradeoffs && (
+                    <span style={styles.expandedCardTradeoffs}>{opt.tradeoffs}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          /* Compact mode: label-only buttons (unchanged) */
+          <div style={styles.questionOptionsGrid(false)}>
+            {question.options.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => {
+                  setInputValue(opt.label);
+                  inputRef.current?.focus();
+                }}
+                title={opt.description}
+                style={styles.questionOption(false)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={styles.questionHint(accentColor)}>
           Click to select or type your own answer
         </div>

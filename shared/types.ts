@@ -133,8 +133,9 @@ export interface PermissionRequest {
 export interface AskQuestion {
   question: string;
   header: string;
-  options: { label: string; description: string }[];
+  options: { label: string; description: string; tradeoffs?: string }[];
   multiSelect: boolean;
+  recommendation?: string;
 }
 
 export interface AgentWaitingPayload {
