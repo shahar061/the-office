@@ -10,6 +10,7 @@ const DEFAULT_STATE: Omit<ProjectState, 'name' | 'path'> = {
   currentPhase: 'idle' as Phase,
   completedPhases: [],
   interrupted: false,
+  introSeen: false,
 };
 
 export class ProjectManager {
@@ -38,6 +39,7 @@ export class ProjectManager {
       currentPhase: 'idle',
       completedPhases: [],
       interrupted: false,
+      introSeen: false,
     };
     fs.writeFileSync(configPath, JSON.stringify(initialState, null, 2), 'utf-8');
 
@@ -69,12 +71,14 @@ export class ProjectManager {
         currentPhase: data.currentPhase ?? 'idle',
         completedPhases: data.completedPhases ?? [],
         interrupted: data.interrupted ?? false,
+        introSeen: data.introSeen ?? true,
       };
     } catch {
       return {
         name: path.basename(projectPath),
         path: projectPath,
         ...DEFAULT_STATE,
+        introSeen: true,
       };
     }
   }

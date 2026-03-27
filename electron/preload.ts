@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('office', {
   createProject: (name: string, p: string) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_PROJECT, name, p),
   pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PICK_DIRECTORY),
   getProjectState: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROJECT_STATE),
+  markIntroSeen: () => ipcRenderer.invoke(IPC_CHANNELS.MARK_INTRO_SEEN),
 
   // Phase Control
   startImagine: (idea: string) => ipcRenderer.invoke(IPC_CHANNELS.START_IMAGINE, idea),

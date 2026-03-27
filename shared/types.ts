@@ -89,6 +89,7 @@ export interface ProjectState {
   currentPhase: Phase;
   completedPhases: Phase[];
   interrupted: boolean;
+  introSeen: boolean;
 }
 
 export interface PhaseInfo {
@@ -212,6 +213,7 @@ export const IPC_CHANNELS = {
   CREATE_PROJECT: 'office:create-project',
   PICK_DIRECTORY: 'office:pick-directory',
   GET_PROJECT_STATE: 'office:get-project-state',
+  MARK_INTRO_SEEN: 'office:mark-intro-seen',
   // Phase
   START_IMAGINE: 'office:start-imagine',
   START_WARROOM: 'office:start-warroom',
@@ -257,6 +259,7 @@ export interface OfficeAPI {
   createProject(name: string, path: string): Promise<{ success: boolean; error?: string }>;
   pickDirectory(): Promise<string | null>;
   getProjectState(): Promise<ProjectState>;
+  markIntroSeen(): Promise<void>;
 
   startImagine(userIdea: string): Promise<void>;
   startWarroom(): Promise<void>;

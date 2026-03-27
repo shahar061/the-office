@@ -235,9 +235,14 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_PROJECT_STATE, async () => {
     if (!currentProjectDir) {
-      return { name: '', path: '', currentPhase: 'idle', completedPhases: [], interrupted: false };
+      return { name: '', path: '', currentPhase: 'idle', completedPhases: [], interrupted: false, introSeen: true };
     }
     return projectManager.getProjectState(currentProjectDir);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.MARK_INTRO_SEEN, async () => {
+    if (!currentProjectDir) throw new Error('No project open');
+    projectManager.updateProjectState(currentProjectDir, { introSeen: true });
   });
 
   // ── Phases ──
