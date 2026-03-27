@@ -150,6 +150,13 @@ export interface ArtifactAvailablePayload {
   agentRole: AgentRole;
 }
 
+export interface AgentDefinitionPayload {
+  name: string;
+  description: string;
+  prompt: string;
+  tools: string[];
+}
+
 // ── Build ──
 
 export interface BuildConfig {
@@ -245,6 +252,8 @@ export const IPC_CHANNELS = {
   ARTIFACT_AVAILABLE: 'office:artifact-available',
   READ_ARTIFACT: 'office:read-artifact',
   GET_ARTIFACT_STATUS: 'office:get-artifact-status',
+  // Agents
+  GET_AGENT_DEFINITIONS: 'office:get-agent-definitions',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -287,6 +296,7 @@ export interface OfficeAPI {
   onArtifactAvailable(callback: (payload: ArtifactAvailablePayload) => void): () => void;
   readArtifact(filename: string): Promise<{ content: string } | { error: string }>;
   getArtifactStatus(): Promise<Record<string, boolean>>;
+  getAgentDefinitions(): Promise<Record<string, AgentDefinitionPayload>>;
 }
 
 declare global {

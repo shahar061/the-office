@@ -483,6 +483,21 @@ function setupIPC(): void {
     }
     return status;
   });
+
+  ipcMain.handle(IPC_CHANNELS.GET_AGENT_DEFINITIONS, async () => {
+    const { loadAllAgents } = await import('./sdk/agent-loader');
+    const agents = loadAllAgents(agentsDir);
+    const result: Record<string, any> = {};
+    for (const [name, def] of Object.entries(agents)) {
+      result[name] = {
+        name,
+        description: def.description,
+        prompt: def.prompt,
+        tools: def.tools ?? [],
+      };
+    }
+    return result;
+  });
 }
 
 // ── App Lifecycle ──

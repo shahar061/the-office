@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types';
 import type {
   AuthStatus, ProjectInfo, ProjectState, PhaseInfo,
   ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
-  SessionStats, BuildConfig, AppSettings, Phase, PhaseHistory,
+  SessionStats, BuildConfig, AppSettings, Phase, PhaseHistory, AgentDefinitionPayload,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -68,4 +68,7 @@ contextBridge.exposeInMainWorld('office', {
   onArtifactAvailable: (cb: (payload: any) => void) => onEvent(IPC_CHANNELS.ARTIFACT_AVAILABLE, cb),
   readArtifact: (filename: string) => ipcRenderer.invoke(IPC_CHANNELS.READ_ARTIFACT, filename),
   getArtifactStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ARTIFACT_STATUS),
+
+  // Agents
+  getAgentDefinitions: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AGENT_DEFINITIONS),
 });
