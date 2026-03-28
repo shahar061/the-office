@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useOfficeStore, type CharacterInfo } from '../stores/office.store';
 import { useProjectStore } from '../stores/project.store';
 import { useArtifactStore } from '../stores/artifact.store';
+import { useWarTableStore } from '../stores/war-table.store';
 import type { OfficeScene } from './OfficeScene';
 import type { AgentRole } from '../../../../shared/types';
 
@@ -107,14 +108,62 @@ export function useSceneSync(scene: OfficeScene | null) {
     return unsub;
   }, [scene]);
 
-  // Sync artifact availability → interactive objects
+  // Sync artifact availability → interactive objects + zoom out after vision-brief
   useEffect(() => {
     if (!scene) return;
 
+    const interactiveObjs = scene.getInteractiveObjects();
+    let visionBriefWasAvailable = useArtifactStore.getState().artifacts
+      .find((a) => a.key === 'vision-brief')?.available ?? false;
+
+    // Sync current state immediately (artifacts may have been hydrated before the scene was ready)
+    for (const artifact of useArtifactStore.getState().artifacts) {
+      interactiveObjs.setAvailable(`artifact-${artifact.key}`, artifact.available);
+    }
+
+    // Subscribe to future changes
     const unsub = useArtifactStore.subscribe((state) => {
-      const interactiveObjs = scene.getInteractiveObjects();
       for (const artifact of state.artifacts) {
         interactiveObjs.setAvailable(`artifact-${artifact.key}`, artifact.available);
+      }
+
+      // Zoom out to show full office when vision-brief first becomes available
+      const vb = state.artifacts.find((a) => a.key === 'vision-brief');
+      if (vb?.available && !visionBriefWasAvailable) {
+        visionBriefWasAvailable = true;
+        const camera = scene.getCamera();
+        camera.fitToScreen();
+      }
+    });
+
+    return unsub;
+  }, [scene]);
+
+  // Sync war table store → PixiJS WarTable
+  useEffect(() => {
+    if (!scene) return;
+
+    const warTable = scene.getWarTable();
+    if (!warTable) return;
+
+    // Sync current state immediately
+    const current = useWarTableStore.getState();
+    warTable.setState(current.visualState);
+    for (const m of current.milestones) warTable.addCard(m);
+    for (const t of current.tasks) warTable.addCard(t);
+
+    const unsub = useWarTableStore.subscribe((state, prev) => {
+      if (state.visualState !== prev.visualState) {
+        warTable.setState(state.visualState);
+      }
+      // Detect newly added cards
+      if (state.milestones.length > prev.milestones.length) {
+        const newCards = state.milestones.slice(prev.milestones.length);
+        for (const card of newCards) warTable.addCard(card);
+      }
+      if (state.tasks.length > prev.tasks.length) {
+        const newCards = state.tasks.slice(prev.tasks.length);
+        for (const card of newCards) warTable.addCard(card);
       }
     });
 

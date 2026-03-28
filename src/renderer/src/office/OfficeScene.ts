@@ -6,6 +6,7 @@ import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
 import { InteractiveObjects } from './InteractiveObjects';
 import { FogOfWar } from './engine/FogOfWar';
+import { WarTable } from './WarTable';
 import type { AgentRole } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
@@ -36,6 +37,7 @@ export class OfficeScene {
   private characterPopupRole: AgentRole | null = null;
   private characterPopupSize = { w: 120, h: 52 };
   private fog: FogOfWar | null = null;
+  private warTable!: WarTable;
 
   constructor(app: Application) {
     this.app = app;
@@ -151,6 +153,19 @@ export class OfficeScene {
     );
     this.worldContainer.addChild(this.interactiveObjects.container);
 
+    // War Table — centered in open-work-area
+    const openWorkArea = this.mapRenderer.getZone('open-work-area');
+    if (openWorkArea) {
+      this.warTable = new WarTable(
+        openWorkArea,
+        this.mapRenderer.tileSize,
+        () => {
+          window.dispatchEvent(new CustomEvent('war-table-click'));
+        },
+      );
+      this.worldContainer.addChild(this.warTable.container);
+    }
+
     // Character popup: show on character click, dismiss on background click
     window.addEventListener('character-click', (e: Event) => {
       const { role } = (e as CustomEvent).detail;
@@ -172,6 +187,9 @@ export class OfficeScene {
       character.update(dt);
     }
     this.interactiveObjects.update(dt);
+    if (this.warTable) {
+      this.warTable.update(dt);
+    }
     if (this.fog && !this.fog.isDestroyed()) {
       this.fog.update(dt);
     }
@@ -308,6 +326,10 @@ export class OfficeScene {
     const character = this.characters.get(role);
     if (!character || !character.isVisible) return;
     character.hide(3000);
+  }
+
+  getWarTable(): WarTable {
+    return this.warTable;
   }
 
   getEntrancePosition(): { x: number; y: number } {
