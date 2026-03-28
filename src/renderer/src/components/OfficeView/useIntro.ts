@@ -21,19 +21,25 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
   showIntroRef.current = showIntro;
 
   const handleIntroComplete = useCallback(async () => {
-    // Start fog reveal + camera zoom-out immediately (while overlay is still mounted)
     if (officeScene) {
-      officeScene.skipFog();
+      // Snap camera wide immediately so the full office is visible
+      const mr = officeScene.getMapRenderer();
+      const cx = (mr.width * mr.tileSize) / 2;
+      const cy = (mr.height * mr.tileSize) / 2;
+      officeScene.getCamera().snapTo(cx, cy, 1);
+      // Clear manual override so phase-based targeting works again
       officeScene.getCamera().fitToScreen();
+      // Start fog expand + fade (takes ~1.2s with the full map now visible)
+      officeScene.skipFog();
     }
-    // Delay overlay unmount so the fog has time to fade visually
+    // Delay overlay unmount + cleanup so the fog has time to fade
     setTimeout(() => {
       setIntroHighlights(null);
       setIntroChatHighlight(false);
       if (officeScene) {
         officeScene.hideCharacter('ceo');
       }
-    }, 700);
+    }, 1200);
     try {
       await window.office.markIntroSeen();
       if (projectState) {

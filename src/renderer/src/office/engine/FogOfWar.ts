@@ -12,8 +12,8 @@ interface WispState {
 
 const FOG_COLOR = [10, 10, 20] as const; // #0a0a14
 const FOG_ALPHA = 0.95;
-const LERP_SPEED = 0.03;
-const FADE_SPEED = 0.035;
+const LERP_SPEED = 0.06;
+const FADE_SPEED = 0.015;
 const WISP_COUNT = 5;
 const EDGE_SOFTNESS = 30; // px of gradient at clear zone edge
 
