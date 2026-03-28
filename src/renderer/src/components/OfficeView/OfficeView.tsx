@@ -12,11 +12,13 @@ import type { OfficeScene } from '../../office/OfficeScene';
 import { TabBar } from '../TabBar/TabBar';
 import { ArtifactToolbox } from './ArtifactToolbox';
 import { ArtifactOverlay } from './ArtifactOverlay';
+import { PlanOverlay } from './PlanOverlay';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { ChatPanel } from './ChatPanel';
 import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
 import { useIntro } from './useIntro';
+import { useWarTableStore } from '../../stores/war-table.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -179,6 +181,26 @@ export default function OfficeView() {
     return () => window.removeEventListener('artifact-click', handleArtifactClick);
   }, []);
 
+  // Handle war table clicks from Pixi canvas
+  useEffect(() => {
+    async function handleWarTableClick() {
+      const { visualState, reviewContent, reviewArtifact } = useWarTableStore.getState();
+      if (visualState === 'review' || visualState === 'complete' || visualState === 'persisted') {
+        if (reviewContent) {
+          useWarTableStore.getState().setReviewContent(reviewContent, reviewArtifact ?? 'plan');
+        } else {
+          // Read plan.md fresh if no content cached
+          const result = await window.office.readArtifact('plan.md');
+          if ('content' in result) {
+            useWarTableStore.getState().setReviewContent(result.content, 'plan');
+          }
+        }
+      }
+    }
+    window.addEventListener('war-table-click', handleWarTableClick);
+    return () => window.removeEventListener('war-table-click', handleWarTableClick);
+  }, []);
+
   // Handle character view-details click from Pixi canvas
   useEffect(() => {
     function handleViewDetails(e: Event) {
@@ -242,6 +264,7 @@ export default function OfficeView() {
             onClick={() => {
               useChatStore.getState().clearMessages();
               useArtifactStore.getState().reset();
+              useWarTableStore.getState().reset();
               useProjectStore.getState().setProjectState(null);
             }}
             style={{
@@ -308,6 +331,7 @@ export default function OfficeView() {
           <OfficeCanvas onSceneReady={handleSceneReady} />
           <ArtifactToolbox />
           <ArtifactOverlay />
+          <PlanOverlay />
           {showIntro && (
             <IntroSequence
               onComplete={handleIntroComplete}

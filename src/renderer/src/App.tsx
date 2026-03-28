@@ -4,6 +4,7 @@ import { useChatStore } from '@/stores/chat.store';
 import { useKanbanStore } from '@/stores/kanban.store';
 import { useOfficeStore } from '@/stores/office.store';
 import { useArtifactStore } from '@/stores/artifact.store';
+import { useWarTableStore } from './stores/war-table.store';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
 const OfficeView = React.lazy(() => import('@/components/OfficeView/OfficeView'));
@@ -29,9 +30,31 @@ export default function App() {
       window.office.onArtifactAvailable((payload) => markArtifactAvailable(payload.key)),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
-    window.office.getArtifactStatus().then(hydrateArtifacts);
     return () => unsubs.forEach((fn) => fn());
   }, []);
+
+  // War Table IPC listeners
+  useEffect(() => {
+    const unsubs = [
+      window.office.onWarTableState((state) => {
+        useWarTableStore.getState().setVisualState(state);
+      }),
+      window.office.onWarTableCardAdded((card) => {
+        useWarTableStore.getState().addCard(card);
+      }),
+      window.office.onWarTableReviewReady((payload) => {
+        useWarTableStore.getState().setReviewContent(payload.content, payload.artifact);
+      }),
+    ];
+    return () => unsubs.forEach((fn) => fn());
+  }, []);
+
+  // Re-hydrate artifacts whenever a project is opened
+  useEffect(() => {
+    if (projectState) {
+      window.office.getArtifactStatus().then(hydrateArtifacts);
+    }
+  }, [projectState?.path]);
 
   const view = projectState ? 'office' : 'picker';
 
