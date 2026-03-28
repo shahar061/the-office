@@ -2,54 +2,43 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Phase } from '@shared/types';
 import { colors } from '../../theme';
 
-interface DialogueStep {
+export interface DialogueStep {
   text: string;
   highlights: Phase[];
   highlightChat?: boolean;
 }
 
-const DIALOGUE_STEPS: DialogueStep[] = [
-  {
-    text: 'Ah, a new project! *adjusts glasses*\nWelcome to The Office. I\'m the CEO \u2014 and we\'ve got quite the team here.',
-    highlights: [],
-  },
-  {
-    text: 'First, we Imagine \u2014 that\'s where I sit down with the leadership team and figure out exactly what we\'re building.',
-    highlights: ['imagine'],
-  },
-  {
-    text: 'Then the War Room turns it into a battle plan, and the engineers Build it. The whole team\'s had their coffee already.',
-    highlights: ['imagine', 'warroom', 'build'],
-  },
-  {
-    text: 'Over there is where we chat. You can talk to the team, answer their questions, and guide the project as it moves along.',
-    highlights: [],
-    highlightChat: true,
-  },
-  {
-    text: 'So, what would you like to build?',
-    highlights: [],
-  },
-];
-
 const TYPEWRITER_SPEED = 30; // ms per character
 
 interface IntroSequenceProps {
+  steps: DialogueStep[];
+  speaker: string;
+  speakerColor?: string;
   onComplete: () => void;
   onHighlightChange: (phases: Phase[]) => void;
   onChatHighlightChange: (highlight: boolean) => void;
   onStepChange?: (step: number) => void;
 }
 
-export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightChange, onStepChange }: IntroSequenceProps) {
+export function IntroSequence({
+  steps,
+  speaker,
+  speakerColor,
+  onComplete,
+  onHighlightChange,
+  onChatHighlightChange,
+  onStepChange,
+}: IntroSequenceProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [displayedChars, setDisplayedChars] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const currentStep = DIALOGUE_STEPS[stepIndex];
+  const currentStep = steps[stepIndex];
   const fullText = currentStep.text;
   const visibleText = isTyping ? fullText.slice(0, displayedChars) : fullText;
+
+  const resolvedColor = speakerColor ?? colors.accent;
 
   // Update phase and chat highlights when step changes
   useEffect(() => {
@@ -93,12 +82,12 @@ export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightCh
     }
 
     // Advance to next step
-    if (stepIndex < DIALOGUE_STEPS.length - 1) {
+    if (stepIndex < steps.length - 1) {
       setStepIndex(stepIndex + 1);
     } else {
       onComplete();
     }
-  }, [isTyping, stepIndex, fullText.length, onComplete]);
+  }, [isTyping, stepIndex, steps.length, fullText.length, onComplete]);
 
   // Keyboard handler
   useEffect(() => {
@@ -128,8 +117,8 @@ export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightCh
       </button>
 
       {/* Dialogue box at bottom */}
-      <div style={introStyles.dialogueBox}>
-        <div style={introStyles.speakerLabel}>CEO</div>
+      <div style={{ ...introStyles.dialogueBox, borderColor: resolvedColor }}>
+        <div style={{ ...introStyles.speakerLabel, color: resolvedColor }}>{speaker}</div>
         <div style={introStyles.dialogueText}>
           {visibleText.split('\n').map((line, i) => (
             <span key={i}>
@@ -139,7 +128,7 @@ export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightCh
           ))}
         </div>
         {!isTyping && (
-          <span className="blink-indicator" style={introStyles.advanceIndicator}>{'\u25BC'}</span>
+          <span className="blink-indicator" style={{ ...introStyles.advanceIndicator, color: resolvedColor }}>{'\u25BC'}</span>
         )}
       </div>
     </div>
