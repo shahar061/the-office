@@ -97,6 +97,11 @@ export interface PhaseInfo {
   status: 'starting' | 'active' | 'completing' | 'completed' | 'failed' | 'interrupted';
 }
 
+export interface RestartPhasePayload {
+  targetPhase: Phase;
+  userIdea?: string;  // only for imagine
+}
+
 // ── Chat ──
 
 export interface ChatMessage {
@@ -252,6 +257,8 @@ export const IPC_CHANNELS = {
   START_WARROOM: 'office:start-warroom',
   START_BUILD: 'office:start-build',
   PHASE_CHANGE: 'office:phase-change',
+  RESTART_PHASE: 'office:restart-phase',
+  PHASE_RESTART: 'office:phase-restart',
   // Chat
   SEND_MESSAGE: 'office:send-message',
   CHAT_MESSAGE: 'office:chat-message',
@@ -306,6 +313,8 @@ export interface OfficeAPI {
   startWarroom(): Promise<void>;
   startBuild(config: BuildConfig): Promise<void>;
   onPhaseChange(callback: (phase: PhaseInfo) => void): () => void;
+  restartPhase(payload: RestartPhasePayload): Promise<void>;
+  onPhaseRestart(callback: (targetPhase: Phase) => void): () => void;
 
   sendMessage(message: string): Promise<void>;
   onChatMessage(callback: (msg: ChatMessage) => void): () => void;
