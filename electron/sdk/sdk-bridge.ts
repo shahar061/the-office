@@ -111,11 +111,16 @@ export function translateMessage(
     for (const block of content) {
       const b = block as Record<string, unknown>;
       if (b.type === 'tool_use') {
+        const input = b.input as Record<string, unknown> | undefined;
+        const toolInput = input
+          ? (input.file_path as string) ?? (input.command as string) ?? (input.pattern as string) ?? (input.path as string) ?? ''
+          : '';
         events.push({
           ...base,
           type: 'agent:tool:start',
           toolName: (b.name as string | undefined) ?? '',
           toolId: (b.id as string | undefined) ?? '',
+          message: typeof toolInput === 'string' ? toolInput : '',
         });
       } else if (b.type === 'text') {
         events.push({

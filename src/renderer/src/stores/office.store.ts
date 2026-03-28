@@ -63,14 +63,17 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
       const charState = READ_TOOLS.has(event.toolName || '') ? 'reading' : 'typing';
       chars.set(role, { role, state: charState, toolName: event.toolName, lastActive: event.timestamp });
 
-      const newAction: ActivityAction = {
-        id: event.toolId ?? `${event.timestamp}`,
-        toolName: event.toolName ?? 'Tool',
-        target: extractToolTarget(event),
-        status: 'running',
-      };
-      const updatedActions = [...activity.actions, newAction].slice(-3);
-      activity = { isActive: true, agentRole: role, actions: updatedActions };
+      const tool = event.toolName ?? '';
+      if (tool !== 'AskUserQuestion') {
+        const newAction: ActivityAction = {
+          id: event.toolId ?? `${event.timestamp}`,
+          toolName: tool || 'Tool',
+          target: extractToolTarget(event),
+          status: 'running',
+        };
+        const updatedActions = [...activity.actions, newAction].slice(-3);
+        activity = { isActive: true, agentRole: role, actions: updatedActions };
+      }
     } else if (event.type === 'agent:tool:done') {
       const existing = chars.get(role);
       if (existing) chars.set(role, { ...existing, state: 'idle', toolName: undefined, lastActive: event.timestamp });

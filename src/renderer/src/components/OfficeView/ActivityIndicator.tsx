@@ -21,7 +21,7 @@ function ActionRow({ action, agentColor }: { action: ActivityAction; agentColor:
         />
       )}
       <span style={isDone ? styles.actionTextDone : styles.actionTextRunning}>
-        {action.toolName} {action.target}
+        {action.toolName}{action.target !== action.toolName ? ` ${action.target}` : ''}
         {!isDone && '...'}
       </span>
     </div>
@@ -66,9 +66,10 @@ export function ActivityIndicator() {
 
 const styles = {
   container: {
-    padding: '8px 12px 12px',
+    padding: '10px 12px 16px',
     borderTop: `1px solid ${colors.border}`,
     flexShrink: 0,
+    marginBottom: '4px',
   } as React.CSSProperties,
   header: {
     display: 'flex',
