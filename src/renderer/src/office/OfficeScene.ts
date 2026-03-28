@@ -151,17 +151,6 @@ export class OfficeScene {
     );
     this.worldContainer.addChild(this.interactiveObjects.container);
 
-    // Fog of war overlay (created but only activated during intro via setFogStep)
-    const ceoZone = this.mapRenderer.getZone('ceo-room');
-    if (ceoZone) {
-      const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
-      const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
-      const centerX = (ceoZone.x + ceoZone.width / 2) * this.mapRenderer.tileSize;
-      const centerY = (ceoZone.y + ceoZone.height / 2) * this.mapRenderer.tileSize;
-      this.fog = new FogOfWar(mapPxW, mapPxH, centerX, centerY);
-      this.worldContainer.addChild(this.fog.container);
-    }
-
     // Character popup: show on character click, dismiss on background click
     window.addEventListener('character-click', (e: Event) => {
       const { role } = (e as CustomEvent).detail;
@@ -330,6 +319,20 @@ export class OfficeScene {
 
   onResize(width: number, height: number): void {
     this.camera.setViewSize(width, height);
+  }
+
+  /** Create fog overlay on demand (only for intro sequence). */
+  createFog(): void {
+    if (this.fog) return; // already exists
+    const ceoZone = this.mapRenderer.getZone('ceo-room');
+    if (ceoZone) {
+      const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
+      const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
+      const centerX = (ceoZone.x + ceoZone.width / 2) * this.mapRenderer.tileSize;
+      const centerY = (ceoZone.y + ceoZone.height / 2) * this.mapRenderer.tileSize;
+      this.fog = new FogOfWar(mapPxW, mapPxH, centerX, centerY);
+      this.worldContainer.addChild(this.fog.container);
+    }
   }
 
   setFogStep(step: number): void {

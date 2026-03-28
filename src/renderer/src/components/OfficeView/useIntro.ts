@@ -22,14 +22,12 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
 
   const handleIntroComplete = useCallback(async () => {
     if (officeScene) {
-      // Snap camera wide immediately so the full office is visible
+      // Snap camera wide so the full office is visible behind the fading fog
       const mr = officeScene.getMapRenderer();
       const cx = (mr.width * mr.tileSize) / 2;
       const cy = (mr.height * mr.tileSize) / 2;
       officeScene.getCamera().snapTo(cx, cy, 1);
-      // Clear manual override so phase-based targeting works again
       officeScene.getCamera().fitToScreen();
-      // Start fog expand + fade (takes ~1.2s with the full map now visible)
       officeScene.skipFog();
     }
     // Delay overlay unmount + cleanup so the fog has time to fade
@@ -66,6 +64,8 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
   const setupIntroScene = useCallback((scene: OfficeScene) => {
     setOfficeScene(scene);
     if (showIntroRef.current) {
+      // Create fog only for the scene we're actively using for the intro
+      scene.createFog();
       scene.getCamera().snapTo(72, 104, 3.5);
       scene.showCharacter('ceo');
       const ceo = scene.getCharacter('ceo');
@@ -73,9 +73,6 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
         const desk = ceo.getDeskTile();
         ceo.repositionTo(desk.x, desk.y);
       }
-    } else {
-      // No intro — remove fog immediately so it doesn't render at all
-      scene.removeFog();
     }
   }, []);
 

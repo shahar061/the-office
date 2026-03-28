@@ -13,18 +13,20 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const sceneRef = useRef<OfficeScene | null>(null);
-  const destroyedRef = useRef(false);
+  // Mount ID prevents stale async inits from proceeding (React StrictMode fix).
+  // Each mount increments on entry; cleanup increments to invalidate.
+  const mountIdRef = useRef(0);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Clear any leftover canvases from previous mounts (React StrictMode)
+    // Clear any leftover canvases from previous mounts
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
 
-    destroyedRef.current = false;
+    const mountId = ++mountIdRef.current;
     const app = new Application();
     appRef.current = app;
 
@@ -37,8 +39,8 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
         resolution: 1,
       });
 
-      // Guard against cleanup running before init completes (React StrictMode)
-      if (destroyedRef.current) {
+      // Bail if this mount was invalidated while awaiting
+      if (mountIdRef.current !== mountId) {
         try { app.destroy(true, { children: true }); } catch { /* ignore */ }
         return;
       }
@@ -52,7 +54,7 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
       const scene = new OfficeScene(app);
       await scene.init();
 
-      if (destroyedRef.current) {
+      if (mountIdRef.current !== mountId) {
         try { app.destroy(true, { children: true }); } catch { /* ignore */ }
         return;
       }
@@ -62,7 +64,7 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     };
 
     init().catch((err) => {
-      if (!destroyedRef.current) {
+      if (mountIdRef.current === mountId) {
         console.error('[OfficeCanvas] Init failed:', err);
       }
     });
@@ -81,7 +83,7 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     resizeObserver.observe(container);
 
     return () => {
-      destroyedRef.current = true;
+      mountIdRef.current++; // Invalidate this mount's async init
       resizeObserver.disconnect();
       // Remove canvas from DOM
       while (container.firstChild) {
