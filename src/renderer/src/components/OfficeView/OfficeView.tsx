@@ -201,6 +201,17 @@ export default function OfficeView() {
     return () => window.removeEventListener('war-table-click', handleWarTableClick);
   }, []);
 
+  // Handle phase restart — clear renderer stores
+  useEffect(() => {
+    const cleanup = window.office.onPhaseRestart((_targetPhase: string) => {
+      // Clear war table
+      useWarTableStore.getState().reset();
+      // Clear chat messages
+      useChatStore.getState().clearMessages();
+    });
+    return cleanup;
+  }, []);
+
   // Handle character view-details click from Pixi canvas
   useEffect(() => {
     function handleViewDetails(e: Event) {
