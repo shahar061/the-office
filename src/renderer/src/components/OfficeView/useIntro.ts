@@ -2,6 +2,31 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Phase, ProjectState } from '@shared/types';
 import { useProjectStore } from '../../stores/project.store';
 import type { OfficeScene } from '../../office/OfficeScene';
+import type { DialogueStep } from './IntroSequence';
+
+export const CEO_INTRO_STEPS: DialogueStep[] = [
+  {
+    text: 'Ah, a new project! *adjusts glasses*\nWelcome to The Office. I\'m the CEO — and we\'ve got quite the team here.',
+    highlights: [],
+  },
+  {
+    text: 'First, we Imagine — that\'s where I sit down with the leadership team and figure out exactly what we\'re building.',
+    highlights: ['imagine'],
+  },
+  {
+    text: 'Then the War Room turns it into a battle plan, and the engineers Build it. The whole team\'s had their coffee already.',
+    highlights: ['imagine', 'warroom', 'build'],
+  },
+  {
+    text: 'Over there is where we chat. You can talk to the team, answer their questions, and guide the project as it moves along.',
+    highlights: [],
+    highlightChat: true,
+  },
+  {
+    text: 'So, what would you like to build?',
+    highlights: [],
+  },
+];
 
 export function useIntro(projectState: ProjectState | null, phase: string) {
   const [introHighlights, setIntroHighlights] = useState<Phase[] | null>(

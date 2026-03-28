@@ -17,7 +17,7 @@ import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { ChatPanel } from './ChatPanel';
 import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
-import { useIntro } from './useIntro';
+import { useIntro, CEO_INTRO_STEPS } from './useIntro';
 import { useWarTableStore } from '../../stores/war-table.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -345,6 +345,8 @@ export default function OfficeView() {
           <PlanOverlay />
           {showIntro && (
             <IntroSequence
+              steps={CEO_INTRO_STEPS}
+              speaker="CEO"
               onComplete={handleIntroComplete}
               onHighlightChange={handleHighlightChange}
               onChatHighlightChange={handleChatHighlightChange}
