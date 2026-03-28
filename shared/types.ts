@@ -157,6 +157,31 @@ export interface AgentDefinitionPayload {
   tools: string[];
 }
 
+// ── War Table ──
+
+export type WarTableVisualState = 'empty' | 'growing' | 'review' | 'expanding' | 'complete' | 'persisted';
+
+export interface WarTableCard {
+  id: string;
+  type: 'milestone' | 'task';
+  title: string;
+  parentId?: string;  // task cards reference their milestone
+}
+
+export interface WarTableReviewPayload {
+  content: string;  // rendered plan.md content
+  artifact: 'plan' | 'tasks';
+}
+
+export interface WarTableReviewResponse {
+  approved: boolean;
+  feedback?: string;
+}
+
+export interface WarTableChoreographyPayload {
+  step: 'pm-reading' | 'pm-writing' | 'pm-done' | 'tl-reading' | 'tl-writing' | 'tl-done';
+}
+
 // ── Build ──
 
 export interface BuildConfig {
@@ -254,6 +279,12 @@ export const IPC_CHANNELS = {
   GET_ARTIFACT_STATUS: 'office:get-artifact-status',
   // Agents
   GET_AGENT_DEFINITIONS: 'office:get-agent-definitions',
+  // War Table
+  WAR_TABLE_STATE: 'office:war-table-state',
+  WAR_TABLE_CARD_ADDED: 'office:war-table-card-added',
+  WAR_TABLE_REVIEW_READY: 'office:war-table-review-ready',
+  WAR_TABLE_REVIEW_RESPONSE: 'office:war-table-review-response',
+  WAR_TABLE_CHOREOGRAPHY: 'office:war-table-choreography',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -297,6 +328,13 @@ export interface OfficeAPI {
   readArtifact(filename: string): Promise<{ content: string } | { error: string }>;
   getArtifactStatus(): Promise<Record<string, boolean>>;
   getAgentDefinitions(): Promise<Record<string, AgentDefinitionPayload>>;
+
+  // War Table
+  onWarTableState(callback: (state: WarTableVisualState) => void): () => void;
+  onWarTableCardAdded(callback: (card: WarTableCard) => void): () => void;
+  onWarTableReviewReady(callback: (payload: WarTableReviewPayload) => void): () => void;
+  respondWarTableReview(response: WarTableReviewResponse): Promise<void>;
+  onWarTableChoreography(callback: (payload: WarTableChoreographyPayload) => void): () => void;
 }
 
 declare global {
