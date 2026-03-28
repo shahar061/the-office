@@ -50,6 +50,8 @@ import {
   setPermissionHandler,
   pendingReview,
   setPendingReview,
+  pendingIntro,
+  setPendingIntro,
 } from './state';
 
 function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
@@ -165,6 +167,11 @@ async function handleStartWarroom(): Promise<void> {
           setPendingReview({ resolve });
           const payload: WarTableReviewPayload = { content, artifact };
           send(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, payload);
+        });
+      },
+      waitForIntro: () => {
+        return new Promise<void>((resolve) => {
+          setPendingIntro({ resolve });
         });
       },
     });
@@ -377,6 +384,13 @@ export function initPhaseHandlers(): void {
     if (pendingReview) {
       pendingReview.resolve(response);
       setPendingReview(null);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WARROOM_INTRO_DONE, async () => {
+    if (pendingIntro) {
+      pendingIntro.resolve();
+      setPendingIntro(null);
     }
   });
 

@@ -8,15 +8,22 @@ export interface WarroomConfig extends PhaseConfig {
   onWarTableCardAdded: (card: WarTableCard) => void;
   onWarTableChoreography: (payload: WarTableChoreographyPayload) => void;
   onReviewReady: (content: string, artifact: 'plan' | 'tasks') => Promise<WarTableReviewResponse>;
+  waitForIntro: () => Promise<void>;
 }
 
 export async function runWarroom(config: WarroomConfig): Promise<void> {
   const {
     projectDir, agentsDir, env, onEvent, onWaiting, onSystemMessage,
     onWarTableState, onWarTableCardAdded, onWarTableChoreography, onReviewReady,
+    waitForIntro,
   } = config;
   const artifactStore = new ArtifactStore(projectDir);
   const context = artifactStore.getImagineContext();
+
+  // ── Intro: PM walks to boardroom with cinematic dialog ──
+
+  onWarTableChoreography({ step: 'intro-walk' });
+  await waitForIntro();
 
   // ── Act 1: PM reads artifacts and writes plan ──
 

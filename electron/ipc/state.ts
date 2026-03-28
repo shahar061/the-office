@@ -66,6 +66,16 @@ export function setPendingReview(pr: PendingReview | null): void {
   pendingReview = pr;
 }
 
+// Pending warroom intro completion
+export interface PendingIntro {
+  resolve: () => void;
+}
+export let pendingIntro: PendingIntro | null = null;
+
+export function setPendingIntro(pi: PendingIntro | null): void {
+  pendingIntro = pi;
+}
+
 // ── Setter functions ──
 // ESM modules can't reassign imported `let` bindings, so we expose setters.
 
