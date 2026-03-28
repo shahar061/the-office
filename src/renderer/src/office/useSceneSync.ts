@@ -191,6 +191,12 @@ export function useSceneSync(scene: OfficeScene | null) {
       const tableTile = warTable.getTableTile();
 
       switch (step) {
+        case 'intro-walk': {
+          // Warroom intro handles PM walk and fog — choreography is managed by useWarRoomIntro
+          // Show PM character so it's visible in the scene
+          scene!.showCharacter('project-manager');
+          break;
+        }
         case 'pm-reading': {
           const pm = scene!.getCharacter('project-manager');
           if (pm) {
