@@ -44,4 +44,48 @@ export class ArtifactStore {
     }
     return fs.readFileSync(filePath, 'utf-8');
   }
+
+  /** Parse plan.md into milestone titles (best-effort heading extraction). */
+  parsePlanMilestones(): { id: string; title: string }[] {
+    const plan = this.readArtifact('plan.md');
+    const milestones: { id: string; title: string }[] = [];
+    const lines = plan.split('\n');
+    let idx = 0;
+    for (const line of lines) {
+      const match = line.match(/^#{2,3}\s+(.+)/);
+      if (match) {
+        idx++;
+        milestones.push({ id: `m${idx}`, title: match[1].trim() });
+      }
+    }
+    return milestones;
+  }
+
+  /** Parse tasks.yaml into task entries grouped by milestone (best-effort). */
+  parseTaskEntries(): { id: string; title: string; milestoneId: string }[] {
+    const yaml = this.getTasksYaml();
+    if (!yaml) return [];
+    const tasks: { id: string; title: string; milestoneId: string }[] = [];
+    let currentMilestone = 'm1';
+    let phaseIdx = 0;
+    let taskIdx = 0;
+    for (const line of yaml.split('\n')) {
+      const phaseMatch = line.match(/^(\w[\w\s-]*):\s*$/);
+      if (phaseMatch) {
+        phaseIdx++;
+        currentMilestone = `m${phaseIdx}`;
+        continue;
+      }
+      const taskMatch = line.match(/^\s+-\s+(?:name|description):\s*(.+)/);
+      if (taskMatch) {
+        taskIdx++;
+        tasks.push({
+          id: `t${taskIdx}`,
+          title: taskMatch[1].trim().replace(/^["']|["']$/g, ''),
+          milestoneId: currentMilestone,
+        });
+      }
+    }
+    return tasks;
+  }
 }
