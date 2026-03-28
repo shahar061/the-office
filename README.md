@@ -4,6 +4,8 @@ A pixel-art Electron app that visualizes AI agent activity as animated character
 
 ![Electron](https://img.shields.io/badge/Electron-41-blue) ![React](https://img.shields.io/badge/React-19-blue) ![PixiJS](https://img.shields.io/badge/PixiJS-8-orange) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
 
+![The Office](docs/screenshot.png)
+
 ## What Is This?
 
 The Office turns your AI coding sessions into a live pixel-art scene. It monitors [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenCode](https://github.com/sst/opencode) sessions and maps their activity to 15 animated characters — each representing a specialized agent role (CEO, Architect, Frontend Engineer, etc.).
