@@ -9,6 +9,8 @@ import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
 import { QuestionBubble } from './QuestionBubble';
 import { PhaseActionButton } from './PhaseActionButton';
+import { ActivityIndicator } from './ActivityIndicator';
+import { useOfficeStore } from '../../stores/office.store';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -129,6 +131,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
   } = useChatStore();
 
   const projectState = useProjectStore((s) => s.projectState);
+  const agentActive = useOfficeStore((s) => s.agentActivity.isActive);
 
   const [inputValue, setInputValue] = useState('');
   const [expandedArchived, setExpandedArchived] = useState<Set<string>>(new Set());
@@ -381,28 +384,32 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
         </div>
       )}
 
-      {/* Input area */}
-      <div style={styles.inputArea}>
-        <div style={inputRowStyle}>
-          <textarea
-            ref={inputRef}
-            rows={1}
-            style={styles.inputField}
-            placeholder={inputPlaceholder}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            style={styles.sendButton(canSend)}
-            onClick={handleSend}
-            disabled={!canSend}
-            aria-label="Send message"
-          >
-            ↑
-          </button>
+      {/* Input area / Activity indicator */}
+      {agentActive && !waitingForResponse ? (
+        <ActivityIndicator />
+      ) : (
+        <div style={styles.inputArea}>
+          <div style={inputRowStyle}>
+            <textarea
+              ref={inputRef}
+              rows={1}
+              style={styles.inputField}
+              placeholder={inputPlaceholder}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button
+              style={styles.sendButton(canSend)}
+              onClick={handleSend}
+              disabled={!canSend}
+              aria-label="Send message"
+            >
+              ↑
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
