@@ -153,11 +153,14 @@ export class OfficeScene {
     );
     this.worldContainer.addChild(this.interactiveObjects.container);
 
-    // War Table — centered in open-work-area
-    const openWorkArea = this.mapRenderer.getZone('open-work-area');
-    if (openWorkArea) {
+    // War Table — uses war-room-pc extracted tiles from the map
+    const warRoomObjects = this.mapRenderer.getWarRoomObjects();
+    const warRoomPc = warRoomObjects.get('war-room-pc');
+    const warRoomGroup = this.mapRenderer.getExtractedGroups().get('war-room-pc');
+    if (warRoomPc && warRoomGroup) {
       this.warTable = new WarTable(
-        openWorkArea,
+        warRoomGroup,
+        warRoomPc,
         this.mapRenderer.tileSize,
         () => {
           window.dispatchEvent(new CustomEvent('war-table-click'));

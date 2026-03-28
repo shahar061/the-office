@@ -139,7 +139,7 @@ export function useSceneSync(scene: OfficeScene | null) {
     return unsub;
   }, [scene]);
 
-  // Sync war table store → PixiJS WarTable
+  // Sync war table visual state → PixiJS WarTable
   useEffect(() => {
     if (!scene) return;
 
@@ -147,23 +147,11 @@ export function useSceneSync(scene: OfficeScene | null) {
     if (!warTable) return;
 
     // Sync current state immediately
-    const current = useWarTableStore.getState();
-    warTable.setState(current.visualState);
-    for (const m of current.milestones) warTable.addCard(m);
-    for (const t of current.tasks) warTable.addCard(t);
+    warTable.setState(useWarTableStore.getState().visualState);
 
     const unsub = useWarTableStore.subscribe((state, prev) => {
       if (state.visualState !== prev.visualState) {
         warTable.setState(state.visualState);
-      }
-      // Detect newly added cards
-      if (state.milestones.length > prev.milestones.length) {
-        const newCards = state.milestones.slice(prev.milestones.length);
-        for (const card of newCards) warTable.addCard(card);
-      }
-      if (state.tasks.length > prev.tasks.length) {
-        const newCards = state.tasks.slice(prev.tasks.length);
-        for (const card of newCards) warTable.addCard(card);
       }
     });
 

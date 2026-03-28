@@ -28,12 +28,18 @@ export interface TiledLayer {
   visible?: boolean
 }
 
+export interface TiledPolygonPoint {
+  x: number
+  y: number
+}
+
 export interface TiledObject {
   name: string
   x: number
   y: number
   width?: number
   height?: number
+  polygon?: TiledPolygonPoint[]
 }
 
 export interface TiledTilesetRef {
@@ -62,6 +68,17 @@ export interface Point {
   y: number
 }
 
+/** An interactive object defined by a polygon in the Tiled map. */
+export interface PolygonObject {
+  /** Bounding rect in tile coordinates (used for tile extraction). */
+  rect: ZoneRect
+  /** Polygon vertices in pixels, relative to the object's origin. */
+  polygonPoints: { x: number; y: number }[]
+  /** Object origin in pixels. */
+  originX: number
+  originY: number
+}
+
 // --- Tile layer names we expect in every map ---
 
 const TILE_LAYERS = ['floor', 'walls', 'furniture-below', 'furniture-above'] as const
@@ -78,6 +95,7 @@ export class TiledMapRenderer {
   private spawnPoints: Map<string, Point> = new Map()
   private zones: Map<string, ZoneRect> = new Map()
   private interactiveObjects: Map<string, ZoneRect> = new Map()
+  private warRoomObjects: Map<string, PolygonObject> = new Map()
   private layerContainers: Map<string, Container> = new Map()
   private characterContainer: Container
   private rootContainer: Container
@@ -100,6 +118,7 @@ export class TiledMapRenderer {
     this.parseSpawnPoints()
     this.parseZones()
     this.parseInteractiveObjects()
+    this.parseWarRoomObjects()
     this.collectExtractionTargets()
     this.buildTileLayers()
   }
@@ -188,14 +207,61 @@ export class TiledMapRenderer {
     const layer = this.findLayer('interactive-objects', 'objectgroup')
     if (!layer?.objects) return
     for (const obj of layer.objects) {
-      // Use round for width/height — Tiled rects drawn around single sprites
-      // may be slightly larger or smaller than an exact tile
+      // Compute which tiles the freehand rectangle actually overlaps
+      const startX = Math.floor(obj.x / this.tileSize)
+      const startY = Math.floor(obj.y / this.tileSize)
+      const endX = Math.ceil((obj.x + (obj.width ?? 0)) / this.tileSize)
+      const endY = Math.ceil((obj.y + (obj.height ?? 0)) / this.tileSize)
       this.interactiveObjects.set(obj.name, {
-        x: Math.floor(obj.x / this.tileSize),
-        y: Math.floor(obj.y / this.tileSize),
-        width: Math.max(1, Math.round((obj.width ?? 0) / this.tileSize)),
-        height: Math.max(1, Math.round((obj.height ?? 0) / this.tileSize)),
+        x: startX,
+        y: startY,
+        width: Math.max(1, endX - startX),
+        height: Math.max(1, endY - startY),
       })
+    }
+  }
+
+  private parseWarRoomObjects(): void {
+    const layer = this.findLayer('war-room-objects', 'objectgroup')
+    if (!layer?.objects) return
+    for (const obj of layer.objects) {
+      if (!obj.polygon || obj.polygon.length === 0) continue
+
+      // Compute bounding rect from polygon vertices (in pixels, relative to object origin)
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      for (const pt of obj.polygon) {
+        const absX = obj.x + pt.x
+        const absY = obj.y + pt.y
+        if (absX < minX) minX = absX
+        if (absY < minY) minY = absY
+        if (absX > maxX) maxX = absX
+        if (absY > maxY) maxY = absY
+      }
+
+      const startX = Math.floor(minX / this.tileSize)
+      const startY = Math.floor(minY / this.tileSize)
+      const endX = Math.ceil(maxX / this.tileSize)
+      const endY = Math.ceil(maxY / this.tileSize)
+
+      const rect: ZoneRect = {
+        x: startX,
+        y: startY,
+        width: Math.max(1, endX - startX),
+        height: Math.max(1, endY - startY),
+      }
+
+      // Store polygon points as-is (relative to object origin) for hit area
+      const polygonPoints = obj.polygon.map((pt) => ({ x: pt.x, y: pt.y }))
+
+      this.warRoomObjects.set(obj.name, {
+        rect,
+        polygonPoints,
+        originX: obj.x,
+        originY: obj.y,
+      })
+
+      // Also register in interactiveObjects so tile extraction picks it up
+      this.interactiveObjects.set(obj.name, rect)
     }
   }
 
@@ -203,16 +269,21 @@ export class TiledMapRenderer {
     return this.interactiveObjects
   }
 
+  getWarRoomObjects(): Map<string, PolygonObject> {
+    return this.warRoomObjects
+  }
+
   getExtractedGroups(): Map<string, Container> {
     return this.extractedGroups
   }
 
   /**
-   * Collect ALL tiles within each interactive object's rect,
-   * from both furniture-below and furniture-above layers.
+   * Collect tiles within each interactive object's rect from the
+   * furniture-above layer only — furniture-below holds base surfaces
+   * (desks, shelves) that should stay in the static tilemap.
    */
   private collectExtractionTargets(): void {
-    for (const layerName of ['furniture-below', 'furniture-above'] as const) {
+    for (const layerName of ['furniture-above'] as const) {
       const layer = this.findLayer(layerName, 'tilelayer')
       if (!layer?.data) continue
 
@@ -314,6 +385,12 @@ export class TiledMapRenderer {
             container.addChild(sprite)
           }
         }
+      }
+
+      // furniture-above renders on top of characters visually but must not
+      // block pointer events on the character layer beneath it
+      if (layerName === 'furniture-above') {
+        container.eventMode = 'none'
       }
 
       this.layerContainers.set(layerName, container)

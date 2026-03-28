@@ -1,109 +1,95 @@
-// src/renderer/src/office/WarTable.ts
-import { Container, Graphics, Text } from 'pixi.js';
-import type { ZoneRect } from './engine/TiledMapRenderer';
-import type { WarTableVisualState, WarTableCard } from '../../../shared/types';
+import { Container, Graphics, Polygon, Text } from 'pixi.js';
+import { OutlineFilter } from 'pixi-filters';
+import type { PolygonObject } from './engine/TiledMapRenderer';
+import type { WarTableVisualState } from '../../../shared/types';
 
-const TABLE_WIDTH = 48;
-const TABLE_HEIGHT = 24;
-const CARD_WIDTH = 12;
-const CARD_HEIGHT = 7;
-const CARD_GAP = 2;
-const TASK_CARD_WIDTH = 8;
-const TASK_CARD_HEIGHT = 5;
-
-const MILESTONE_COLOR = 0x0ea5e9; // PM cyan
-const TASK_COLOR = 0x8b5cf6;      // purple for task cards
-
-const GLOW_REVIEW = 0x0ea5e9;     // cyan glow
-const GLOW_COMPLETE = 0x22c55e;   // green glow
+const GLOW_REVIEW = 0x0ea5e9;
+const GLOW_COMPLETE = 0x22c55e;
+const WAR_TABLE_COLOR = '#0ea5e9';
+const WAR_TABLE_COLOR_NUM = 0x0ea5e9;
 
 export class WarTable {
   readonly container: Container;
-  private tableBase: Graphics;
-  private cardLayer: Container;
-  private glowGraphics: Graphics;
+  private group: Container;
+  private outlineFilter: OutlineFilter;
   private tooltip: Container;
   private visualState: WarTableVisualState = 'empty';
-  private milestones: WarTableCard[] = [];
-  private tasks: WarTableCard[] = [];
   private glowAlpha = 0;
   private glowDirection = 1;
   private tileSize: number;
-  private onClick: () => void;
+  private polyObj: PolygonObject;
 
-  constructor(zone: ZoneRect, tileSize: number, onClick: () => void) {
+  constructor(
+    group: Container,
+    polyObj: PolygonObject,
+    tileSize: number,
+    onClick: () => void,
+  ) {
     this.tileSize = tileSize;
-    this.onClick = onClick;
+    this.polyObj = polyObj;
+    this.group = group;
     this.container = new Container();
     this.container.label = 'war-table';
 
-    // Position at zone center
-    const centerX = (zone.x + zone.width / 2) * tileSize - TABLE_WIDTH / 2;
-    const centerY = (zone.y + zone.height / 2) * tileSize - TABLE_HEIGHT / 2;
-    this.container.x = centerX;
-    this.container.y = centerY;
+    this.container.addChild(group);
 
-    // Table base
-    this.tableBase = new Graphics();
-    this.drawTableBase(0.6);
-    this.container.addChild(this.tableBase);
+    // Outline filter for glow (hidden by default)
+    this.outlineFilter = new OutlineFilter({
+      thickness: 2,
+      color: GLOW_REVIEW,
+      alpha: 0,
+      quality: 0.5,
+    });
+    group.filters = [this.outlineFilter];
 
-    // Card layer (on top of table)
-    this.cardLayer = new Container();
-    this.cardLayer.x = 4;
-    this.cardLayer.y = 3;
-    this.container.addChild(this.cardLayer);
-
-    // Glow outline (behind table, drawn larger)
-    this.glowGraphics = new Graphics();
-    this.glowGraphics.visible = false;
-    this.container.addChildAt(this.glowGraphics, 0);
+    // Hit area from polygon — points are relative to object origin,
+    // but the group is positioned at rect origin. Offset accordingly.
+    const offsetX = this.polyObj.originX - polyObj.rect.x * tileSize;
+    const offsetY = this.polyObj.originY - polyObj.rect.y * tileSize;
+    const flatPoints: number[] = [];
+    for (const pt of polyObj.polygonPoints) {
+      flatPoints.push(pt.x + offsetX, pt.y + offsetY);
+    }
+    group.hitArea = new Polygon(flatPoints);
 
     // Tooltip
     this.tooltip = this.createTooltip();
     this.tooltip.visible = false;
     this.container.addChild(this.tooltip);
 
-    // Interaction (disabled by default)
-    this.container.eventMode = 'none';
-    this.container.cursor = 'default';
-    this.container.hitArea = { contains: (x: number, y: number) => x >= 0 && x <= TABLE_WIDTH && y >= 0 && y <= TABLE_HEIGHT };
-    this.container.on('pointertap', () => this.onClick());
-    this.container.on('pointerover', () => { this.tooltip.visible = true; });
-    this.container.on('pointerout', () => { this.tooltip.visible = false; });
-  }
+    // Disabled by default
+    group.eventMode = 'none';
+    group.cursor = 'default';
 
-  private drawTableBase(alpha: number): void {
-    this.tableBase.clear();
-    this.tableBase.roundRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT, 2);
-    this.tableBase.fill({ color: 0x4a3728, alpha });
-    this.tableBase.stroke({ color: 0x3a2a1a, width: 1 });
+    group.on('pointertap', () => onClick());
+    group.on('pointerover', () => { this.tooltip.visible = true; this.outlineFilter.alpha = 1; });
+    group.on('pointerout', () => { this.tooltip.visible = false; this.outlineFilter.alpha = 0; });
   }
 
   private createTooltip(): Container {
     const tooltip = new Container();
     const text = new Text({
-      text: 'War Table',
-      style: { fontSize: 8, fill: '#0ea5e9', fontFamily: 'monospace' },
+      text: 'War Room',
+      style: { fontSize: 9, fill: WAR_TABLE_COLOR, fontFamily: 'monospace' },
     });
-    const padX = 4;
-    const padY = 2;
+    const padX = 6;
+    const padY = 3;
     const bg = new Graphics();
-    bg.roundRect(0, 0, text.width + padX * 2, text.height + padY * 2, 2);
+    bg.setStrokeStyle({ width: 1, color: WAR_TABLE_COLOR_NUM });
+    bg.roundRect(0, 0, text.width + padX * 2, text.height + padY * 2, 3);
     bg.fill({ color: 0x1a1a2e });
-    bg.stroke({ color: 0x0ea5e9, width: 1 });
+    bg.stroke();
     text.x = padX;
     text.y = padY;
     tooltip.addChild(bg, text);
-    tooltip.x = TABLE_WIDTH / 2 - (text.width + padX * 2) / 2;
-    tooltip.y = -text.height - padY * 2 - 4;
-    return tooltip;
-  }
 
-  private drawGlow(color: number): void {
-    this.glowGraphics.clear();
-    this.glowGraphics.roundRect(-3, -3, TABLE_WIDTH + 6, TABLE_HEIGHT + 6, 4);
-    this.glowGraphics.stroke({ color, width: 2, alpha: 0.6 });
+    // Position centered above the group
+    const groupW = this.polyObj.rect.width * this.tileSize;
+    const tooltipW = text.width + padX * 2;
+    const tooltipH = text.height + padY * 2;
+    tooltip.x = this.group.x + groupW / 2 - tooltipW / 2;
+    tooltip.y = this.group.y - tooltipH - 4;
+    return tooltip;
   }
 
   setState(state: WarTableVisualState): void {
@@ -111,129 +97,65 @@ export class WarTable {
 
     switch (state) {
       case 'empty':
-        this.container.visible = false;
-        this.container.eventMode = 'none';
-        this.container.cursor = 'default';
-        this.glowGraphics.visible = false;
+        this.group.eventMode = 'none';
+        this.group.cursor = 'default';
+        this.outlineFilter.alpha = 0;
+        this.tooltip.visible = false;
         break;
       case 'growing':
       case 'expanding':
-        this.container.visible = true;
-        this.drawTableBase(1.0);
-        this.container.eventMode = 'none';
-        this.container.cursor = 'default';
-        this.glowGraphics.visible = false;
+        this.group.eventMode = 'none';
+        this.group.cursor = 'default';
+        this.outlineFilter.alpha = 0;
         break;
       case 'review':
-        this.container.visible = true;
-        this.drawTableBase(1.0);
-        this.container.eventMode = 'static';
-        this.container.cursor = 'pointer';
-        this.drawGlow(GLOW_REVIEW);
-        this.glowGraphics.visible = true;
+        this.group.eventMode = 'static';
+        this.group.cursor = 'pointer';
+        this.outlineFilter.color = GLOW_REVIEW;
         this.glowAlpha = 0.3;
         break;
       case 'complete':
-        this.container.visible = true;
-        this.drawTableBase(1.0);
-        this.container.eventMode = 'static';
-        this.container.cursor = 'pointer';
-        this.drawGlow(GLOW_COMPLETE);
-        this.glowGraphics.visible = true;
+        this.group.eventMode = 'static';
+        this.group.cursor = 'pointer';
+        this.outlineFilter.color = GLOW_COMPLETE;
         this.glowAlpha = 0.3;
         break;
       case 'persisted':
-        this.container.visible = true;
-        this.drawTableBase(1.0);
-        this.container.eventMode = 'static';
-        this.container.cursor = 'pointer';
-        this.glowGraphics.visible = false;
+        this.group.eventMode = 'static';
+        this.group.cursor = 'pointer';
+        this.outlineFilter.alpha = 0;
         break;
-    }
-  }
-
-  addCard(card: WarTableCard): void {
-    if (card.type === 'milestone') {
-      this.milestones.push(card);
-    } else {
-      this.tasks.push(card);
-    }
-    this.redrawCards();
-  }
-
-  private redrawCards(): void {
-    this.cardLayer.removeChildren();
-
-    let x = 0;
-    let y = 0;
-
-    // Draw milestones
-    for (const _m of this.milestones) {
-      const card = new Graphics();
-      card.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 1);
-      card.fill({ color: MILESTONE_COLOR });
-      card.x = x;
-      card.y = y;
-      this.cardLayer.addChild(card);
-      x += CARD_WIDTH + CARD_GAP;
-      if (x + CARD_WIDTH > TABLE_WIDTH - 8) {
-        x = 0;
-        y += CARD_HEIGHT + CARD_GAP;
-      }
-    }
-
-    // Draw tasks (smaller, below milestones)
-    if (this.tasks.length > 0 && this.milestones.length > 0) {
-      x = 0;
-      y += CARD_HEIGHT + CARD_GAP;
-    }
-    for (const _t of this.tasks) {
-      const card = new Graphics();
-      card.roundRect(0, 0, TASK_CARD_WIDTH, TASK_CARD_HEIGHT, 1);
-      card.fill({ color: TASK_COLOR });
-      card.x = x;
-      card.y = y;
-      this.cardLayer.addChild(card);
-      x += TASK_CARD_WIDTH + CARD_GAP;
-      if (x + TASK_CARD_WIDTH > TABLE_WIDTH - 8) {
-        x = 0;
-        y += TASK_CARD_HEIGHT + CARD_GAP;
-      }
     }
   }
 
   /** Get the tile position of the war table center (for character pathfinding). */
   getTableTile(): { x: number; y: number } {
-    const px = this.container.x + TABLE_WIDTH / 2;
-    const py = this.container.y + TABLE_HEIGHT / 2;
+    const rect = this.polyObj.rect;
     return {
-      x: Math.floor(px / this.tileSize),
-      y: Math.floor(py / this.tileSize),
+      x: rect.x + Math.floor(rect.width / 2),
+      y: rect.y + Math.floor(rect.height / 2),
     };
   }
 
   /** Get pixel center of the war table (for camera targeting). */
   getPixelCenter(): { x: number; y: number } {
+    const rect = this.polyObj.rect;
     return {
-      x: this.container.x + TABLE_WIDTH / 2,
-      y: this.container.y + TABLE_HEIGHT / 2,
+      x: (rect.x + rect.width / 2) * this.tileSize,
+      y: (rect.y + rect.height / 2) * this.tileSize,
     };
   }
 
   update(dt: number): void {
-    // Pulse glow during review and complete states
     if (this.visualState === 'review' || this.visualState === 'complete') {
       this.glowAlpha += this.glowDirection * dt * 0.8;
       if (this.glowAlpha >= 0.7) { this.glowAlpha = 0.7; this.glowDirection = -1; }
       if (this.glowAlpha <= 0.3) { this.glowAlpha = 0.3; this.glowDirection = 1; }
-      this.glowGraphics.alpha = this.glowAlpha;
+      this.outlineFilter.alpha = this.glowAlpha;
     }
   }
 
   reset(): void {
-    this.milestones = [];
-    this.tasks = [];
-    this.cardLayer.removeChildren();
     this.setState('empty');
   }
 }
