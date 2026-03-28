@@ -10,8 +10,7 @@ const FORWARD_TRANSITIONS: Record<Phase, Phase | null> = {
   complete: null,
 };
 
-// Phases that can go backward to 'imagine' (redo)
-const BACKWARD_TO_IMAGINE: Set<Phase> = new Set(['warroom', 'build', 'complete']);
+export const PHASE_ORDER: Phase[] = ['idle', 'imagine', 'warroom', 'build', 'complete'];
 
 export class PhaseMachine extends EventEmitter {
   private _currentPhase: Phase;
@@ -28,18 +27,18 @@ export class PhaseMachine extends EventEmitter {
   }
 
   get completedPhases(): Phase[] {
-    return Array.from(this._completedPhases);
+    return PHASE_ORDER.filter(p => this._completedPhases.has(p));
   }
 
   transition(target: Phase): void {
     const from = this._currentPhase;
 
-    // Allow re-entering the same phase (restart after failure)
     const isSame = from === target;
     const isForward = FORWARD_TRANSITIONS[from] === target;
-    const isBackwardToImagine = target === 'imagine' && BACKWARD_TO_IMAGINE.has(from);
+    const isBackward = PHASE_ORDER.indexOf(target) < PHASE_ORDER.indexOf(from)
+                       && target !== 'idle';
 
-    if (!isSame && !isForward && !isBackwardToImagine) {
+    if (!isSame && !isForward && !isBackward) {
       throw new Error(
         `Invalid transition: '${from}' → '${target}'`
       );
@@ -49,6 +48,14 @@ export class PhaseMachine extends EventEmitter {
 
     const info: PhaseInfo = { phase: target, status: 'active' };
     this.emit('change', info);
+  }
+
+  clearCompletedFrom(phase: Phase): void {
+    const idx = PHASE_ORDER.indexOf(phase);
+    if (idx === -1) return;
+    for (const p of PHASE_ORDER.slice(idx)) {
+      this._completedPhases.delete(p);
+    }
   }
 
   markCompleted(phase: Phase): void {

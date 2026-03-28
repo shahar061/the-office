@@ -55,7 +55,7 @@ describe('PhaseMachine', () => {
     });
   });
 
-  describe('backward transitions to imagine (redo)', () => {
+  describe('backward transitions (redo)', () => {
     it('allows warroom → imagine', () => {
       const machine = new PhaseMachine('warroom');
       machine.transition('imagine');
@@ -72,6 +72,31 @@ describe('PhaseMachine', () => {
       const machine = new PhaseMachine('complete');
       machine.transition('imagine');
       expect(machine.currentPhase).toBe('imagine');
+    });
+
+    it('allows build → warroom', () => {
+      const machine = new PhaseMachine('build');
+      machine.transition('warroom');
+      expect(machine.currentPhase).toBe('warroom');
+    });
+
+    it('allows complete → warroom', () => {
+      const machine = new PhaseMachine('complete');
+      machine.transition('warroom');
+      expect(machine.currentPhase).toBe('warroom');
+    });
+
+    it('allows complete → build', () => {
+      const machine = new PhaseMachine('complete');
+      machine.transition('build');
+      expect(machine.currentPhase).toBe('build');
+    });
+
+    it('rejects any transition to idle', () => {
+      const machine = new PhaseMachine('imagine');
+      expect(() => machine.transition('idle')).toThrow(
+        "Invalid transition: 'imagine' → 'idle'"
+      );
     });
   });
 
@@ -93,22 +118,9 @@ describe('PhaseMachine', () => {
       expect(() => machine.transition('complete')).toThrow();
     });
 
-    it('rejects idle → imagine backward (idle cannot go to imagine as backward)', () => {
-      // idle cannot transition backward to imagine since it's not in BACKWARD_TO_IMAGINE
-      // and the forward transition from idle IS to imagine, so this is actually valid forward.
-      // Instead test a truly invalid: complete → build
-      const machine = new PhaseMachine('complete');
-      expect(() => machine.transition('build')).toThrow();
-    });
-
     it('rejects imagine → build (skipping warroom)', () => {
       const machine = new PhaseMachine('imagine');
       expect(() => machine.transition('build')).toThrow();
-    });
-
-    it('rejects complete → warroom', () => {
-      const machine = new PhaseMachine('complete');
-      expect(() => machine.transition('warroom')).toThrow();
     });
 
     it('rejects complete → idle', () => {
