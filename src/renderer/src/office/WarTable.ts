@@ -111,19 +111,21 @@ export class WarTable {
 
     switch (state) {
       case 'empty':
-        this.drawTableBase(0.6);
+        this.container.visible = false;
         this.container.eventMode = 'none';
         this.container.cursor = 'default';
         this.glowGraphics.visible = false;
         break;
       case 'growing':
       case 'expanding':
+        this.container.visible = true;
         this.drawTableBase(1.0);
         this.container.eventMode = 'none';
         this.container.cursor = 'default';
         this.glowGraphics.visible = false;
         break;
       case 'review':
+        this.container.visible = true;
         this.drawTableBase(1.0);
         this.container.eventMode = 'static';
         this.container.cursor = 'pointer';
@@ -132,6 +134,7 @@ export class WarTable {
         this.glowAlpha = 0.3;
         break;
       case 'complete':
+        this.container.visible = true;
         this.drawTableBase(1.0);
         this.container.eventMode = 'static';
         this.container.cursor = 'pointer';
@@ -140,6 +143,7 @@ export class WarTable {
         this.glowAlpha = 0.3;
         break;
       case 'persisted':
+        this.container.visible = true;
         this.drawTableBase(1.0);
         this.container.eventMode = 'static';
         this.container.cursor = 'pointer';
