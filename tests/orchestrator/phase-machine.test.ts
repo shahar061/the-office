@@ -236,6 +236,32 @@ describe('PhaseMachine', () => {
     });
   });
 
+  describe('clearCompletedFrom', () => {
+    it('clears target phase and all subsequent phases', () => {
+      const machine = new PhaseMachine('complete', ['imagine', 'warroom', 'build', 'complete']);
+      machine.clearCompletedFrom('warroom');
+      expect(machine.completedPhases).toEqual(['imagine']);
+    });
+
+    it('clears all phases when clearing from imagine', () => {
+      const machine = new PhaseMachine('complete', ['imagine', 'warroom', 'build', 'complete']);
+      machine.clearCompletedFrom('imagine');
+      expect(machine.completedPhases).toEqual([]);
+    });
+
+    it('does nothing when clearing from a phase not in completed set', () => {
+      const machine = new PhaseMachine('warroom', ['imagine']);
+      machine.clearCompletedFrom('build');
+      expect(machine.completedPhases).toEqual(['imagine']);
+    });
+
+    it('clears only the target when it is the last completed phase', () => {
+      const machine = new PhaseMachine('build', ['imagine', 'warroom']);
+      machine.clearCompletedFrom('warroom');
+      expect(machine.completedPhases).toEqual(['imagine']);
+    });
+  });
+
   describe('state restoration', () => {
     it('restores from saved initialPhase and completedPhases', () => {
       const machine = new PhaseMachine('build', ['imagine', 'warroom']);
