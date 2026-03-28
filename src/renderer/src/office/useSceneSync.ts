@@ -169,4 +169,105 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     return unsub;
   }, [scene]);
+
+  // Transition war table to 'persisted' when Build phase starts
+  useEffect(() => {
+    if (!scene) return;
+
+    const unsub = useProjectStore.subscribe((state) => {
+      const phase = state.currentPhase?.phase;
+      const warTable = scene.getWarTable();
+      if (!warTable) return;
+
+      if (phase === 'build' || phase === 'complete') {
+        const { visualState } = useWarTableStore.getState();
+        if (visualState === 'complete') {
+          useWarTableStore.getState().setVisualState('persisted');
+        }
+      }
+    });
+
+    return unsub;
+  }, [scene]);
+
+  // War Room agent choreography — direct PM/TL movement based on phase steps
+  useEffect(() => {
+    if (!scene) return;
+
+    function handleChoreography(e: Event) {
+      const { step } = (e as CustomEvent).detail;
+      const mapRenderer = scene!.getMapRenderer();
+      const warTable = scene!.getWarTable();
+      if (!warTable) return;
+
+      const tableTile = warTable.getTableTile();
+
+      switch (step) {
+        case 'pm-reading': {
+          const pm = scene!.getCharacter('project-manager');
+          if (pm) {
+            // Walk PM to boardroom zone center to "read" artifacts
+            const boardroom = mapRenderer.getZone('boardroom');
+            if (boardroom) {
+              const bx = boardroom.x + Math.floor(boardroom.width / 2);
+              const by = boardroom.y + Math.floor(boardroom.height / 2);
+              pm.moveTo({ x: bx, y: by });
+              pm.setWorking('read');
+              // Camera follows PM to boardroom first
+              const camera = scene!.getCamera();
+              camera.focusOnPhase('imagine'); // reuse imagine target (boardroom center)
+            }
+          }
+          break;
+        }
+        case 'pm-writing': {
+          const pm = scene!.getCharacter('project-manager');
+          if (pm) {
+            pm.moveTo(tableTile);
+            pm.setWorking('type');
+            // Camera follows PM to the war table
+            const camera = scene!.getCamera();
+            camera.focusOnPhase('warroom'); // snaps to open-work-area center
+          }
+          break;
+        }
+        case 'pm-done': {
+          const pm = scene!.getCharacter('project-manager');
+          if (pm) {
+            // Step back a few tiles from the table
+            pm.moveTo({ x: tableTile.x - 2, y: tableTile.y + 2 });
+            pm.setIdle();
+          }
+          break;
+        }
+        case 'tl-reading': {
+          const tl = scene!.getCharacter('team-lead');
+          if (tl) {
+            tl.moveTo(tableTile);
+            tl.setWorking('read');
+          }
+          break;
+        }
+        case 'tl-writing': {
+          const tl = scene!.getCharacter('team-lead');
+          if (tl) {
+            tl.setWorking('type');
+          }
+          break;
+        }
+        case 'tl-done': {
+          const tl = scene!.getCharacter('team-lead');
+          if (tl) {
+            const desk = tl.getDeskTile();
+            tl.moveTo(desk);
+            tl.setIdle();
+          }
+          break;
+        }
+      }
+    }
+
+    window.addEventListener('war-table-choreography', handleChoreography);
+    return () => window.removeEventListener('war-table-choreography', handleChoreography);
+  }, [scene]);
 }

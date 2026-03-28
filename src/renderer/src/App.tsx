@@ -45,6 +45,9 @@ export default function App() {
       window.office.onWarTableReviewReady((payload) => {
         useWarTableStore.getState().setReviewContent(payload.content, payload.artifact);
       }),
+      window.office.onWarTableChoreography((payload) => {
+        window.dispatchEvent(new CustomEvent('war-table-choreography', { detail: payload }));
+      }),
     ];
     return () => unsubs.forEach((fn) => fn());
   }, []);
