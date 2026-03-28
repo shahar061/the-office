@@ -82,4 +82,5 @@ contextBridge.exposeInMainWorld('office', {
   onWarTableReviewReady: (cb: (payload: WarTableReviewPayload) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, cb),
   respondWarTableReview: (response: WarTableReviewResponse) => ipcRenderer.invoke(IPC_CHANNELS.WAR_TABLE_REVIEW_RESPONSE, response),
   onWarTableChoreography: (cb: (payload: WarTableChoreographyPayload) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_CHOREOGRAPHY, cb),
+  warRoomIntroDone: () => ipcRenderer.invoke(IPC_CHANNELS.WARROOM_INTRO_DONE),
 });

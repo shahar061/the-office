@@ -184,7 +184,7 @@ export interface WarTableReviewResponse {
 }
 
 export interface WarTableChoreographyPayload {
-  step: 'pm-reading' | 'pm-writing' | 'pm-done' | 'tl-reading' | 'tl-writing' | 'tl-done';
+  step: 'intro-walk' | 'pm-reading' | 'pm-writing' | 'pm-done' | 'tl-reading' | 'tl-writing' | 'tl-done';
 }
 
 // ── Build ──
@@ -292,6 +292,7 @@ export const IPC_CHANNELS = {
   WAR_TABLE_REVIEW_READY: 'office:war-table-review-ready',
   WAR_TABLE_REVIEW_RESPONSE: 'office:war-table-review-response',
   WAR_TABLE_CHOREOGRAPHY: 'office:war-table-choreography',
+  WARROOM_INTRO_DONE: 'office:warroom-intro-done',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -344,6 +345,7 @@ export interface OfficeAPI {
   onWarTableReviewReady(callback: (payload: WarTableReviewPayload) => void): () => void;
   respondWarTableReview(response: WarTableReviewResponse): Promise<void>;
   onWarTableChoreography(callback: (payload: WarTableChoreographyPayload) => void): () => void;
+  warRoomIntroDone(): Promise<void>;
 }
 
 declare global {
