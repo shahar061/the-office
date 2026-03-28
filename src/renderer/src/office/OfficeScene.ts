@@ -5,6 +5,7 @@ import { Character } from './characters/Character';
 import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
 import { InteractiveObjects } from './InteractiveObjects';
+import { FogOfWar } from './engine/FogOfWar';
 import type { AgentRole } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
@@ -32,6 +33,9 @@ export class OfficeScene {
   private characterLayer!: Container;
   private interactiveObjects!: InteractiveObjects;
   private characterPopup: Container | null = null;
+  private characterPopupRole: AgentRole | null = null;
+  private characterPopupSize = { w: 120, h: 52 };
+  private fog: FogOfWar | null = null;
 
   constructor(app: Application) {
     this.app = app;
@@ -105,13 +109,13 @@ export class OfficeScene {
         framesPerDirection: 6,
       });
 
-      // Constrain wandering to the agent's idle zone
+      // Constrain wandering to the agent's idle zone (already in tile coords)
       const zone = this.mapRenderer.getZone(config.idleZone);
       const wanderBounds = zone ? {
-        tileX: Math.floor(zone.x / this.mapRenderer.tileSize),
-        tileY: Math.floor(zone.y / this.mapRenderer.tileSize),
-        tileW: Math.floor(zone.width / this.mapRenderer.tileSize),
-        tileH: Math.floor(zone.height / this.mapRenderer.tileSize),
+        tileX: zone.x,
+        tileY: zone.y,
+        tileW: zone.width,
+        tileH: zone.height,
       } : undefined;
 
       const character = new Character({
@@ -147,6 +151,17 @@ export class OfficeScene {
     );
     this.worldContainer.addChild(this.interactiveObjects.container);
 
+    // Fog of war overlay (created but only activated during intro via setFogStep)
+    const ceoZone = this.mapRenderer.getZone('ceo-room');
+    if (ceoZone) {
+      const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
+      const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
+      const centerX = (ceoZone.x + ceoZone.width / 2) * this.mapRenderer.tileSize;
+      const centerY = (ceoZone.y + ceoZone.height / 2) * this.mapRenderer.tileSize;
+      this.fog = new FogOfWar(mapPxW, mapPxH, centerX, centerY);
+      this.worldContainer.addChild(this.fog.container);
+    }
+
     // Character popup: show on character click, dismiss on background click
     window.addEventListener('character-click', (e: Event) => {
       const { role } = (e as CustomEvent).detail;
@@ -168,6 +183,38 @@ export class OfficeScene {
       character.update(dt);
     }
     this.interactiveObjects.update(dt);
+    if (this.fog && !this.fog.isDestroyed()) {
+      this.fog.update(dt);
+    }
+    this.updatePopupPosition();
+  }
+
+  private updatePopupPosition(): void {
+    if (!this.characterPopup || !this.characterPopupRole) return;
+    const character = this.characters.get(this.characterPopupRole);
+    if (!character || !character.isVisible) {
+      this.dismissCharacterPopup();
+      return;
+    }
+    const pos = character.getPixelPosition();
+    const { w: bgW, h: bgH } = this.characterPopupSize;
+    this.positionPopup(this.characterPopup, pos, bgW, bgH);
+  }
+
+  private positionPopup(popup: Container, pos: { x: number; y: number }, bgW: number, bgH: number): void {
+    const { left: visLeft, right: visRight, top: visTop, bottom: visBottom } = this.camera.getVisibleBounds();
+
+    const aboveY = pos.y - 32 - bgH - 4;
+    let py = aboveY < visTop ? pos.y + 4 : aboveY;
+    if (py + bgH > visBottom) py = visBottom - bgH;
+    if (py < visTop) py = visTop;
+
+    let px = pos.x - bgW / 2;
+    if (px + bgW > visRight) px = visRight - bgW;
+    if (px < visLeft) px = visLeft;
+
+    popup.x = px;
+    popup.y = py;
   }
 
   getInteractiveObjects(): InteractiveObjects {
@@ -243,9 +290,9 @@ export class OfficeScene {
 
     popup.addChild(bg, nameText, stateText, linkText);
 
-    // Position above character
-    popup.x = pos.x - bgW / 2;
-    popup.y = pos.y - 48 - bgH - 4;
+    this.characterPopupSize = { w: bgW, h: bgH };
+    this.characterPopupRole = role;
+    this.positionPopup(popup, pos, bgW, bgH);
 
     this.worldContainer.addChild(popup);
     this.characterPopup = popup;
@@ -256,6 +303,7 @@ export class OfficeScene {
       this.characterPopup.parent?.removeChild(this.characterPopup);
       this.characterPopup.destroy({ children: true });
       this.characterPopup = null;
+      this.characterPopupRole = null;
     }
   }
 
@@ -282,5 +330,21 @@ export class OfficeScene {
 
   onResize(width: number, height: number): void {
     this.camera.setViewSize(width, height);
+  }
+
+  setFogStep(step: number): void {
+    this.fog?.setStep(step);
+  }
+
+  skipFog(): void {
+    this.fog?.skip();
+  }
+
+  /** Remove fog entirely (for projects where intro was already seen). */
+  removeFog(): void {
+    if (this.fog && !this.fog.isDestroyed()) {
+      this.fog.destroy();
+    }
+    this.fog = null;
   }
 }
