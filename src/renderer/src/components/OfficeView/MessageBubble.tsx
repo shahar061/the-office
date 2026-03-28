@@ -2,6 +2,7 @@ import React from 'react';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
 import { agentDisplayName, formatTime } from '../../utils';
+import { colors } from '../../theme';
 import { MessageRenderer } from './MessageRenderer';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ const styles = {
     padding: '10px 12px',
     borderRadius: '8px',
     borderLeft: `3px solid ${accentColor}`,
-    background: role === 'user' ? '#1a2a3a' : role === 'system' ? '#1a1a1a' : '#1a1a2e',
+    background: role === 'user' ? '#1a2a3a' : role === 'system' ? '#1a1a1a' : colors.surface,
     marginBottom: '0px', // gap handled by parent flex gap
   }),
   messageSender: (color: string) => ({
@@ -51,20 +52,20 @@ export function MessageBubble({ msg, isWaiting }: MessageBubbleProps): React.JSX
         : 'Agent';
 
   const accentColor = isUser
-    ? '#3b82f6'
+    ? colors.accent
     : isSystem
       ? '#666'
       : msg.agentRole
         ? AGENT_COLORS[msg.agentRole]
-        : '#94a3b8';
+        : colors.textMuted;
 
   const senderColor = isUser
-    ? '#3b82f6'
+    ? colors.accent
     : isSystem
       ? '#999'
       : msg.agentRole
         ? AGENT_COLORS[msg.agentRole]
-        : '#94a3b8';
+        : colors.textMuted;
 
   return (
     <div

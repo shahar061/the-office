@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useProjectStore } from '@/stores/project.store';
+import { colors } from '../../theme';
 import type { ProjectState, ProjectInfo } from '@shared/types';
+import { ApiKeyPanel } from './ApiKeyPanel';
+import { RecentProjects } from './RecentProjects';
+import { NewProjectForm } from './NewProjectForm';
 
 // ── Styles ──
 
@@ -8,7 +12,7 @@ const S = {
   root: {
     width: '100vw',
     height: '100vh',
-    background: '#0f0f1a',
+    background: colors.bg,
     color: '#e5e5e5',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     display: 'flex',
@@ -53,7 +57,7 @@ const S = {
   },
   card: {
     background: 'rgba(255,255,255,0.03)',
-    border: '1px solid #333',
+    border: `1px solid ${colors.border}`,
     borderRadius: 10,
     padding: '18px 20px',
   },
@@ -65,47 +69,12 @@ const S = {
     letterSpacing: '0.08em',
     marginBottom: 12,
   },
-  row: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    background: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: '#444',
-    borderRadius: 6,
-    padding: '8px 12px',
-    color: '#e5e5e5',
-    fontSize: 13,
-    outline: 'none',
-    transition: 'border-color 0.15s',
-  },
-  inputFocused: {
-    borderColor: '#3b82f6',
-  },
-  btn: (accent = false, disabled = false): React.CSSProperties => ({
-    padding: '8px 16px',
-    borderRadius: 6,
-    border: accent ? 'none' : '1px solid #444',
-    background: accent ? '#3b82f6' : 'rgba(255,255,255,0.06)',
-    color: disabled ? '#4b5563' : accent ? '#fff' : '#e5e5e5',
-    fontSize: 13,
-    fontWeight: accent ? 600 : 400,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.5 : 1,
-    transition: 'background 0.15s, opacity 0.15s',
-    whiteSpace: 'nowrap' as const,
-    flexShrink: 0,
-  }),
   btnWide: (accent = false, disabled = false): React.CSSProperties => ({
     padding: '9px 16px',
     borderRadius: 6,
     border: accent ? 'none' : '1px solid #444',
-    background: accent ? '#3b82f6' : 'rgba(255,255,255,0.06)',
-    color: disabled ? '#4b5563' : accent ? '#fff' : '#e5e5e5',
+    background: accent ? colors.accent : 'rgba(255,255,255,0.06)',
+    color: disabled ? colors.textDark : accent ? '#fff' : '#e5e5e5',
     fontSize: 13,
     fontWeight: accent ? 600 : 400,
     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -114,69 +83,10 @@ const S = {
     width: '100%',
     textAlign: 'center' as const,
   }),
-  pathChip: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 6,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  apiKeySection: {
-    marginTop: 12,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 8,
-  },
   errorText: {
     fontSize: 12,
     color: '#f87171',
     marginTop: 4,
-  },
-  recentList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 6,
-    maxHeight: 200,
-    overflowY: 'auto' as const,
-  },
-  recentItem: (disabled: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 12px',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: '#2a2a3a',
-    background: 'rgba(255,255,255,0.02)',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.4 : 1,
-    transition: 'background 0.12s, border-color 0.12s',
-  }),
-  recentItemHover: {
-    background: 'rgba(59,130,246,0.08)',
-    borderColor: 'rgba(59,130,246,0.3)',
-  },
-  recentName: {
-    fontSize: 13,
-    fontWeight: 500,
-    color: '#e5e5e5',
-  },
-  recentPath: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 2,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-    maxWidth: 340,
-  },
-  recentTime: {
-    fontSize: 11,
-    color: '#4b5563',
-    flexShrink: 0,
-    marginLeft: 8,
   },
   statusBar: {
     position: 'absolute' as const,
@@ -190,7 +100,7 @@ const S = {
     width: 8,
     height: 8,
     borderRadius: '50%',
-    background: connected ? '#22c55e' : '#ef4444',
+    background: connected ? colors.success : colors.error,
     boxShadow: connected ? '0 0 6px rgba(34,197,94,0.5)' : '0 0 6px rgba(239,68,68,0.5)',
     flexShrink: 0,
   }),
@@ -202,22 +112,16 @@ const S = {
     fontSize: 11,
     padding: '3px 10px',
     borderRadius: 5,
-    border: '1px solid #3b82f6',
+    border: `1px solid ${colors.accent}`,
     background: 'transparent',
-    color: '#3b82f6',
+    color: colors.accent,
     cursor: 'pointer',
-  },
-  emptyState: {
-    fontSize: 12,
-    color: '#4b5563',
-    textAlign: 'center' as const,
-    padding: '12px 0',
   },
   spinner: {
     width: 14,
     height: 14,
     border: '2px solid rgba(255,255,255,0.1)',
-    borderTopColor: '#3b82f6',
+    borderTopColor: colors.accent,
     borderRadius: '50%',
     animation: 'spin 0.7s linear infinite',
     display: 'inline-block',
@@ -225,162 +129,8 @@ const S = {
   },
 };
 
-// ── Helpers ──
-
-function formatAge(ts: number): string {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 60) return m <= 1 ? 'just now' : `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function shortPath(p: string): string {
-  return p.replace(/^\/Users\/[^/]+/, '~');
-}
-
-// ── Sub-components ──
-
 function Spinner() {
   return <span style={S.spinner} />;
-}
-
-// ── API Key Panel ──
-
-interface ApiKeyPanelProps {
-  onConnected: () => void;
-}
-
-function ApiKeyPanel({ onConnected }: ApiKeyPanelProps) {
-  const setAuthStatus = useProjectStore((s) => s.setAuthStatus);
-  const [key, setKey] = useState('');
-  const [inputFocused, setInputFocused] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleConnect = useCallback(async () => {
-    const trimmed = key.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await window.office.connectApiKey(trimmed);
-      if (result.success) {
-        const status = await window.office.getAuthStatus();
-        setAuthStatus(status);
-        onConnected();
-      } else {
-        setError(result.error ?? 'Connection failed');
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unexpected error');
-    } finally {
-      setLoading(false);
-    }
-  }, [key, onConnected, setAuthStatus]);
-
-  return (
-    <div style={S.apiKeySection}>
-      <div style={S.row}>
-        <input
-          style={{ ...S.input, ...(inputFocused ? S.inputFocused : {}) }}
-          type="password"
-          placeholder="sk-ant-..."
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
-          onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
-          disabled={loading}
-          autoFocus
-        />
-        <button
-          style={S.btn(true, loading || !key.trim())}
-          onClick={handleConnect}
-          disabled={loading || !key.trim()}
-        >
-          {loading ? <Spinner /> : 'Connect'}
-        </button>
-      </div>
-      {error && <div style={S.errorText}>{error}</div>}
-      <div style={{ fontSize: 11, color: '#4b5563' }}>
-        Get your API key at{' '}
-        <span style={{ color: '#3b82f6' }}>console.anthropic.com</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Recent Projects List ──
-
-interface RecentProjectsProps {
-  projects: ProjectInfo[];
-  loading: boolean;
-  disabled: boolean;
-  onOpen: (path: string) => void;
-  openingPath: string | null;
-}
-
-function RecentProjects({ projects, loading, disabled, onOpen, openingPath }: RecentProjectsProps) {
-  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
-
-  if (loading) {
-    return (
-      <div style={{ ...S.emptyState, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <Spinner /> Loading recent projects...
-      </div>
-    );
-  }
-
-  if (projects.length === 0) {
-    return <div style={S.emptyState}>No recent projects</div>;
-  }
-
-  return (
-    <div style={S.recentList}>
-      {projects.map((p) => {
-        const isOpening = openingPath === p.path;
-        const isDisabled = disabled || openingPath !== null;
-        return (
-          <div
-            key={p.path}
-            style={{
-              ...S.recentItem(isDisabled),
-              ...(hoveredPath === p.path && !isDisabled ? S.recentItemHover : {}),
-            }}
-            onClick={() => !isDisabled && onOpen(p.path)}
-            onMouseEnter={() => setHoveredPath(p.path)}
-            onMouseLeave={() => setHoveredPath(null)}
-          >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={S.recentName}>{p.name}</div>
-                {p.lastPhase && (
-                  <span style={{
-                    fontSize: 10,
-                    padding: '1px 6px',
-                    borderRadius: 10,
-                    background: 'rgba(59,130,246,0.15)',
-                    color: '#3b82f6',
-                    fontWeight: 500,
-                  }}>
-                    {p.lastPhase}
-                  </span>
-                )}
-              </div>
-              <div style={S.recentPath}>{shortPath(p.path)}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              {isOpening && <Spinner />}
-              <div style={S.recentTime}>{formatAge(p.lastOpened)}</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // ── Main Component ──
@@ -395,13 +145,6 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
 
   const [recentProjects, setRecentProjects] = useState<ProjectInfo[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-
-  // New project state
-  const [newName, setNewName] = useState('');
-  const [newPath, setNewPath] = useState<string | null>(null);
-  const [newNameFocused, setNewNameFocused] = useState(false);
-  const [newError, setNewError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
 
   // Open project state
   const [openingPath, setOpeningPath] = useState<string | null>(null);
@@ -460,37 +203,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
     }
   }, [doOpenProject]);
 
-  // Pick directory for new project
-  const handlePickNewDir = useCallback(async () => {
-    const dir = await window.office.pickDirectory();
-    if (dir) setNewPath(dir);
-  }, []);
-
-  // Create new project
-  const handleCreateProject = useCallback(async () => {
-    const name = newName.trim();
-    if (!name || !newPath) return;
-    setCreating(true);
-    setNewError(null);
-    try {
-      // Create a subfolder with the project name inside the selected directory
-      const projectDir = newPath + '/' + name.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-').toLowerCase();
-      const result = await window.office.createProject(name, projectDir);
-      if (result.success) {
-        const state = await window.office.getProjectState();
-        onProjectOpened(state);
-      } else {
-        setNewError(result.error ?? 'Failed to create project');
-      }
-    } catch (e: unknown) {
-      setNewError(e instanceof Error ? e.message : 'Unexpected error');
-    } finally {
-      setCreating(false);
-    }
-  }, [newName, newPath, onProjectOpened]);
-
-  const busy = creating || openingPath !== null;
-  const canCreate = connected && !busy && newName.trim().length > 0 && newPath !== null;
+  const busy = openingPath !== null;
 
   return (
     <div style={S.root}>
@@ -522,45 +235,11 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
         )}
 
         {/* ── New Project ── */}
-        <div style={S.card}>
-          <div style={S.cardTitle}>New Project</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={S.row}>
-              <input
-                style={{ ...S.input, ...(newNameFocused ? S.inputFocused : {}) }}
-                type="text"
-                placeholder="Project name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onFocus={() => setNewNameFocused(true)}
-                onBlur={() => setNewNameFocused(false)}
-                disabled={!connected || busy}
-                onKeyDown={(e) => e.key === 'Enter' && canCreate && handleCreateProject()}
-              />
-              <button
-                style={S.btn(false, !connected || busy)}
-                onClick={handlePickNewDir}
-                disabled={!connected || busy}
-                title="Choose project folder"
-              >
-                {newPath ? 'Change Folder' : 'Choose Folder'}
-              </button>
-            </div>
-            {newPath && <div style={S.pathChip}>{shortPath(newPath)}</div>}
-            <button
-              style={S.btnWide(true, !canCreate)}
-              onClick={handleCreateProject}
-              disabled={!canCreate}
-            >
-              {creating ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Spinner /> Creating...
-                </span>
-              ) : 'Create Project'}
-            </button>
-            {newError && <div style={S.errorText}>{newError}</div>}
-          </div>
-        </div>
+        <NewProjectForm
+          connected={connected}
+          busy={busy}
+          onProjectOpened={onProjectOpened}
+        />
 
         {/* ── Open Project ── */}
         <div style={S.card}>
@@ -611,13 +290,13 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
           </button>
         )}
 
-        {/* Auth panel — CLI detected or API key fallback */}
+        {/* Auth panel -- CLI detected or API key fallback */}
         {showApiKeyPanel && !connected && (
           <div style={{
             position: 'fixed',
             bottom: 56,
             left: 24,
-            background: '#1a1a2e',
+            background: colors.surface,
             border: '1px solid #444',
             borderRadius: 10,
             padding: '16px 18px',
@@ -652,8 +331,8 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
             </div>
             <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12, lineHeight: 1.5 }}>
               <strong style={{ color: '#e5e5e5' }}>Recommended:</strong> Install{' '}
-              <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: '#3b82f6' }}>Claude Code</a>{' '}
-              and run <code style={{ background: '#1a1a2e', padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
+              <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: colors.accent }}>Claude Code</a>{' '}
+              and run <code style={{ background: colors.surface, padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
               in your terminal. Works with Max/Pro subscriptions.
             </div>
             <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>

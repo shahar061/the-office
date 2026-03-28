@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Phase } from '@shared/types';
-import ceoSprite from '../../assets/characters/Adam_walk.png';
+import { colors } from '../../theme';
 
 interface DialogueStep {
   text: string;
   highlights: Phase[];
+  highlightChat?: boolean;
 }
 
 const DIALOGUE_STEPS: DialogueStep[] = [
@@ -21,6 +22,11 @@ const DIALOGUE_STEPS: DialogueStep[] = [
     highlights: ['imagine', 'warroom', 'build'],
   },
   {
+    text: 'Over there is where we chat. You can talk to the team, answer their questions, and guide the project as it moves along.',
+    highlights: [],
+    highlightChat: true,
+  },
+  {
     text: 'So, what would you like to build?',
     highlights: [],
   },
@@ -31,9 +37,10 @@ const TYPEWRITER_SPEED = 30; // ms per character
 interface IntroSequenceProps {
   onComplete: () => void;
   onHighlightChange: (phases: Phase[]) => void;
+  onChatHighlightChange: (highlight: boolean) => void;
 }
 
-export function IntroSequence({ onComplete, onHighlightChange }: IntroSequenceProps) {
+export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightChange }: IntroSequenceProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [displayedChars, setDisplayedChars] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
@@ -43,10 +50,11 @@ export function IntroSequence({ onComplete, onHighlightChange }: IntroSequencePr
   const fullText = currentStep.text;
   const visibleText = isTyping ? fullText.slice(0, displayedChars) : fullText;
 
-  // Update phase highlights when step changes
+  // Update phase and chat highlights when step changes
   useEffect(() => {
     onHighlightChange(currentStep.highlights);
-  }, [stepIndex, currentStep.highlights, onHighlightChange]);
+    onChatHighlightChange(currentStep.highlightChat ?? false);
+  }, [stepIndex, currentStep.highlights, currentStep.highlightChat, onHighlightChange, onChatHighlightChange]);
 
   // Typewriter effect
   useEffect(() => {
@@ -107,18 +115,13 @@ export function IntroSequence({ onComplete, onHighlightChange }: IntroSequencePr
           e.stopPropagation();
           onComplete();
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = '#e2e8f0'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = colors.text; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = colors.textDim; }}
       >
         Skip
       </button>
 
-      {/* CEO sprite */}
-      <div style={introStyles.spriteContainer}>
-        <div style={introStyles.sprite} />
-      </div>
-
-      {/* Dialogue box */}
+      {/* Dialogue box at bottom */}
       <div style={introStyles.dialogueBox}>
         <div style={introStyles.speakerLabel}>CEO</div>
         <div style={introStyles.dialogueText}>
@@ -141,7 +144,7 @@ const introStyles = {
   overlay: {
     position: 'absolute' as const,
     inset: 0,
-    background: 'rgba(0, 0, 0, 0.5)',
+    background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7) 100%)',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
@@ -154,30 +157,20 @@ const introStyles = {
     position: 'absolute' as const,
     top: '12px',
     right: '16px',
-    background: 'none',
+    background: 'rgba(0,0,0,0.4)',
     border: 'none',
-    color: '#64748b',
+    color: colors.textMuted,
     fontSize: '11px',
     cursor: 'pointer',
-    padding: '4px 8px',
+    padding: '4px 10px',
+    borderRadius: '4px',
     zIndex: 101,
     fontFamily: 'inherit',
     transition: 'color 0.15s',
   },
-  spriteContainer: {
-    marginBottom: '16px',
-  },
-  sprite: {
-    width: '64px',
-    height: '128px',
-    backgroundImage: `url(${ceoSprite})`,
-    backgroundPosition: '0 0',
-    backgroundSize: `${16 * 6}px ${32 * 4}px`,
-    imageRendering: 'pixelated' as const,
-  },
   dialogueBox: {
-    background: '#1a1a2e',
-    border: '2px solid #3b82f6',
+    background: colors.surface,
+    border: `2px solid ${colors.accent}`,
     borderRadius: '8px',
     padding: '12px 16px',
     maxWidth: '500px',
@@ -187,7 +180,7 @@ const introStyles = {
   },
   speakerLabel: {
     fontSize: '10px',
-    color: '#3b82f6',
+    color: colors.accent,
     fontWeight: 700,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
@@ -195,7 +188,7 @@ const introStyles = {
   },
   dialogueText: {
     fontSize: '13px',
-    color: '#e2e8f0',
+    color: colors.text,
     lineHeight: 1.5,
     minHeight: '40px',
   },
@@ -204,6 +197,6 @@ const introStyles = {
     bottom: '8px',
     right: '12px',
     fontSize: '10px',
-    color: '#3b82f6',
+    color: colors.accent,
   },
 };

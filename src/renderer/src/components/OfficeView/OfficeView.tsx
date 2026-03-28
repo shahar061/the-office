@@ -4,6 +4,7 @@ import { useChatStore } from '../../stores/chat.store';
 import { useUIStore } from '../../stores/ui.store';
 import { useArtifactStore } from '../../stores/artifact.store';
 import { useAgentsStore } from '../../stores/agents.store';
+import { colors } from '../../theme';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
 import { OfficeCanvas } from '../../office/OfficeCanvas';
 import { useSceneSync } from '../../office/useSceneSync';
@@ -25,7 +26,7 @@ function phaseLabel(phase: string | undefined, status: string | undefined): stri
 }
 
 function authDotColor(connected: boolean): string {
-  return connected ? '#22c55e' : '#ef4444';
+  return connected ? colors.success : colors.error;
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -36,8 +37,8 @@ const styles = {
     flexDirection: 'column' as const,
     width: '100%',
     height: '100%',
-    background: '#0f0f1a',
-    color: '#e2e8f0',
+    background: colors.bg,
+    color: colors.text,
     fontFamily: "'Inter', system-ui, sans-serif",
     overflow: 'hidden',
   },
@@ -48,8 +49,8 @@ const styles = {
     height: '40px',
     minHeight: '40px',
     padding: '0 16px',
-    borderBottom: '1px solid #333',
-    background: '#0d0d1a',
+    borderBottom: `1px solid ${colors.border}`,
+    background: colors.bgDark,
     flexShrink: 0,
   },
   topBarLeft: {
@@ -61,7 +62,7 @@ const styles = {
   projectName: {
     fontSize: '13px',
     fontWeight: 600,
-    color: '#cbd5e1',
+    color: colors.textLight,
     whiteSpace: 'nowrap' as const,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -69,7 +70,7 @@ const styles = {
   },
   phaseIndicator: {
     fontSize: '11px',
-    color: '#64748b',
+    color: colors.textDim,
     whiteSpace: 'nowrap' as const,
   },
   authDot: (connected: boolean) => ({
@@ -100,10 +101,10 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     width: '20px',
-    background: '#1a1a2e',
+    background: colors.surface,
     border: 'none',
-    borderLeft: '1px solid #333',
-    borderRight: '1px solid #333',
+    borderLeft: `1px solid ${colors.border}`,
+    borderRight: `1px solid ${colors.border}`,
     color: '#666',
     cursor: 'pointer',
     fontSize: '14px',
@@ -121,7 +122,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     width: '100%',
-    background: '#0f0f1a',
+    background: colors.bg,
     overflow: 'hidden',
   },
 } as const;
@@ -321,7 +322,7 @@ export default function OfficeView() {
                 e.currentTarget.style.color = '#e5e5e5';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#1a1a2e';
+                e.currentTarget.style.background = colors.surface;
                 e.currentTarget.style.color = '#666';
               }}
             >
@@ -369,7 +370,7 @@ export default function OfficeView() {
                 e.currentTarget.style.color = '#e5e5e5';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#1a1a2e';
+                e.currentTarget.style.background = colors.surface;
                 e.currentTarget.style.color = '#666';
               }}
             >

@@ -1,4 +1,5 @@
 import type { AskQuestion } from '@shared/types';
+import { colors } from '../../theme';
 
 interface QuestionBubbleProps {
   question: AskQuestion;
@@ -9,7 +10,7 @@ interface QuestionBubbleProps {
 
 const styles = {
   questionBubble: (accentColor: string) => ({
-    background: '#151528',
+    background: colors.surfaceLight,
     borderRadius: '8px',
     padding: '12px',
     border: `1px solid ${accentColor}44`,
@@ -17,7 +18,7 @@ const styles = {
   }),
   questionText: (isExpanded: boolean) => ({
     fontSize: isExpanded ? '13px' : '11px',
-    color: '#e2e8f0',
+    color: colors.text,
     fontWeight: 600,
     marginBottom: '10px',
   }),
@@ -25,9 +26,9 @@ const styles = {
     padding: isExpanded ? '10px 14px' : '8px 12px',
     fontSize: isExpanded ? '12px' : '11px',
     background: '#1a1a3e',
-    border: '1px solid #333',
+    border: `1px solid ${colors.border}`,
     borderRadius: '8px',
-    color: '#cbd5e1',
+    color: colors.textLight,
     cursor: 'pointer',
     textAlign: 'left' as const,
     fontFamily: 'inherit',
@@ -46,8 +47,8 @@ const styles = {
   }),
   expandedQuestionCard: (isRecommended: boolean, accentColor: string) => ({
     padding: '14px 16px',
-    background: isRecommended ? '#1a1a2e' : '#151528',
-    border: isRecommended ? `1px solid ${accentColor}88` : '1px solid #333',
+    background: isRecommended ? colors.surface : colors.surfaceLight,
+    border: isRecommended ? `1px solid ${accentColor}88` : `1px solid ${colors.border}`,
     borderRadius: '10px',
     cursor: 'pointer',
     fontFamily: 'inherit',
@@ -60,16 +61,16 @@ const styles = {
   expandedCardLabel: {
     fontSize: '13px',
     fontWeight: 700,
-    color: '#e2e8f0',
+    color: colors.text,
   },
   expandedCardDescription: {
     fontSize: '12px',
-    color: '#94a3b8',
+    color: colors.textMuted,
     lineHeight: 1.4,
   },
   expandedCardTradeoffs: {
     fontSize: '11px',
-    color: '#64748b',
+    color: colors.textDim,
     lineHeight: 1.4,
     fontStyle: 'italic' as const,
   },

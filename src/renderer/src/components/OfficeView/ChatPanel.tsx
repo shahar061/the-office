@@ -5,6 +5,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
 import { agentDisplayName } from '../../utils';
+import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
 import { QuestionBubble } from './QuestionBubble';
 import { PhaseActionButton } from './PhaseActionButton';
@@ -17,15 +18,15 @@ const styles = {
     flexDirection: 'column' as const,
     width: '320px',
     minWidth: '320px',
-    borderRight: '1px solid #333',
-    background: '#0f0f1a',
+    borderRight: `1px solid ${colors.border}`,
+    background: colors.bg,
     overflow: 'hidden',
   },
   expandedChatPanel: {
     display: 'flex',
     flexDirection: 'column' as const,
     width: '100%',
-    background: '#0f0f1a',
+    background: colors.bg,
     overflow: 'hidden',
   },
   messageList: {
@@ -50,7 +51,7 @@ const styles = {
   emptyTitle: {
     fontSize: '14px',
     fontWeight: 600,
-    color: '#64748b',
+    color: colors.textDim,
   },
   emptySubtitle: {
     fontSize: '11px',
@@ -59,14 +60,14 @@ const styles = {
   },
   inputArea: {
     padding: '8px 12px 12px',
-    borderTop: '1px solid #333',
+    borderTop: `1px solid ${colors.border}`,
     flexShrink: 0,
   },
   inputRow: {
     display: 'flex',
     alignItems: 'center',
-    background: '#1a1a2e',
-    border: '1px solid #333',
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
     borderRadius: '8px',
     overflow: 'hidden',
   },
@@ -75,7 +76,7 @@ const styles = {
     background: 'transparent',
     border: 'none',
     outline: 'none',
-    color: '#e2e8f0',
+    color: colors.text,
     fontSize: '12px',
     padding: '8px 10px',
     resize: 'none' as const,
@@ -87,7 +88,7 @@ const styles = {
     border: 'none',
     outline: 'none',
     cursor: enabled ? 'pointer' : 'default',
-    color: enabled ? '#6366f1' : '#334155',
+    color: enabled ? colors.accentPurple : '#334155',
     padding: '8px 10px',
     fontSize: '16px',
     lineHeight: 1,
@@ -97,8 +98,8 @@ const styles = {
   expandedInputRow: {
     display: 'flex',
     alignItems: 'center',
-    background: '#1a1a2e',
-    border: '1px solid #333',
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
     borderRadius: '8px',
     overflow: 'hidden',
     maxWidth: '720px',
@@ -260,17 +261,17 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
           const isOpen = expandedArchived.has(key);
           const msgCount = run.messages.length;
           const dateStr = new Date(run.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
-          const color = run.agentRole ? AGENT_COLORS[run.agentRole] ?? '#94a3b8' : '#94a3b8';
+          const color = run.agentRole ? AGENT_COLORS[run.agentRole] ?? colors.textMuted : colors.textMuted;
 
           return (
             <div key={key}>
               <button
                 onClick={() => toggleArchived(key)}
                 style={{
-                  background: '#111122',
-                  border: '1px solid #2a2a3a',
+                  background: colors.surfaceDark,
+                  border: `1px solid ${colors.borderLight}`,
                   borderRadius: '6px',
-                  color: '#94a3b8',
+                  color: colors.textMuted,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -300,7 +301,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
           );
         })}
         <div style={{
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.border}`,
           margin: '4px 0',
           position: 'relative',
         }}>
@@ -308,7 +309,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
             position: 'absolute',
             top: '-8px',
             left: '12px',
-            background: '#0f0f1a',
+            background: colors.bg,
             padding: '0 8px',
             fontSize: '10px',
             color: '#555',
@@ -325,7 +326,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
       return null;
     }
 
-    const accentColor = waitingAgentRole ? AGENT_COLORS[waitingAgentRole] : '#94a3b8';
+    const accentColor = waitingAgentRole ? AGENT_COLORS[waitingAgentRole] : colors.textMuted;
 
     return (
       <QuestionBubble

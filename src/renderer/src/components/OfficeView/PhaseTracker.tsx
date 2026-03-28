@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
+import { colors } from '../../theme';
 import type { Phase, BuildConfig } from '@shared/types';
 
 const PHASES = [
@@ -15,9 +16,9 @@ const DEFAULT_BUILD_CONFIG: BuildConfig = {
 };
 
 const HIGHLIGHT_COLORS: Partial<Record<Phase, string>> = {
-  imagine: '#3b82f6',
-  warroom: '#f59e0b',
-  build: '#22c55e',
+  imagine: colors.accent,
+  warroom: colors.warning,
+  build: colors.success,
 };
 
 function getActionButton(
@@ -92,7 +93,7 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
           // Intro mode: highlight/dim based on highlightedPhases array
           if (introMode) {
             const isHighlighted = highlightedPhases.includes(p.key);
-            const highlightColor = HIGHLIGHT_COLORS[p.key] ?? '#3b82f6';
+            const highlightColor = HIGHLIGHT_COLORS[p.key] ?? colors.accent;
 
             return (
               <div key={p.key} style={styles.stepRow}>
@@ -100,7 +101,7 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
                   <div style={{
                     ...styles.connector(false),
                     opacity: isHighlighted ? 1 : 0.3,
-                    background: isHighlighted ? highlightColor : '#333',
+                    background: isHighlighted ? highlightColor : colors.border,
                   }} />
                 )}
                 <div style={{ ...styles.step, opacity: isHighlighted ? 1 : 0.3, transition: 'opacity 0.3s' }}>
@@ -120,7 +121,7 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
                   </div>
                   <span style={{
                     ...styles.label(false, isHighlighted, false, !isHighlighted),
-                    color: isHighlighted ? '#e2e8f0' : '#4b5563',
+                    color: isHighlighted ? colors.text : colors.textDark,
                     fontWeight: isHighlighted ? 600 : 500,
                   }}>
                     {p.label}
@@ -184,7 +185,7 @@ const styles = {
     justifyContent: 'space-between',
     padding: '6px 16px',
     borderBottom: '1px solid #1e1e2e',
-    background: '#0d0d1a',
+    background: colors.bgDark,
     gap: '16px',
     flexShrink: 0,
   } as React.CSSProperties,
@@ -199,7 +200,7 @@ const styles = {
   connector: (filled: boolean): React.CSSProperties => ({
     width: '32px',
     height: '2px',
-    background: filled ? '#3b82f6' : '#333',
+    background: filled ? colors.accent : colors.border,
     transition: 'background 0.3s',
   }),
   step: {
@@ -219,36 +220,36 @@ const styles = {
     flexShrink: 0,
     transition: 'all 0.3s',
     ...(done
-      ? { background: '#22c55e', color: '#fff', border: '2px solid #22c55e' }
+      ? { background: colors.success, color: '#fff', border: `2px solid ${colors.success}` }
       : current
-        ? { background: '#3b82f6', color: '#fff', border: '2px solid #3b82f6' }
+        ? { background: colors.accent, color: '#fff', border: `2px solid ${colors.accent}` }
         : failed
-          ? { background: '#ef4444', color: '#fff', border: '2px solid #ef4444' }
-          : { background: 'transparent', color: '#4b5563', border: '2px solid #333', boxSizing: 'border-box' }),
+          ? { background: colors.error, color: '#fff', border: `2px solid ${colors.error}` }
+          : { background: 'transparent', color: colors.textDark, border: `2px solid ${colors.border}`, boxSizing: 'border-box' }),
   }),
   label: (done: boolean, active: boolean, failed: boolean, upcoming: boolean): React.CSSProperties => ({
     fontSize: '12px',
     fontWeight: active ? 600 : 500,
-    color: done ? '#22c55e' : failed ? '#ef4444' : active ? '#e2e8f0' : '#4b5563',
+    color: done ? colors.success : failed ? colors.error : active ? colors.text : colors.textDark,
     whiteSpace: 'nowrap',
     transition: 'color 0.3s',
   }),
   statusText: {
     fontSize: '10px',
-    color: '#64748b',
+    color: colors.textDim,
     fontStyle: 'italic' as const,
   } as React.CSSProperties,
   failedStatusText: {
     fontSize: '10px',
-    color: '#ef4444',
+    color: colors.error,
     fontStyle: 'italic' as const,
   } as React.CSSProperties,
   actionBtn: (disabled: boolean): React.CSSProperties => ({
     padding: '6px 14px',
     borderRadius: '6px',
     border: 'none',
-    background: disabled ? '#1e3a5f' : '#3b82f6',
-    color: disabled ? '#64748b' : '#fff',
+    background: disabled ? '#1e3a5f' : colors.accent,
+    color: disabled ? colors.textDim : '#fff',
     fontSize: '12px',
     fontWeight: 600,
     cursor: disabled ? 'not-allowed' : 'pointer',
