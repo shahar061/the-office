@@ -23,8 +23,8 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
   const handleIntroComplete = useCallback(async () => {
     setIntroHighlights(null);
     setIntroChatHighlight(false);
-    // Hide CEO character and reset camera
     if (officeScene) {
+      officeScene.skipFog();
       officeScene.hideCharacter('ceo');
       officeScene.getCamera().fitToScreen();
     }
@@ -46,9 +46,21 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
     setIntroChatHighlight(highlight);
   }, []);
 
+  const handleStepChange = useCallback((step: number) => {
+    if (!officeScene) return;
+
+    // Drive fog reveal
+    officeScene.setFogStep(step);
+
+    // Camera coordination: zoom out as fog expands
+    if (step === 2) {
+      // Smoothly zoom out from CEO close-up to show full office
+      officeScene.getCamera().resetToPhase('imagine');
+    }
+  }, [officeScene]);
+
   const setupIntroScene = useCallback((scene: OfficeScene) => {
     setOfficeScene(scene);
-    // Set up intro camera/CEO immediately when scene is ready (don't wait for useEffect re-render)
     if (showIntroRef.current) {
       scene.getCamera().snapTo(72, 104, 3.5);
       scene.showCharacter('ceo');
@@ -57,6 +69,9 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
         const desk = ceo.getDeskTile();
         ceo.repositionTo(desk.x, desk.y);
       }
+    } else {
+      // No intro — remove fog immediately so it doesn't render at all
+      scene.removeFog();
     }
   }, []);
 
@@ -83,6 +98,7 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
     handleIntroComplete,
     handleHighlightChange,
     handleChatHighlightChange,
+    handleStepChange,
     setupIntroScene,
   };
 }

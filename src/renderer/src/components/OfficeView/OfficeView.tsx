@@ -145,6 +145,7 @@ export default function OfficeView() {
     handleIntroComplete,
     handleHighlightChange,
     handleChatHighlightChange,
+    handleStepChange,
     setupIntroScene,
   } = useIntro(projectState, phase);
 
@@ -294,7 +295,10 @@ export default function OfficeView() {
         <div style={{
           ...styles.canvasArea,
           position: 'absolute',
-          inset: 0,
+          top: 0,
+          bottom: 0,
+          right: 0,
+          left: isExpanded ? 0 : 340, // 320px chat panel + 20px chevron
           zIndex: 0,
           visibility: isExpanded && activeTab !== 'office' ? 'hidden' : 'visible',
         }}>
@@ -306,6 +310,7 @@ export default function OfficeView() {
               onComplete={handleIntroComplete}
               onHighlightChange={handleHighlightChange}
               onChatHighlightChange={handleChatHighlightChange}
+              onStepChange={handleStepChange}
             />
           )}
         </div>
