@@ -1,10 +1,18 @@
 import fs from 'fs';
 import path from 'path';
+import type { Phase } from '../../shared/types';
 
 const OFFICE_DIR = 'docs/office';
 const IMAGINE_ARTIFACTS = ['01-vision-brief.md', '04-system-design.md'];
 const WARROOM_ARTIFACTS = ['tasks.yaml'];
 const ALL_IMAGINE_DOCS = ['01-vision-brief.md', '02-prd.md', '03-market-analysis.md', '04-system-design.md'];
+
+const PHASE_ARTIFACTS: Record<string, string[]> = {
+  imagine: ['01-vision-brief.md', '02-prd.md', '03-market-analysis.md', '04-system-design.md'],
+  warroom: ['plan.md', 'tasks.yaml'],
+};
+
+const PHASE_ORDER: Phase[] = ['idle', 'imagine', 'warroom', 'build', 'complete'];
 
 export class ArtifactStore {
   private projectDir: string;
@@ -59,6 +67,22 @@ export class ArtifactStore {
       }
     }
     return milestones;
+  }
+
+  clearFrom(phase: Phase): void {
+    const idx = PHASE_ORDER.indexOf(phase);
+    const phasesToClear = PHASE_ORDER.slice(idx);
+
+    for (const p of phasesToClear) {
+      const artifacts = PHASE_ARTIFACTS[p];
+      if (!artifacts) continue;
+      for (const filename of artifacts) {
+        const filePath = path.join(this.officeDir, filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    }
   }
 
   /** Parse tasks.yaml into task entries grouped by milestone (best-effort). */

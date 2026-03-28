@@ -146,4 +146,51 @@ describe('ArtifactStore', () => {
       expect(store.officeDir).toBe(path.join(tmpDir, 'docs/office'));
     });
   });
+
+  describe('clearFrom()', () => {
+    let officeDir: string;
+
+    beforeEach(() => {
+      officeDir = setupOfficeDir(tmpDir);
+    });
+
+    function createFiles(...filenames: string[]) {
+      for (const f of filenames) {
+        fs.writeFileSync(path.join(officeDir, f), 'test content');
+      }
+    }
+
+    it('clearFrom imagine deletes all imagine + warroom artifacts', () => {
+      createFiles(
+        '01-vision-brief.md', '02-prd.md', '03-market-analysis.md',
+        '04-system-design.md', 'plan.md', 'tasks.yaml',
+      );
+      store.clearFrom('imagine');
+      const remaining = fs.readdirSync(officeDir);
+      expect(remaining).toEqual([]);
+    });
+
+    it('clearFrom warroom deletes only warroom artifacts', () => {
+      createFiles(
+        '01-vision-brief.md', '02-prd.md', '03-market-analysis.md',
+        '04-system-design.md', 'plan.md', 'tasks.yaml',
+      );
+      store.clearFrom('warroom');
+      const remaining = fs.readdirSync(officeDir).sort();
+      expect(remaining).toEqual([
+        '01-vision-brief.md', '02-prd.md', '03-market-analysis.md', '04-system-design.md',
+      ]);
+    });
+
+    it('clearFrom build deletes nothing', () => {
+      createFiles('01-vision-brief.md', 'plan.md', 'tasks.yaml');
+      store.clearFrom('build');
+      const remaining = fs.readdirSync(officeDir).sort();
+      expect(remaining).toEqual(['01-vision-brief.md', 'plan.md', 'tasks.yaml']);
+    });
+
+    it('does not throw when files do not exist', () => {
+      expect(() => store.clearFrom('imagine')).not.toThrow();
+    });
+  });
 });
