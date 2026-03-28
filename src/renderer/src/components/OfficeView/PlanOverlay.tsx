@@ -96,11 +96,11 @@ export function PlanOverlay() {
 
   const [feedback, setFeedback] = useState('');
 
-  // Close on Escape
+  // Close on Escape — during plan review, treat as implicit approval
   useEffect(() => {
     if (!reviewOpen) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeReview();
+      if (e.key === 'Escape') handleDismiss();
     }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -117,6 +117,15 @@ export function PlanOverlay() {
   const title = isPlanReview ? 'Implementation Plan' : 'Task Breakdown';
   const agentColor = isPlanReview ? AGENT_COLORS['project-manager'] : AGENT_COLORS['team-lead'];
 
+  // During plan review, dismissing = implicit approval (prevents orchestrator hang)
+  function handleDismiss() {
+    if (isPlanReview) {
+      handleApprove();
+    } else {
+      closeReview();
+    }
+  }
+
   function handleApprove() {
     const trimmed = feedback.trim();
     window.office.respondWarTableReview({
@@ -127,7 +136,7 @@ export function PlanOverlay() {
   }
 
   return (
-    <div style={backdropStyle} onClick={closeReview}>
+    <div style={backdropStyle} onClick={handleDismiss}>
       <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -145,7 +154,7 @@ export function PlanOverlay() {
               {isPlanReview ? 'Project Manager' : 'Team Lead'}
             </span>
           </div>
-          <button style={closeButtonStyle} onClick={closeReview}>✕</button>
+          <button style={closeButtonStyle} onClick={handleDismiss}>✕</button>
         </div>
         <div style={contentStyle}>
           <MarkdownContent text={reviewContent} />
