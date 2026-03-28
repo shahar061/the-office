@@ -21,7 +21,7 @@ import { PermissionHandler } from '../sdk/permission-handler';
 // ── Constants ──
 
 export const dataDir = path.join(app.getPath('userData'), 'the-office');
-export const agentsDir = path.join(__dirname, '../../../agents');
+export const agentsDir = path.join(__dirname, '../../agents');
 
 // ── Singleton instances ──
 
@@ -55,6 +55,16 @@ export interface PendingQuestion {
   reject: (error: Error) => void;
 }
 export const pendingQuestions = new Map<string, PendingQuestion>();
+
+// Pending War Table review promise, resolved when user responds
+export interface PendingReview {
+  resolve: (response: import('../../shared/types').WarTableReviewResponse) => void;
+}
+export let pendingReview: PendingReview | null = null;
+
+export function setPendingReview(pr: PendingReview | null): void {
+  pendingReview = pr;
+}
 
 // ── Setter functions ──
 // ESM modules can't reassign imported `let` bindings, so we expose setters.

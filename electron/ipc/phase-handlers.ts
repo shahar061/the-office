@@ -7,6 +7,11 @@ import type {
   ChatMessage,
   PhaseInfo,
   PermissionRequest,
+  WarTableCard,
+  WarTableVisualState,
+  WarTableChoreographyPayload,
+  WarTableReviewPayload,
+  WarTableReviewResponse,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -36,6 +41,8 @@ import {
   setCurrentChatRunNumber,
   setPhaseMachine,
   setPermissionHandler,
+  pendingReview,
+  setPendingReview,
 } from './state';
 
 export function initPhaseHandlers(): void {
@@ -133,11 +140,28 @@ export function initPhaseHandlers(): void {
         onEvent: onAgentEvent,
         onWaiting: handleAgentWaiting,
         onSystemMessage,
+        onWarTableState: (state: WarTableVisualState) => {
+          send(IPC_CHANNELS.WAR_TABLE_STATE, state);
+        },
+        onWarTableCardAdded: (card: WarTableCard) => {
+          send(IPC_CHANNELS.WAR_TABLE_CARD_ADDED, card);
+        },
+        onWarTableChoreography: (payload: WarTableChoreographyPayload) => {
+          send(IPC_CHANNELS.WAR_TABLE_CHOREOGRAPHY, payload);
+        },
+        onReviewReady: (content: string, artifact: 'plan' | 'tasks') => {
+          return new Promise<WarTableReviewResponse>((resolve) => {
+            setPendingReview({ resolve });
+            const payload: WarTableReviewPayload = { content, artifact };
+            send(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, payload);
+          });
+        },
       });
       phaseMachine.markCompleted('warroom');
     } catch (err) {
       console.error('[Main] Warroom failed:', err);
       rejectPendingQuestions('Warroom phase failed');
+      setPendingReview(null);
       phaseMachine.markFailed();
     }
   });
@@ -229,6 +253,15 @@ export function initPhaseHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.RESPOND_PERMISSION, async (_event, requestId: string, approved: boolean) => {
     if (permissionHandler) {
       permissionHandler.resolvePermission(requestId, approved);
+    }
+  });
+
+  // ── War Table ──
+
+  ipcMain.handle(IPC_CHANNELS.WAR_TABLE_REVIEW_RESPONSE, async (_event, response: WarTableReviewResponse) => {
+    if (pendingReview) {
+      pendingReview.resolve(response);
+      setPendingReview(null);
     }
   });
 

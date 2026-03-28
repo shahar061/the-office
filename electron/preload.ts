@@ -4,6 +4,8 @@ import type {
   AuthStatus, ProjectInfo, ProjectState, PhaseInfo,
   ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
   SessionStats, BuildConfig, AppSettings, Phase, PhaseHistory, AgentDefinitionPayload,
+  WarTableCard, WarTableVisualState, WarTableReviewPayload, WarTableReviewResponse,
+  WarTableChoreographyPayload,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -71,4 +73,11 @@ contextBridge.exposeInMainWorld('office', {
 
   // Agents
   getAgentDefinitions: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AGENT_DEFINITIONS),
+
+  // War Table
+  onWarTableState: (cb: (s: WarTableVisualState) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_STATE, cb),
+  onWarTableCardAdded: (cb: (card: WarTableCard) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_CARD_ADDED, cb),
+  onWarTableReviewReady: (cb: (payload: WarTableReviewPayload) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, cb),
+  respondWarTableReview: (response: WarTableReviewResponse) => ipcRenderer.invoke(IPC_CHANNELS.WAR_TABLE_REVIEW_RESPONSE, response),
+  onWarTableChoreography: (cb: (payload: WarTableChoreographyPayload) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_CHOREOGRAPHY, cb),
 });
