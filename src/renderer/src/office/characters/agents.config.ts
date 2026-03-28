@@ -71,7 +71,3 @@ export const AGENT_CONFIGS: Record<AgentRole, AgentConfig> = {
     group: 'engineering', spriteVariant: 'amelia', idleZone: 'break-room',
   },
 };
-
-export function getAgentConfig(role: AgentRole): AgentConfig {
-  return AGENT_CONFIGS[role];
-}
