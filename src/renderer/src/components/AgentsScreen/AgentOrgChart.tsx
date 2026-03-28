@@ -81,14 +81,14 @@ const styles = {
   }),
   nodeSpriteWrapper: {
     width: '32px',
-    height: '48px',
+    height: '64px',
     overflow: 'hidden',
   },
   nodeSprite: {
     width: '32px',
     height: '64px',
     objectFit: 'none' as const,
-    objectPosition: '0 0',
+    objectPosition: '-288px -32px',
     imageRendering: 'pixelated' as const,
     transform: 'scale(2)',
     transformOrigin: 'top left',

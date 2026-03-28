@@ -37,7 +37,7 @@ const styles = {
   }),
   spriteWrapper: {
     width: '48px',
-    height: '64px',
+    height: '96px',
     overflow: 'hidden',
     flexShrink: 0,
   },
@@ -45,7 +45,7 @@ const styles = {
     width: '48px',
     height: '96px',
     objectFit: 'none' as const,
-    objectPosition: '0 0',
+    objectPosition: '-288px -32px',
     imageRendering: 'pixelated' as const,
     transform: 'scale(3)',
     transformOrigin: 'top left',
