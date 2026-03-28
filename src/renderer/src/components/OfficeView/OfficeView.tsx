@@ -18,6 +18,7 @@ import { IntroSequence } from './IntroSequence';
 import { ChatPanel } from './ChatPanel';
 import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
 import { useIntro, CEO_INTRO_STEPS } from './useIntro';
+import { useWarRoomIntro, WARROOM_SPEAKER, WARROOM_SPEAKER_COLOR } from './useWarRoomIntro';
 import { useWarTableStore } from '../../stores/war-table.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,6 +151,15 @@ export default function OfficeView() {
     handleStepChange,
     setupIntroScene,
   } = useIntro(projectState, phase);
+
+  const {
+    warRoomIntroActive: showWarRoomIntro,
+    showDialog: showWarRoomDialog,
+    highlights: warRoomHighlights,
+    introSteps: warRoomSteps,
+    handleIntroComplete: handleWarRoomIntroComplete,
+    handleHighlightChange: handleWarRoomHighlightChange,
+  } = useWarRoomIntro(officeScene);
 
   const handleSceneReady = useCallback((scene: OfficeScene) => {
     setupIntroScene(scene);
@@ -324,7 +334,7 @@ export default function OfficeView() {
       </div>
 
       {/* Phase tracker */}
-      <PhaseTracker highlightedPhases={introHighlights} />
+      <PhaseTracker highlightedPhases={introHighlights ?? (showWarRoomIntro ? warRoomHighlights : null)} />
 
       {/* Main area */}
       <div style={{ ...styles.main, position: 'relative' }}>
@@ -351,6 +361,17 @@ export default function OfficeView() {
               onHighlightChange={handleHighlightChange}
               onChatHighlightChange={handleChatHighlightChange}
               onStepChange={handleStepChange}
+            />
+          )}
+          {showWarRoomIntro && showWarRoomDialog && (
+            <IntroSequence
+              steps={warRoomSteps}
+              speaker={WARROOM_SPEAKER}
+              speakerColor={WARROOM_SPEAKER_COLOR}
+              onComplete={handleWarRoomIntroComplete}
+              onHighlightChange={handleWarRoomHighlightChange}
+              onChatHighlightChange={() => {}}
+              onStepChange={() => {}}
             />
           )}
         </div>
