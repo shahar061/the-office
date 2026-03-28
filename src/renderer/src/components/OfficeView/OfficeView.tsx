@@ -230,6 +230,9 @@ export default function OfficeView() {
         .blink-indicator {
           animation: blink-indicator 1s step-end infinite;
         }
+        @keyframes activity-spin {
+          to { transform: rotate(360deg); }
+        }
       `}</style>
 
       {/* Top bar */}
