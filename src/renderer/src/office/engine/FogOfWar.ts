@@ -88,23 +88,20 @@ export class FogOfWar {
     switch (step) {
       case 0:
       case 1:
-        this.targetRadius = CEO_ROOM_RADIUS;
-        break;
       case 2:
-        this.targetRadius = this.fullMapRadius;
-        break;
       case 3:
-        // No fog change — chat highlight is in React UI
-        break;
       case 4:
-        this.fadingOut = true;
+        // Fog stays at CEO room radius throughout the intro.
+        // The dramatic reveal (expand + fade) happens on skip()/completion.
+        this.targetRadius = CEO_ROOM_RADIUS;
         break;
     }
   }
 
-  /** Trigger immediate fade-out (used on skip). */
+  /** Trigger reveal: expand clear zone to full map + fade out. */
   skip(): void {
     if (this.destroyed) return;
+    this.targetRadius = this.fullMapRadius;
     this.fadingOut = true;
   }
 

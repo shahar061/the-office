@@ -21,13 +21,19 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
   showIntroRef.current = showIntro;
 
   const handleIntroComplete = useCallback(async () => {
-    setIntroHighlights(null);
-    setIntroChatHighlight(false);
+    // Start fog reveal + camera zoom-out immediately (while overlay is still mounted)
     if (officeScene) {
       officeScene.skipFog();
-      officeScene.hideCharacter('ceo');
       officeScene.getCamera().fitToScreen();
     }
+    // Delay overlay unmount so the fog has time to fade visually
+    setTimeout(() => {
+      setIntroHighlights(null);
+      setIntroChatHighlight(false);
+      if (officeScene) {
+        officeScene.hideCharacter('ceo');
+      }
+    }, 700);
     try {
       await window.office.markIntroSeen();
       if (projectState) {
@@ -48,15 +54,7 @@ export function useIntro(projectState: ProjectState | null, phase: string) {
 
   const handleStepChange = useCallback((step: number) => {
     if (!officeScene) return;
-
-    // Drive fog reveal
     officeScene.setFogStep(step);
-
-    // Camera coordination: zoom out as fog expands
-    if (step === 2) {
-      // Smoothly zoom out from CEO close-up to show full office
-      officeScene.getCamera().resetToPhase('imagine');
-    }
   }, [officeScene]);
 
   const setupIntroScene = useCallback((scene: OfficeScene) => {
