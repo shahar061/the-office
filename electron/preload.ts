@@ -5,7 +5,7 @@ import type {
   ChatMessage, AgentEvent, AgentWaitingPayload, PermissionRequest, KanbanState,
   SessionStats, BuildConfig, AppSettings, Phase, PhaseHistory, AgentDefinitionPayload,
   WarTableCard, WarTableVisualState, WarTableReviewPayload, WarTableReviewResponse,
-  WarTableChoreographyPayload,
+  WarTableChoreographyPayload, RestartPhasePayload,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('office', {
   startWarroom: () => ipcRenderer.invoke(IPC_CHANNELS.START_WARROOM),
   startBuild: (config: BuildConfig) => ipcRenderer.invoke(IPC_CHANNELS.START_BUILD, config),
   onPhaseChange: (cb: (p: PhaseInfo) => void) => onEvent(IPC_CHANNELS.PHASE_CHANGE, cb),
+  restartPhase: (payload: RestartPhasePayload) => ipcRenderer.invoke(IPC_CHANNELS.RESTART_PHASE, payload),
+  onPhaseRestart: (cb: (targetPhase: Phase) => void) => onEvent(IPC_CHANNELS.PHASE_RESTART, cb),
 
   // Chat
   sendMessage: (msg: string) => ipcRenderer.invoke(IPC_CHANNELS.SEND_MESSAGE, msg),
