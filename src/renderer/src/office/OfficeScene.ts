@@ -346,22 +346,30 @@ export class OfficeScene {
     this.camera.setViewSize(width, height);
   }
 
-  /** Create fog overlay on demand (only for intro sequence). */
-  createFog(): void {
+  /** Create fog overlay. Defaults to CEO room center; pass coords to override. */
+  createFog(centerX?: number, centerY?: number): void {
     if (this.fog) return; // already exists
-    const ceoZone = this.mapRenderer.getZone('ceo-room');
-    if (ceoZone) {
-      const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
-      const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
-      const centerX = (ceoZone.x + ceoZone.width / 2) * this.mapRenderer.tileSize;
-      const centerY = (ceoZone.y + ceoZone.height / 2) * this.mapRenderer.tileSize;
+    const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
+    const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
+
+    if (centerX !== undefined && centerY !== undefined) {
       this.fog = new FogOfWar(mapPxW, mapPxH, centerX, centerY);
-      this.worldContainer.addChild(this.fog.container);
+    } else {
+      const ceoZone = this.mapRenderer.getZone('ceo-room');
+      if (!ceoZone) return;
+      const cx = (ceoZone.x + ceoZone.width / 2) * this.mapRenderer.tileSize;
+      const cy = (ceoZone.y + ceoZone.height / 2) * this.mapRenderer.tileSize;
+      this.fog = new FogOfWar(mapPxW, mapPxH, cx, cy);
     }
+    this.worldContainer.addChild(this.fog.container);
   }
 
   setFogStep(step: number): void {
     this.fog?.setStep(step);
+  }
+
+  setFogCenter(x: number, y: number): void {
+    this.fog?.setCenter(x, y);
   }
 
   skipFog(): void {
