@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
 import type { Phase, BuildConfig } from '@shared/types';
+import { PhaseRestartModal } from './PhaseRestartModal';
 
 const PHASES = [
   { key: 'imagine' as Phase, label: 'Imagine' },
@@ -58,6 +59,8 @@ interface PhaseTrackerProps {
 export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
   const { projectState, currentPhase } = useProjectStore();
   const [starting, setStarting] = useState(false);
+  const [restartTarget, setRestartTarget] = useState<Phase | null>(null);
+  const [originalIdea, setOriginalIdea] = useState<string>('');
 
   const phase = projectState?.currentPhase ?? 'idle';
   const completedPhases = projectState?.completedPhases ?? [];
@@ -82,6 +85,61 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
       setStarting(false);
     }
   }, [actionButton, starting]);
+
+  const handlePhaseClick = useCallback(async (clickedPhase: Phase) => {
+    const done = completedPhases.includes(clickedPhase);
+    const active = phase === clickedPhase;
+    if (!done && !active) return;
+
+    if (clickedPhase === 'imagine') {
+      try {
+        const history = await window.office.getChatHistory('imagine');
+        const ceoHistory = history.find((h: any) => h.agentRole === 'ceo');
+        if (ceoHistory && ceoHistory.runs.length > 0) {
+          const firstRun = ceoHistory.runs[0];
+          const userMsg = firstRun.messages.find((m: any) => m.role === 'user');
+          if (userMsg) {
+            setOriginalIdea(userMsg.text);
+          }
+        }
+      } catch {
+        // No history available
+      }
+    }
+
+    setRestartTarget(clickedPhase);
+  }, [completedPhases, phase]);
+
+  const handleRestartConfirm = useCallback(async (userIdea?: string) => {
+    if (!restartTarget) return;
+    setRestartTarget(null);
+    try {
+      await window.office.restartPhase({ targetPhase: restartTarget, userIdea });
+    } catch (err) {
+      console.error('Failed to restart phase:', err);
+    }
+  }, [restartTarget]);
+
+  const handleRestartCancel = useCallback(() => {
+    setRestartTarget(null);
+    setOriginalIdea('');
+  }, []);
+
+  const affectedPhases = restartTarget ? (() => {
+    const ORDER: Phase[] = ['imagine', 'warroom', 'build'];
+    const targetIdx = ORDER.indexOf(restartTarget);
+    const result: { phase: Phase; status: string }[] = [];
+
+    for (let i = targetIdx; i < ORDER.length; i++) {
+      const p = ORDER[i];
+      if (p === restartTarget) continue;
+      const isDone = completedPhases.includes(p);
+      const isActive = phase === p;
+      if (isDone) result.push({ phase: p, status: 'completed' });
+      else if (isActive) result.push({ phase: p, status: status ?? 'active' });
+    }
+    return result;
+  })() : [];
 
   // Hide when idle UNLESS in intro mode
   if (phase === 'idle' && !introMode) return null;
@@ -146,11 +204,35 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
               <div style={styles.step}>
                 <div
                   className={isCurrent ? 'phase-pulse' : undefined}
-                  style={styles.circle(done, isCurrent, isFailed, upcoming)}
+                  style={{
+                    ...styles.circle(done, isCurrent, isFailed, upcoming),
+                    ...(done || active ? {
+                      cursor: 'pointer',
+                      transition: 'all 0.3s, filter 0.15s',
+                    } : {}),
+                  }}
+                  onClick={done || active ? () => handlePhaseClick(p.key) : undefined}
+                  onMouseEnter={(e) => {
+                    if (done || active) {
+                      (e.currentTarget as HTMLElement).style.filter = 'brightness(1.2)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (done || active) {
+                      (e.currentTarget as HTMLElement).style.filter = 'brightness(1)';
+                    }
+                  }}
+                  title={done || active ? `Click to restart ${p.label}` : undefined}
                 >
                   {done ? '\u2713' : i + 1}
                 </div>
-                <span style={styles.label(done, active, isFailed, upcoming)}>
+                <span
+                  style={{
+                    ...styles.label(done, active, isFailed, upcoming),
+                    ...(done || active ? { cursor: 'pointer' } : {}),
+                  }}
+                  onClick={done || active ? () => handlePhaseClick(p.key) : undefined}
+                >
                   {p.label}
                 </span>
                 {isCurrent && status && (
@@ -173,6 +255,16 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
         >
           {starting ? 'Starting\u2026' : actionButton.label}
         </button>
+      )}
+
+      {restartTarget && (
+        <PhaseRestartModal
+          targetPhase={restartTarget}
+          originalIdea={restartTarget === 'imagine' ? originalIdea : undefined}
+          affectedPhases={affectedPhases}
+          onConfirm={handleRestartConfirm}
+          onCancel={handleRestartCancel}
+        />
       )}
     </div>
   );
