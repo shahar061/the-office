@@ -38,9 +38,10 @@ interface IntroSequenceProps {
   onComplete: () => void;
   onHighlightChange: (phases: Phase[]) => void;
   onChatHighlightChange: (highlight: boolean) => void;
+  onStepChange?: (step: number) => void;
 }
 
-export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightChange }: IntroSequenceProps) {
+export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightChange, onStepChange }: IntroSequenceProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [displayedChars, setDisplayedChars] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
@@ -55,6 +56,11 @@ export function IntroSequence({ onComplete, onHighlightChange, onChatHighlightCh
     onHighlightChange(currentStep.highlights);
     onChatHighlightChange(currentStep.highlightChat ?? false);
   }, [stepIndex, currentStep.highlights, currentStep.highlightChat, onHighlightChange, onChatHighlightChange]);
+
+  // Notify parent of step changes (for fog of war + camera coordination)
+  useEffect(() => {
+    onStepChange?.(stepIndex);
+  }, [stepIndex, onStepChange]);
 
   // Typewriter effect
   useEffect(() => {
