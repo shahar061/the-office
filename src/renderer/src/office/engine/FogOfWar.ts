@@ -105,6 +105,15 @@ export class FogOfWar {
     this.fadingOut = true;
   }
 
+  /** Update the clear zone center (for tracking a moving character). */
+  setCenter(x: number, y: number): void {
+    if (this.destroyed) return;
+    this.clearCenterX = x;
+    this.clearCenterY = y;
+    // Force redraw on next update
+    this.lastDrawnRadius = -1;
+  }
+
   /** Called every frame from OfficeScene's animation loop. */
   update(dt: number): void {
     if (this.destroyed) return;
