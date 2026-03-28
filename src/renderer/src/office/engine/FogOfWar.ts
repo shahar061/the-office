@@ -213,10 +213,11 @@ export class FogOfWar {
     for (let i = 0; i < WISP_COUNT; i++) {
       // Position wisps in fogged areas (outside CEO room clear zone)
       let x: number, y: number;
+      let attempts = 0;
       do {
         x = Math.random() * this.mapWidth;
         y = Math.random() * this.mapHeight;
-      } while (this.distFromCenter(x, y) < CEO_ROOM_RADIUS + 30);
+      } while (this.distFromCenter(x, y) < CEO_ROOM_RADIUS + 30 && ++attempts < 100);
 
       const scale = 0.8 + Math.random() * 1.5;
       const sprite = new Sprite(this.wispTexture);
