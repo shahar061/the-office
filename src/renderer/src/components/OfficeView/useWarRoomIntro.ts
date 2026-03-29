@@ -53,13 +53,9 @@ export function useWarRoomIntro(scene: OfficeScene | null) {
     const camera = scene.getCamera();
     camera.snapTo(pmPos.x, pmPos.y, 2.5);
 
-    // Walk PM to boardroom
-    const boardroom = scene.getMapRenderer().getZone('boardroom');
-    if (boardroom) {
-      const bx = boardroom.x + Math.floor(boardroom.width / 2);
-      const by = boardroom.y + Math.floor(boardroom.height / 2);
-      pm.moveTo({ x: bx, y: by });
-    }
+    // Walk PM to her desk in the boardroom (desk spawn point is guaranteed walkable)
+    const deskTile = pm.getDeskTile();
+    pm.moveTo(deskTile);
 
     // Track PM position each frame: update fog center + camera
     function trackPM() {
