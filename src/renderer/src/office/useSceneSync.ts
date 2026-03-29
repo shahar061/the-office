@@ -5,6 +5,7 @@ import { useArtifactStore } from '../stores/artifact.store';
 import { useWarTableStore } from '../stores/war-table.store';
 import type { OfficeScene } from './OfficeScene';
 import type { AgentRole } from '../../../../shared/types';
+import { audioManager } from '../audio/AudioManager';
 
 /**
  * Watches the Zustand office store and synchronizes character state
@@ -80,6 +81,7 @@ export function useSceneSync(scene: OfficeScene | null) {
       for (const role of current) {
         if (!prevActive.has(role)) {
           scene.showCharacter(role);
+          audioManager.playSfx('agent-appear');
           const character = scene.getCharacter(role);
           if (character) {
             character.moveTo(character.getDeskTile());

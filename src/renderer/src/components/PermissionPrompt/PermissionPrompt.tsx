@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AGENT_COLORS, type PermissionRequest } from '@shared/types';
+import { audioManager } from '../../audio/AudioManager';
 
 export function PermissionPrompt() {
   const [queue, setQueue] = useState<PermissionRequest[]>([]);
 
   useEffect(() => {
     const unsubscribe = window.office.onPermissionRequest((req) => {
+      audioManager.playSfx('permission-request');
       setQueue((prev) => [...prev, req]);
     });
     return unsubscribe;

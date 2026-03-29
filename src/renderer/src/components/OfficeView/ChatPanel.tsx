@@ -11,6 +11,7 @@ import { QuestionBubble } from './QuestionBubble';
 import { PhaseActionButton } from './PhaseActionButton';
 import { ActivityIndicator } from './ActivityIndicator';
 import { useOfficeStore } from '../../stores/office.store';
+import { audioManager } from '../../audio/AudioManager';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -161,6 +162,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
   // Listen for agent waiting events
   useEffect(() => {
     const unsub = window.office.onAgentWaiting((payload) => {
+      audioManager.playSfx('agent-waiting');
       setWaiting(payload);
     });
     return unsub;
@@ -186,6 +188,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
     const text = inputValue.trim();
     if (!text) return;
 
+    audioManager.playSfx('chat-send');
     setInputValue('');
 
     // If answering a question, inject the question as an agent message first
