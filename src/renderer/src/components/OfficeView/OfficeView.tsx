@@ -347,6 +347,10 @@ export default function OfficeView() {
         @keyframes activity-spin {
           to { transform: rotate(360deg); }
         }
+        @keyframes icon-rail-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.3); }
+        }
       `}</style>
 
       {/* Top bar */}

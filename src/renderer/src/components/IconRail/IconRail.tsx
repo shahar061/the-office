@@ -89,6 +89,7 @@ const styles = {
     height: '6px',
     borderRadius: '50%',
     background: colors.warning,
+    animation: 'icon-rail-pulse 1.5s ease-in-out infinite',
   },
   countBadge: {
     position: 'absolute' as const,
