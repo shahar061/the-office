@@ -94,6 +94,14 @@ export class ArtifactStore {
         }
       }
     }
+
+    // Clear specs directory if warroom or earlier is being cleared
+    if (phasesToClear.includes('warroom')) {
+      const specsDir = path.join(this.officeDir, 'specs');
+      if (fs.existsSync(specsDir)) {
+        fs.rmSync(specsDir, { recursive: true, force: true });
+      }
+    }
   }
 
   /** Parse tasks.yaml into task entries grouped by milestone (best-effort). */

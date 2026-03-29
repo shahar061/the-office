@@ -227,5 +227,32 @@ describe('ArtifactStore', () => {
     it('does not throw when files do not exist', () => {
       expect(() => store.clearFrom('imagine')).not.toThrow();
     });
+
+    it('clearFrom warroom also deletes the specs directory', () => {
+      createFiles('01-vision-brief.md', 'plan.md', 'tasks.yaml');
+      const specsDir = path.join(officeDir, 'specs');
+      fs.mkdirSync(specsDir);
+      fs.writeFileSync(path.join(specsDir, 'phase-setup.md'), 'spec content');
+      store.clearFrom('warroom');
+      expect(fs.existsSync(specsDir)).toBe(false);
+    });
+
+    it('clearFrom imagine also deletes the specs directory', () => {
+      createFiles('01-vision-brief.md', 'plan.md', 'tasks.yaml');
+      const specsDir = path.join(officeDir, 'specs');
+      fs.mkdirSync(specsDir);
+      fs.writeFileSync(path.join(specsDir, 'phase-backend.md'), 'spec content');
+      store.clearFrom('imagine');
+      expect(fs.existsSync(specsDir)).toBe(false);
+    });
+
+    it('clearFrom build does not delete the specs directory', () => {
+      createFiles('plan.md', 'tasks.yaml');
+      const specsDir = path.join(officeDir, 'specs');
+      fs.mkdirSync(specsDir);
+      fs.writeFileSync(path.join(specsDir, 'phase-setup.md'), 'spec content');
+      store.clearFrom('build');
+      expect(fs.existsSync(specsDir)).toBe(true);
+    });
   });
 });
