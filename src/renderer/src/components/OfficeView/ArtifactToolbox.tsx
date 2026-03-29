@@ -1,6 +1,10 @@
 import React from 'react';
 import { useArtifactStore, type ArtifactInfo } from '../../stores/artifact.store';
+import { useWarTableStore } from '../../stores/war-table.store';
+import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
+
+// ── Shared styles ──
 
 const toolboxStyle: React.CSSProperties = {
   position: 'absolute',
@@ -28,14 +32,14 @@ const headerStyle: React.CSSProperties = {
   fontWeight: 600,
 };
 
-function artifactRowStyle(available: boolean, color: string): React.CSSProperties {
+function rowStyle(available: boolean, borderColor: string): React.CSSProperties {
   return {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
     padding: '4px 6px',
     background: available ? '#1a1a2e' : 'transparent',
-    border: available ? `1px solid ${color}44` : '1px dashed #333',
+    border: available ? `1px solid ${borderColor}44` : '1px dashed #333',
     borderRadius: '4px',
     cursor: available ? 'pointer' : 'default',
     opacity: available ? 1 : 0.4,
@@ -43,19 +47,13 @@ function artifactRowStyle(available: boolean, color: string): React.CSSPropertie
   };
 }
 
-const dotStyle = (color: string): React.CSSProperties => ({
-  width: '6px',
-  height: '6px',
-  borderRadius: '50%',
-  background: color,
-  flexShrink: 0,
-});
-
 function agentInitials(role: string): string {
   return role.split('-').map((w) => w[0].toUpperCase()).join('');
 }
 
-export function ArtifactToolbox() {
+// ── Imagine Artifacts ──
+
+function ImagineToolbox() {
   const artifacts = useArtifactStore((s) => s.artifacts);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const openDocument = useArtifactStore((s) => s.openDocument);
@@ -82,12 +80,8 @@ export function ArtifactToolbox() {
       {artifacts.map((a) => {
         const color = AGENT_COLORS[a.agentRole];
         return (
-          <div
-            key={a.key}
-            style={artifactRowStyle(a.available, color)}
-            onClick={() => handleClick(a)}
-          >
-            <div style={dotStyle(color)} />
+          <div key={a.key} style={rowStyle(a.available, color)} onClick={() => handleClick(a)}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0 }} />
             <span style={{ fontSize: '10px', color: a.available ? '#cbd5e1' : '#475569', fontWeight: 500, flex: 1 }}>
               {a.label}
             </span>
@@ -99,4 +93,75 @@ export function ArtifactToolbox() {
       })}
     </div>
   );
+}
+
+// ── War Room Documents ──
+
+interface WarRoomDoc {
+  key: string;
+  label: string;
+  icon: string;
+  filename: string;
+  artifact: 'plan' | 'tasks';
+}
+
+const WAR_ROOM_DOCS: WarRoomDoc[] = [
+  { key: 'milestones', label: 'Milestones', icon: '🎯', filename: 'milestones.md', artifact: 'plan' },
+  { key: 'plan', label: 'Plan', icon: '🗺️', filename: 'plan.md', artifact: 'plan' },
+  { key: 'tasks', label: 'Tasks', icon: '✅', filename: 'tasks.yaml', artifact: 'tasks' },
+];
+
+function WarRoomToolbox() {
+  const reviewOpen = useWarTableStore((s) => s.reviewOpen);
+  const setReviewContent = useWarTableStore((s) => s.setReviewContent);
+  const closeReview = useWarTableStore((s) => s.closeReview);
+  const visualState = useWarTableStore((s) => s.visualState);
+
+  const hasContent = visualState !== 'empty';
+  if (!hasContent) return null;
+
+  async function handleClick(doc: WarRoomDoc) {
+    if (reviewOpen) {
+      closeReview();
+      return;
+    }
+    const result = await window.office.readArtifact(doc.filename);
+    if ('content' in result) {
+      setReviewContent(result.content, doc.artifact);
+    }
+  }
+
+  const available = visualState === 'review' || visualState === 'complete' || visualState === 'persisted';
+  const borderColor = '#0ea5e9';
+
+  return (
+    <div style={toolboxStyle}>
+      <div style={headerStyle}>War Room</div>
+      {WAR_ROOM_DOCS.map((doc) => (
+        <div
+          key={doc.key}
+          style={rowStyle(available, borderColor)}
+          onClick={() => available && handleClick(doc)}
+        >
+          <span style={{ fontSize: '10px', width: '14px', textAlign: 'center' }}>{doc.icon}</span>
+          <span style={{ fontSize: '10px', color: available ? '#cbd5e1' : '#475569', fontWeight: 500, flex: 1 }}>
+            {doc.label}
+          </span>
+          <span style={{ fontSize: '8px', color: available ? '#0ea5e9' : '#475569' }}>
+            {available ? 'PM' : '...'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Phase-Aware Wrapper ──
+
+export function ArtifactToolbox() {
+  const phase = useProjectStore((s) => s.projectState?.currentPhase ?? 'idle');
+
+  if (phase === 'imagine') return <ImagineToolbox />;
+  if (phase === 'warroom') return <WarRoomToolbox />;
+  return null;
 }
