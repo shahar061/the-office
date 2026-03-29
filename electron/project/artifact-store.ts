@@ -53,6 +53,17 @@ export class ArtifactStore {
     return fs.readFileSync(filePath, 'utf-8');
   }
 
+  ensureSpecsDir(): void {
+    const specsDir = path.join(this.officeDir, 'specs');
+    fs.mkdirSync(specsDir, { recursive: true });
+  }
+
+  getSpecForPhase(phaseId: string): string | null {
+    const filePath = path.join(this.officeDir, 'specs', `phase-${phaseId}.md`);
+    if (!fs.existsSync(filePath)) return null;
+    return fs.readFileSync(filePath, 'utf-8');
+  }
+
   /** Parse plan.md into milestone titles (best-effort heading extraction). */
   parsePlanMilestones(): { id: string; title: string }[] {
     const plan = this.readArtifact('plan.md');

@@ -147,6 +147,41 @@ describe('ArtifactStore', () => {
     });
   });
 
+  describe('ensureSpecsDir()', () => {
+    it('creates the specs directory when it does not exist', () => {
+      setupOfficeDir(tmpDir);
+      store.ensureSpecsDir();
+      const specsDir = path.join(tmpDir, OFFICE_SUBDIR, 'specs');
+      expect(fs.existsSync(specsDir)).toBe(true);
+    });
+
+    it('does not throw when specs directory already exists', () => {
+      const officeDir = setupOfficeDir(tmpDir);
+      fs.mkdirSync(path.join(officeDir, 'specs'));
+      expect(() => store.ensureSpecsDir()).not.toThrow();
+    });
+  });
+
+  describe('getSpecForPhase()', () => {
+    it('returns null when specs directory does not exist', () => {
+      setupOfficeDir(tmpDir);
+      expect(store.getSpecForPhase('setup')).toBeNull();
+    });
+
+    it('returns null when spec file does not exist', () => {
+      const officeDir = setupOfficeDir(tmpDir);
+      fs.mkdirSync(path.join(officeDir, 'specs'));
+      expect(store.getSpecForPhase('setup')).toBeNull();
+    });
+
+    it('returns file content when spec file exists', () => {
+      const officeDir = setupOfficeDir(tmpDir);
+      fs.mkdirSync(path.join(officeDir, 'specs'));
+      fs.writeFileSync(path.join(officeDir, 'specs', 'phase-setup.md'), '# Setup spec');
+      expect(store.getSpecForPhase('setup')).toBe('# Setup spec');
+    });
+  });
+
   describe('clearFrom()', () => {
     let officeDir: string;
 
