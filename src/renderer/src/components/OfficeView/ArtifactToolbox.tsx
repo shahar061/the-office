@@ -6,10 +6,17 @@ import { AGENT_COLORS } from '@shared/types';
 
 // ── Shared styles ──
 
-const toolboxStyle: React.CSSProperties = {
+const wrapperStyle: React.CSSProperties = {
   position: 'absolute',
   top: '12px',
   right: '12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  zIndex: 10,
+};
+
+const panelStyle: React.CSSProperties = {
   background: 'rgba(15,15,26,0.92)',
   backdropFilter: 'blur(8px)',
   border: '1px solid #333',
@@ -18,7 +25,6 @@ const toolboxStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '4px',
-  zIndex: 10,
   minWidth: '140px',
 };
 
@@ -75,7 +81,7 @@ function ImagineToolbox() {
   }
 
   return (
-    <div style={toolboxStyle}>
+    <div style={panelStyle}>
       <div style={headerStyle}>Artifacts</div>
       {artifacts.map((a) => {
         const color = AGENT_COLORS[a.agentRole];
@@ -135,7 +141,7 @@ function WarRoomToolbox() {
   const borderColor = '#0ea5e9';
 
   return (
-    <div style={toolboxStyle}>
+    <div style={panelStyle}>
       <div style={headerStyle}>War Room</div>
       {WAR_ROOM_DOCS.map((doc) => (
         <div
@@ -161,7 +167,12 @@ function WarRoomToolbox() {
 export function ArtifactToolbox() {
   const phase = useProjectStore((s) => s.projectState?.currentPhase ?? 'idle');
 
-  if (phase === 'imagine') return <ImagineToolbox />;
-  if (phase === 'warroom') return <WarRoomToolbox />;
+  if (phase === 'imagine') return <div style={wrapperStyle}><ImagineToolbox /></div>;
+  if (phase === 'warroom') return (
+    <div style={wrapperStyle}>
+      <ImagineToolbox />
+      <WarRoomToolbox />
+    </div>
+  );
   return null;
 }
