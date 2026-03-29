@@ -78,6 +78,8 @@ export default function App() {
             useKanbanStore.getState().reset();
             useLogStore.getState().reset();
             setProjectState(state);
+            // Re-hydrate artifacts from disk (reset cleared them, effect may not re-fire for same path)
+            window.office.getArtifactStatus().then(hydrateArtifacts);
           }} />
         ) : (
           <OfficeView />

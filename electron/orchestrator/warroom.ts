@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
 import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse, AppSettings } from '../../shared/types';
@@ -43,6 +45,9 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
 
   // ── Act 1: PM reads artifacts and writes plan ──
 
+  // Ensure docs/office/ exists (imagine agents may have created it, but be safe)
+  fs.mkdirSync(path.join(projectDir, 'docs', 'office'), { recursive: true });
+
   onWarTableState('growing');
   onWarTableChoreography({ step: 'pm-reading' });
   onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
@@ -53,7 +58,10 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     prompt: [
       'You are the Project Manager leading the War Room planning phase.',
       'Based on the design documents below, create a human-readable implementation plan.',
-      'Write it to docs/office/plan.md.',
+      '',
+      'CRITICAL: You MUST use the Write tool to save the plan to docs/office/plan.md.',
+      'Do NOT just output the plan as text — you MUST write it to the file using the Write tool.',
+      'The session will fail if docs/office/plan.md does not exist when you finish.',
       '',
       context,
     ].join('\n'),
@@ -106,7 +114,8 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
       'For each task, include a `model` field with one of: "opus", "sonnet", "haiku".',
       'Use opus for complex architectural tasks, sonnet for standard implementation, haiku for boilerplate/config.',
       '',
-      'Write it to docs/office/tasks.yaml.',
+      'CRITICAL: You MUST use the Write tool to save the file to docs/office/tasks.yaml.',
+      'The session will fail if docs/office/tasks.yaml does not exist when you finish.',
       feedbackClause,
       '',
       '## Plan',
