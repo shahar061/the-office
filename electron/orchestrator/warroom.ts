@@ -1,6 +1,21 @@
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
-import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse } from '../../shared/types';
+import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse, AppSettings } from '../../shared/types';
+import yaml from 'js-yaml';
+
+interface ParsedPhase {
+  id: string;
+  name: string;
+  tasks: { id: string; description: string; assigned_agent: string; model: string }[];
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
 
 export interface WarroomConfig extends PhaseConfig {
   onSystemMessage: (text: string) => void;
@@ -9,13 +24,14 @@ export interface WarroomConfig extends PhaseConfig {
   onWarTableChoreography: (payload: WarTableChoreographyPayload) => void;
   onReviewReady: (content: string, artifact: 'plan' | 'tasks') => Promise<WarTableReviewResponse>;
   waitForIntro: () => Promise<void>;
+  getSettings: () => Promise<AppSettings>;
 }
 
 export async function runWarroom(config: WarroomConfig): Promise<void> {
   const {
     projectDir, agentsDir, env, onEvent, onWaiting, onSystemMessage,
     onWarTableState, onWarTableCardAdded, onWarTableChoreography, onReviewReady,
-    waitForIntro,
+    waitForIntro, getSettings,
   } = config;
   const artifactStore = new ArtifactStore(projectDir);
   const context = artifactStore.getImagineContext();
@@ -69,11 +85,11 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   const plan = artifactStore.readArtifact('plan.md');
   const reviewResponse = await onReviewReady(plan, 'plan');
 
-  // ── Act 3: Team Lead breaks down tasks ──
+  // ── Act 3: Coordinator TL writes tasks.yaml ──
 
   onWarTableState('expanding');
   onWarTableChoreography({ step: 'tl-reading' });
-  onSystemMessage('Team Lead is breaking the plan into tasks...');
+  onSystemMessage('Team Lead is analyzing the plan and creating task manifest...');
 
   const feedbackClause = reviewResponse.feedback
     ? `\n\nThe user reviewed the plan and has this feedback — incorporate it into your task breakdown:\n${reviewResponse.feedback}`
@@ -84,7 +100,12 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     agentsDir,
     prompt: [
       'You are the Team Lead creating the machine-readable task manifest.',
-      'Based on the plan and design documents below, create tasks.yaml with phases, dependencies, and assigned agents.',
+      'Based on the plan and design documents below, create ONLY tasks.yaml.',
+      'Do NOT write an implementation spec — that will be handled separately per phase.',
+      '',
+      'For each task, include a `model` field with one of: "opus", "sonnet", "haiku".',
+      'Use opus for complex architectural tasks, sonnet for standard implementation, haiku for boilerplate/config.',
+      '',
       'Write it to docs/office/tasks.yaml.',
       feedbackClause,
       '',
@@ -101,18 +122,112 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     onWaiting,
   });
 
-  // Parse tasks and emit cards
   onWarTableChoreography({ step: 'tl-writing' });
+  onSystemMessage('Task manifest ready. Parsing phases...');
 
-  const taskEntries = artifactStore.parseTaskEntries();
-  for (const t of taskEntries) {
-    onWarTableCardAdded({ id: t.id, type: 'task', title: t.title, parentId: t.milestoneId });
-    await delay(250);
+  // Parse milestones from plan for war table cards
+  const milestoneEntries = artifactStore.parsePlanMilestones();
+
+  // Parse phases from tasks.yaml
+  const tasksYaml = artifactStore.getTasksYaml();
+  if (!tasksYaml) throw new Error('tasks.yaml not found after coordinator TL');
+  const parsed = yaml.load(tasksYaml) as any;
+  const phases: ParsedPhase[] = (parsed.phases || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    tasks: (p.tasks || []).map((t: any) => ({
+      id: t.id,
+      description: t.description,
+      assigned_agent: t.assigned_agent || 'backend_engineer',
+      model: t.model || 'sonnet',
+    })),
+  }));
+
+  onWarTableChoreography({ step: 'tl-coordinator-done', totalClones: phases.length });
+  onSystemMessage(`Spawning ${phases.length} spec writers...`);
+
+  // ── Act 4: Parallel spec-writer TL clones ──
+
+  artifactStore.ensureSpecsDir();
+  const settings = await getSettings();
+  const maxConcurrency = settings.maxParallelTLs || 4;
+  const batches = chunk(phases, maxConcurrency);
+
+  for (const batch of batches) {
+    // Emit spawn events for this batch
+    for (const phase of batch) {
+      const cloneId = `tl-${phase.id}`;
+      onWarTableChoreography({ step: 'tl-clone-spawned', cloneId, phaseId: phase.id });
+    }
+
+    // Run batch in parallel
+    const results = await Promise.allSettled(
+      batch.map(async (phase) => {
+        const cloneId = `tl-${phase.id}`;
+        onWarTableChoreography({ step: 'tl-clone-writing', cloneId, phaseId: phase.id });
+
+        const phaseTaskList = phase.tasks
+          .map(t => `- ${t.id}: ${t.description} (agent: ${t.assigned_agent}, model: ${t.model})`)
+          .join('\n');
+
+        await runAgentSession({
+          agentName: 'team-lead',
+          agentsDir,
+          prompt: [
+            `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,
+            '',
+            `Write the spec to docs/office/specs/phase-${phase.id}.md`,
+            '',
+            'Follow strict TDD (red-green-refactor) for every task. Each step must have:',
+            '- Checkbox syntax (- [ ]) for tracking',
+            '- Complete code — no placeholders',
+            '- Exact file paths and test commands',
+            '- Bite-sized steps (2-5 minutes each)',
+            '',
+            `## Phase Tasks`,
+            phaseTaskList,
+            '',
+            '## Plan',
+            plan,
+            '',
+            context,
+          ].join('\n'),
+          cwd: projectDir,
+          env,
+          excludeAskUser: true,
+          expectedOutput: `docs/office/specs/phase-${phase.id}.md`,
+          onEvent,
+          onWaiting,
+        });
+
+        onWarTableChoreography({ step: 'tl-clone-done', cloneId, phaseId: phase.id });
+
+        // Emit task cards for this phase
+        const taskEntries = phase.tasks;
+        const milestoneId = milestoneEntries.find(m =>
+          m.title.toLowerCase().includes(phase.name.toLowerCase())
+        )?.id || `m${phases.indexOf(phase) + 1}`;
+
+        for (const t of taskEntries) {
+          onWarTableCardAdded({ id: t.id, type: 'task', title: t.description, parentId: milestoneId });
+          await delay(250);
+        }
+      })
+    );
+
+    // Log failures but don't block other batches
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === 'rejected') {
+        const phase = batch[i];
+        console.error(`[Warroom] Spec writer failed for phase ${phase.id}:`, (results[i] as PromiseRejectedResult).reason);
+        onSystemMessage(`Warning: spec writer for phase "${phase.name}" failed.`);
+      }
+    }
   }
 
   onWarTableChoreography({ step: 'tl-done' });
   onWarTableState('complete');
-  onSystemMessage('Task breakdown complete. Review the war table or continue to Build.');
+  onSystemMessage('All specs complete. Review the war table or continue to Build.');
 }
 
 function delay(ms: number): Promise<void> {
