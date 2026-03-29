@@ -174,6 +174,11 @@ async function handleStartWarroom(): Promise<void> {
           setPendingIntro({ resolve });
         });
       },
+      getSettings: async (): Promise<AppSettings> => ({
+        defaultModelPreset: 'default',
+        defaultPermissionMode: 'auto-safe',
+        maxParallelTLs: 4,
+      }),
     });
     phaseMachine!.markCompleted('warroom');
   } catch (err) {
