@@ -116,6 +116,7 @@ export class TiledMapRenderer {
 
     this.parseCollisionLayer()
     this.parseSpawnPoints()
+    this.markWalkableSpawnPoints()
     this.parseZones()
     this.parseInteractiveObjects()
     this.parseWarRoomObjects()
@@ -187,6 +188,18 @@ export class TiledMapRenderer {
         x: Math.floor(obj.x / this.tileSize),
         y: Math.floor(obj.y / this.tileSize),
       })
+    }
+  }
+
+  /** Spawn points prefixed with these names override collision to be walkable. */
+  private static readonly WALKABLE_SPAWN_POINTS = ['warroom-seat']
+
+  private markWalkableSpawnPoints(): void {
+    for (const name of TiledMapRenderer.WALKABLE_SPAWN_POINTS) {
+      const point = this.spawnPoints.get(name)
+      if (point && point.y >= 0 && point.y < this.height && point.x >= 0 && point.x < this.width) {
+        this.walkabilityGrid[point.y][point.x] = true
+      }
     }
   }
 
