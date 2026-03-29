@@ -5,6 +5,7 @@ import { useKanbanStore } from '@/stores/kanban.store';
 import { useOfficeStore } from '@/stores/office.store';
 import { useArtifactStore } from '@/stores/artifact.store';
 import { useWarTableStore } from './stores/war-table.store';
+import { audioManager } from './audio/AudioManager';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
 const OfficeView = React.lazy(() => import('@/components/OfficeView/OfficeView'));
@@ -27,7 +28,10 @@ export default function App() {
       window.office.onChatMessage(addMessage),
       window.office.onKanbanUpdate(setKanban),
       window.office.onAgentEvent(handleAgentEvent),
-      window.office.onArtifactAvailable((payload) => markArtifactAvailable(payload.key)),
+      window.office.onArtifactAvailable((payload) => {
+        markArtifactAvailable(payload.key);
+        audioManager.playSfx('artifact-written');
+      }),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
     return () => unsubs.forEach((fn) => fn());

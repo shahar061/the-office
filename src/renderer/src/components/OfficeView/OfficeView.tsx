@@ -11,8 +11,11 @@ import { useSceneSync } from '../../office/useSceneSync';
 import type { OfficeScene } from '../../office/OfficeScene';
 import { TabBar } from '../TabBar/TabBar';
 import { ArtifactToolbox } from './ArtifactToolbox';
+import { AudioControls } from './AudioControls';
 import { ArtifactOverlay } from './ArtifactOverlay';
 import { PlanOverlay } from './PlanOverlay';
+import { audioManager } from '../../audio/AudioManager';
+import { useAudioStore } from '../../stores/audio.store';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { ChatPanel } from './ChatPanel';
@@ -222,6 +225,15 @@ export default function OfficeView() {
     return cleanup;
   }, []);
 
+  // Auto-play music on mount, preload SFX
+  useEffect(() => {
+    const { musicMuted } = useAudioStore.getState();
+    if (!musicMuted) {
+      audioManager.playMusic();
+    }
+    audioManager.preloadSfx();
+  }, []);
+
   // Handle character view-details click from Pixi canvas
   useEffect(() => {
     function handleViewDetails(e: Event) {
@@ -351,6 +363,7 @@ export default function OfficeView() {
         }}>
           <OfficeCanvas onSceneReady={handleSceneReady} />
           <ArtifactToolbox />
+          <AudioControls />
           <ArtifactOverlay />
           <PlanOverlay />
           {showIntro && (
