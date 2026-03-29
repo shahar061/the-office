@@ -9,7 +9,7 @@ export interface BuildPhase {
   id: string;
   name: string;
   dependsOn: string[];
-  tasks: { id: string; description: string; assignedAgent: string }[];
+  tasks: { id: string; description: string; assignedAgent: string; model: string }[];
 }
 
 export interface BuildOrchestratorConfig {
@@ -35,7 +35,12 @@ export async function runBuild(config: BuildOrchestratorConfig): Promise<void> {
     id: p.id,
     name: p.name,
     dependsOn: p.depends_on || [],
-    tasks: p.tasks || [],
+    tasks: (p.tasks || []).map((t: any) => ({
+      id: t.id,
+      description: t.description,
+      assignedAgent: t.assigned_agent,
+      model: t.model || 'sonnet',
+    })),
   }));
 
   const completed = new Set<string>();
@@ -68,6 +73,8 @@ async function runPhaseSession(
     ? resolveRole(phase.tasks[0].assignedAgent)
     : 'backend-engineer' as const;
 
+  const primaryModel = phase.tasks[0]?.model || 'sonnet';
+
   const taskList = phase.tasks
     .map(t => `- ${t.id}: ${t.description} (assigned: ${t.assignedAgent})`)
     .join('\n');
@@ -80,11 +87,12 @@ async function runPhaseSession(
       'Implement the following tasks sequentially using TDD:',
       taskList,
       '',
-      'For each task: write failing test → implement → verify pass → commit.',
-      'Read the spec files in spec/ for implementation details.',
+      `Read docs/office/specs/phase-${phase.id}.md for detailed TDD implementation steps.`,
+      'Follow each step exactly — write failing test, verify failure, implement, verify pass, commit.',
     ].join('\n'),
     cwd: config.projectDir,
     env: config.authEnv || {},
+    model: primaryModel,
     excludeAskUser: true,  // Build agents work autonomously
     onEvent: config.onEvent,
     onWaiting: async () => ({}),  // No-op — AskUserQuestion excluded
