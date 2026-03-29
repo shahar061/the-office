@@ -409,6 +409,7 @@ export function initPhaseHandlers(): void {
     return {
       defaultModelPreset: 'default',
       defaultPermissionMode: 'auto-safe',
+      maxParallelTLs: 4,
     };
   });
 

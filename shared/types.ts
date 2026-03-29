@@ -184,7 +184,13 @@ export interface WarTableReviewResponse {
 }
 
 export interface WarTableChoreographyPayload {
-  step: 'intro-walk' | 'pm-reading' | 'pm-writing' | 'pm-done' | 'tl-reading' | 'tl-writing' | 'tl-done';
+  step: 'intro-walk' | 'pm-reading' | 'pm-writing' | 'pm-done'
+      | 'tl-reading' | 'tl-writing' | 'tl-coordinator-done'
+      | 'tl-clone-spawned' | 'tl-clone-writing' | 'tl-clone-done'
+      | 'tl-done';
+  cloneId?: string;
+  phaseId?: string;
+  totalClones?: number;
 }
 
 // ── Build ──
@@ -234,6 +240,7 @@ export interface SessionStats {
 export interface AppSettings {
   defaultModelPreset: BuildConfig['modelPreset'];
   defaultPermissionMode: BuildConfig['permissionMode'];
+  maxParallelTLs: number;
   windowBounds?: { x: number; y: number; width: number; height: number };
 }
 
