@@ -11,6 +11,7 @@ export interface AgentSessionConfig {
   prompt: string;
   cwd: string;
   env: Record<string, string>;
+  model?: string;
   expectedOutput?: string;
   excludeAskUser?: boolean;
   onEvent: (event: AgentEvent) => void;
@@ -44,6 +45,7 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
     systemPrompt: agentDef.prompt,  // Agent's persona/instructions from markdown
     prompt: config.prompt,           // Orchestrator's contextual instructions
     cwd: config.cwd,
+    model: config.model,
     allowedTools: tools,
     env: config.env,
     onWaiting: config.excludeAskUser ? undefined : (questions) => config.onWaiting(agentRole, questions),
