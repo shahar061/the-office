@@ -394,6 +394,15 @@ export function initPhaseHandlers(): void {
     }
   });
 
+  // ── Logs ──
+
+  ipcMain.handle(IPC_CHANNELS.FLUSH_LOGS, async (_event, logText: string) => {
+    if (!currentProjectDir || !logText) return;
+    const date = new Date().toISOString().slice(0, 10);
+    const logPath = path.join(currentProjectDir, `session-${date}.log`);
+    fs.appendFileSync(logPath, logText, 'utf-8');
+  });
+
   // ── Settings ──
 
   ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async (): Promise<AppSettings> => {

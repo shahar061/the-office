@@ -83,4 +83,6 @@ contextBridge.exposeInMainWorld('office', {
   respondWarTableReview: (response: WarTableReviewResponse) => ipcRenderer.invoke(IPC_CHANNELS.WAR_TABLE_REVIEW_RESPONSE, response),
   onWarTableChoreography: (cb: (payload: WarTableChoreographyPayload) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_CHOREOGRAPHY, cb),
   warRoomIntroDone: () => ipcRenderer.invoke(IPC_CHANNELS.WARROOM_INTRO_DONE),
+  // Logs
+  flushLogs: (logText: string) => ipcRenderer.invoke(IPC_CHANNELS.FLUSH_LOGS, logText),
 });

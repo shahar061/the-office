@@ -109,6 +109,12 @@ app.whenReady().then(async () => {
   send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
 });
 
+app.on('before-quit', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('office:app-closing');
+  }
+});
+
 app.on('window-all-closed', () => {
   chatHistoryStore?.flush();
 

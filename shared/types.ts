@@ -293,6 +293,8 @@ export const IPC_CHANNELS = {
   WAR_TABLE_REVIEW_RESPONSE: 'office:war-table-review-response',
   WAR_TABLE_CHOREOGRAPHY: 'office:war-table-choreography',
   WARROOM_INTRO_DONE: 'office:warroom-intro-done',
+  // Logs
+  FLUSH_LOGS: 'office:flush-logs',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -346,6 +348,8 @@ export interface OfficeAPI {
   respondWarTableReview(response: WarTableReviewResponse): Promise<void>;
   onWarTableChoreography(callback: (payload: WarTableChoreographyPayload) => void): () => void;
   warRoomIntroDone(): Promise<void>;
+  // Logs
+  flushLogs(logText: string): Promise<void>;
 }
 
 declare global {
