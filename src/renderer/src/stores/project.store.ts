@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { PhaseInfo, ProjectState, AuthStatus } from '@shared/types';
 import { useOfficeStore } from './office.store';
+import { audioManager } from '../audio/AudioManager';
 
 interface ProjectStore {
   authStatus: AuthStatus;
@@ -28,6 +29,13 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       const TERMINAL = ['completed', 'failed', 'interrupted'];
       if (TERMINAL.includes(info.status)) {
         useOfficeStore.getState().clearAgentActivity();
+      }
+
+      // Play phase SFX
+      if (info.status === 'active') {
+        audioManager.playSfx('phase-start');
+      } else if (info.status === 'completed') {
+        audioManager.playSfx('phase-complete');
       }
 
       // Activate warroom intro when warroom phase starts

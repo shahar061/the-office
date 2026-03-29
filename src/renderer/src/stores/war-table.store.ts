@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { WarTableVisualState, WarTableCard } from '@shared/types';
+import { audioManager } from '../audio/AudioManager';
 
 interface WarTableStoreState {
   visualState: WarTableVisualState;
@@ -24,10 +25,16 @@ export const useWarTableStore = create<WarTableStoreState>((set) => ({
   reviewArtifact: null,
   reviewOpen: false,
 
-  setVisualState: (visualState) => set({ visualState }),
+  setVisualState: (visualState) => {
+    if (visualState === 'review') {
+      audioManager.playSfx('review-ready');
+    }
+    set({ visualState });
+  },
 
   addCard: (card) =>
     set((state) => {
+      audioManager.playSfx('card-pinned');
       if (card.type === 'milestone') {
         return { milestones: [...state.milestones, card] };
       }
