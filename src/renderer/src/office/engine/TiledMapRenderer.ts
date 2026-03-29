@@ -81,7 +81,7 @@ export interface PolygonObject {
 
 // --- Tile layer names we expect in every map ---
 
-const TILE_LAYERS = ['floor', 'walls', 'furniture-below', 'furniture-above'] as const
+const TILE_LAYERS = ['floor', 'walls', 'furniture-below', 'furniture-mid', 'furniture-above'] as const
 const COLLISION_LAYER = 'collision'
 const SPAWN_POINTS_LAYER = 'spawn-points'
 const ZONES_LAYER = 'zones'
@@ -400,9 +400,9 @@ export class TiledMapRenderer {
         }
       }
 
-      // furniture-above renders on top of characters visually but must not
-      // block pointer events on the character layer beneath it
-      if (layerName === 'furniture-above') {
+      // furniture-mid and furniture-above render on top of characters visually
+      // but must not block pointer events on the character layer beneath them
+      if (layerName === 'furniture-mid' || layerName === 'furniture-above') {
         container.eventMode = 'none'
       }
 

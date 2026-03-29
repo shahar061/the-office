@@ -181,8 +181,10 @@ async function handleStartWarroom(): Promise<void> {
       }),
     });
     phaseMachine!.markCompleted('warroom');
-  } catch (err) {
+  } catch (err: any) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
+    onSystemMessage(`Warroom failed: ${errMsg}`);
     rejectPendingQuestions('Warroom phase failed');
     setPendingReview(null);
     phaseMachine!.markFailed();
@@ -218,8 +220,10 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
     phaseMachine!.markCompleted('build');
     phaseMachine!.transition('complete');
     phaseMachine!.markCompleted('complete');
-  } catch (err) {
+  } catch (err: any) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Build failed:', err);
+    onSystemMessage(`Build failed: ${errMsg}`);
     rejectPendingQuestions('Build phase failed');
     phaseMachine!.markFailed();
   }
@@ -268,6 +272,17 @@ export function initPhaseHandlers(): void {
     // 2. Clean artifacts from target phase onward
     const store = new ArtifactStore(currentProjectDir);
     store.clearFrom(targetPhase);
+
+    // 2b. Clear chat history from target phase onward
+    if (chatHistoryStore) {
+      const PHASES_TO_CLEAR: Phase[] = ['imagine', 'warroom', 'build'];
+      const clearIdx = PHASES_TO_CLEAR.indexOf(targetPhase as Phase);
+      if (clearIdx !== -1) {
+        for (const p of PHASES_TO_CLEAR.slice(clearIdx)) {
+          chatHistoryStore.clearPhaseHistory(p);
+        }
+      }
+    }
 
     // 3. Reset session.yaml
     clearSessionYaml(currentProjectDir, targetPhase);

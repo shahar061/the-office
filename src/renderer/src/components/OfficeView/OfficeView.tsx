@@ -3,6 +3,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { useUIStore } from '../../stores/ui.store';
 import { useArtifactStore } from '../../stores/artifact.store';
+import { useOfficeStore } from '../../stores/office.store';
 import { useAgentsStore } from '../../stores/agents.store';
 import { colors } from '../../theme';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
@@ -220,10 +221,10 @@ export default function OfficeView() {
   // Handle phase restart — clear renderer stores
   useEffect(() => {
     const cleanup = window.office.onPhaseRestart((_targetPhase: string) => {
-      // Clear war table
       useWarTableStore.getState().reset();
-      // Clear chat messages
       useChatStore.getState().clearMessages();
+      useOfficeStore.getState().reset();
+      useArtifactStore.getState().reset();
     });
     return cleanup;
   }, []);

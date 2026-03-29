@@ -21,6 +21,7 @@ interface CharacterOptions {
   mapRenderer: TiledMapRenderer;
   frames: Texture[][];
   wanderBounds?: WanderBounds;
+  deskOverride?: { x: number; y: number };
 }
 
 export class Character {
@@ -52,9 +53,10 @@ export class Character {
     this.mapRenderer = options.mapRenderer;
     this.sprite = new CharacterSprite(options.frames);
 
-    // Look up desk position from spawn points
-    const spawnPoint = this.mapRenderer.getSpawnPoint('desk-' + options.role);
-    this.deskTile = spawnPoint ?? { x: 1, y: 1 };
+    // Look up desk position from spawn points (or use explicit override for clones)
+    this.deskTile = options.deskOverride
+      ?? this.mapRenderer.getSpawnPoint('desk-' + options.role)
+      ?? { x: 1, y: 1 };
 
     this.wanderBounds = options.wanderBounds ?? null;
 

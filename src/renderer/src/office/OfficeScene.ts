@@ -331,6 +331,49 @@ export class OfficeScene {
     character.hide(3000);
   }
 
+  /**
+   * Create a clone character that looks like `baseRole` but sits at `deskSpawnName`.
+   * Returns the clone's unique ID, or null if the spawn point doesn't exist.
+   */
+  createClone(cloneId: string, baseRole: AgentRole, deskSpawnName: string): Character | null {
+    const baseConfig = AGENT_CONFIGS[baseRole];
+    if (!baseConfig) return null;
+
+    const deskPos = this.mapRenderer.getSpawnPoint(deskSpawnName);
+    if (!deskPos) return null;
+
+    // Reuse the same frames as the base character
+    const baseCharacter = this.characters.get(baseRole);
+    if (!baseCharacter) return null;
+
+    const zone = this.mapRenderer.getZone(baseConfig.idleZone);
+    const wanderBounds = zone ? {
+      tileX: zone.x, tileY: zone.y,
+      tileW: zone.width, tileH: zone.height,
+    } : undefined;
+
+    const clone = new Character({
+      agentId: cloneId,
+      role: baseRole,
+      mapRenderer: this.mapRenderer,
+      frames: baseCharacter.sprite.getRawFrames(),
+      wanderBounds,
+      deskOverride: deskPos,
+    });
+
+    this.characters.set(cloneId, clone);
+    return clone;
+  }
+
+  destroyClone(cloneId: string): void {
+    const character = this.characters.get(cloneId);
+    if (!character) return;
+    character.hide(0);
+    this.characters.delete(cloneId);
+    // Give hide animation time to complete, then destroy
+    setTimeout(() => character.destroy(), 1500);
+  }
+
   getWarTable(): WarTable {
     return this.warTable;
   }

@@ -5,6 +5,7 @@ import { useKanbanStore } from '@/stores/kanban.store';
 import { useOfficeStore } from '@/stores/office.store';
 import { useArtifactStore } from '@/stores/artifact.store';
 import { useWarTableStore } from './stores/war-table.store';
+import { useLogStore } from './stores/log.store';
 import { audioManager } from './audio/AudioManager';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
@@ -69,7 +70,15 @@ export default function App() {
     <div style={{ width: '100%', height: '100%', overflow: 'hidden', background: '#0f0f1a', color: '#e5e5e5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>Loading...</div>}>
         {view === 'picker' ? (
-          <ProjectPicker onProjectOpened={(state) => setProjectState(state)} />
+          <ProjectPicker onProjectOpened={(state) => {
+            useChatStore.getState().clearMessages();
+            useOfficeStore.getState().reset();
+            useArtifactStore.getState().reset();
+            useWarTableStore.getState().reset();
+            useKanbanStore.getState().reset();
+            useLogStore.getState().reset();
+            setProjectState(state);
+          }} />
         ) : (
           <OfficeView />
         )}

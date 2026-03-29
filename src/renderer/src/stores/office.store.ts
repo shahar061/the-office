@@ -30,6 +30,7 @@ interface OfficeStore {
   agentActivity: AgentActivity;
   handleAgentEvent: (event: AgentEvent) => void;
   clearAgentActivity: () => void;
+  reset: () => void;
 }
 
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']);
@@ -46,6 +47,7 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
   agentActivity: { ...INITIAL_ACTIVITY },
 
   clearAgentActivity: () => set({ agentActivity: { ...INITIAL_ACTIVITY } }),
+  reset: () => set({ characters: new Map(), activeAgents: new Set(), agentActivity: { ...INITIAL_ACTIVITY } }),
 
   handleAgentEvent: (event) => set((state) => {
     const chars = new Map(state.characters);
@@ -55,7 +57,7 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
 
     if (event.type === 'agent:created') {
       chars.set(role, { role, state: 'idle', lastActive: event.timestamp });
-      active.add(role);
+      if (role !== 'freelancer') active.add(role);
       if (event.isTopLevel) {
         activity = { isActive: true, agentRole: role, actions: [] };
       }

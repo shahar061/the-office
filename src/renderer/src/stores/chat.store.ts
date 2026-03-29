@@ -29,7 +29,10 @@ export const useChatStore = create<ChatStore>((set) => ({
   waitingSessionId: null,
   waitingQuestions: [],
   addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
-  clearMessages: () => set({ messages: [], archivedRuns: [] }),
+  clearMessages: () => set({
+    messages: [], archivedRuns: [],
+    waitingForResponse: false, waitingAgentRole: null, waitingSessionId: null, waitingQuestions: [],
+  }),
   loadHistory: (history: PhaseHistory[]) => {
     const allLatestMessages: ChatMessage[] = [];
     const archived: ArchivedRun[] = [];

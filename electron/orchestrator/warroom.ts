@@ -132,6 +132,9 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   const tasksYaml = artifactStore.getTasksYaml();
   if (!tasksYaml) throw new Error('tasks.yaml not found after coordinator TL');
   const parsed = yaml.load(tasksYaml) as any;
+  console.log('[Warroom] Parsed tasks.yaml top-level keys:', Object.keys(parsed || {}));
+  console.log('[Warroom] parsed.phases type:', typeof parsed?.phases, 'length:', Array.isArray(parsed?.phases) ? parsed.phases.length : 'N/A');
+
   const phases: ParsedPhase[] = (parsed.phases || []).map((p: any) => ({
     id: p.id,
     name: p.name,
@@ -142,6 +145,13 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
       model: t.model || 'sonnet',
     })),
   }));
+
+  console.log('[Warroom] Parsed phases:', phases.map(p => `${p.id} (${p.tasks.length} tasks)`));
+
+  if (phases.length === 0) {
+    onSystemMessage('Warning: No phases found in tasks.yaml — spec writers will not run. Check the YAML structure.');
+    console.error('[Warroom] No phases found. Raw YAML (first 500 chars):', tasksYaml.slice(0, 500));
+  }
 
   onWarTableChoreography({ step: 'tl-coordinator-done', totalClones: phases.length });
   onSystemMessage(`Spawning ${phases.length} spec writers...`);
@@ -219,8 +229,10 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     for (let i = 0; i < results.length; i++) {
       if (results[i].status === 'rejected') {
         const phase = batch[i];
-        console.error(`[Warroom] Spec writer failed for phase ${phase.id}:`, (results[i] as PromiseRejectedResult).reason);
-        onSystemMessage(`Warning: spec writer for phase "${phase.name}" failed.`);
+        const reason = (results[i] as PromiseRejectedResult).reason;
+        const errMsg = reason instanceof Error ? reason.message : String(reason);
+        console.error(`[Warroom] Spec writer failed for phase ${phase.id}:`, reason);
+        onSystemMessage(`Error: spec writer for phase "${phase.name}" failed — ${errMsg}`);
       }
     }
   }

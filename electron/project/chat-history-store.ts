@@ -145,6 +145,29 @@ export class ChatHistoryStore {
     return runs[runs.length - 1].messages;
   }
 
+  clearPhaseHistory(phase: Phase): void {
+    // Flush pending buffers first so nothing lingers in memory
+    this.flush();
+
+    // Delete disk files for this phase
+    if (fs.existsSync(this.historyDir)) {
+      const files = fs.readdirSync(this.historyDir).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        const parsed = this.parseFilename(file);
+        if (parsed && parsed.phase === phase) {
+          fs.unlinkSync(path.join(this.historyDir, file));
+        }
+      }
+    }
+
+    // Clear any in-memory buffers for this phase
+    for (const key of this.buffers.keys()) {
+      if (key.startsWith(`${phase}_`)) {
+        this.buffers.delete(key);
+      }
+    }
+  }
+
   getPhaseHistory(phase: Phase): PhaseHistory[] {
     const agentMap = new Map<string, ChatRun[]>();
 

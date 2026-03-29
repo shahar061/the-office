@@ -37,6 +37,7 @@ export function resolveRole(name: string): AgentRole {
   if ((AGENT_ROLES as readonly string[]).includes(normalized)) {
     return normalized;
   }
+  console.warn(`[SDKBridge] resolveRole: unknown task name "${name}" (normalized: "${normalized}") → falling back to freelancer`);
   return 'freelancer';
 }
 

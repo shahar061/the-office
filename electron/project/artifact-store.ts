@@ -66,7 +66,9 @@ export class ArtifactStore {
 
   /** Parse plan.md into milestone titles (best-effort heading extraction). */
   parsePlanMilestones(): { id: string; title: string }[] {
-    const plan = this.readArtifact('plan.md');
+    const filePath = path.join(this.officeDir, 'plan.md');
+    if (!fs.existsSync(filePath)) return [];
+    const plan = fs.readFileSync(filePath, 'utf-8');
     const milestones: { id: string; title: string }[] = [];
     const lines = plan.split('\n');
     let idx = 0;

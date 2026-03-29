@@ -12,6 +12,7 @@ import {
   setCurrentProjectDir,
   setArtifactStore,
   setChatHistoryStore,
+  resetSessionState,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -21,6 +22,7 @@ export function initProjectHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async (_event, projectPath: string) => {
     try {
+      resetSessionState();
       projectManager.openProject(projectPath);
       setCurrentProjectDir(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
@@ -35,6 +37,7 @@ export function initProjectHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.CREATE_PROJECT, async (_event, name: string, projectPath: string) => {
     try {
+      resetSessionState();
       projectManager.createProject(name, projectPath);
       setCurrentProjectDir(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));

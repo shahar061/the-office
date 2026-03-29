@@ -38,6 +38,10 @@ export class CharacterSprite {
     this.container.addChild(this.sprite);
   }
 
+  getRawFrames(): Texture[][] {
+    return this.frames;
+  }
+
   private getFrames(direction: Direction, anim: AnimState): Texture[] {
     const row = DIRECTION_ROW[direction];
     const frameIndices = ANIM_FRAMES[anim];

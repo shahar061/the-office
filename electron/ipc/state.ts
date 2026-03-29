@@ -201,3 +201,30 @@ export function rejectPendingQuestions(reason: string): void {
   }
   pendingQuestions.clear();
 }
+
+/** Reset all session state when switching projects. */
+export function resetSessionState(): void {
+  // Abort any active agent session
+  if (activeAbort) {
+    activeAbort();
+    activeAbort = null;
+  }
+
+  // Clear pending promises
+  rejectPendingQuestions('Project switch');
+  pendingReview = null;
+  pendingIntro = null;
+
+  // Reset phase/chat tracking
+  phaseMachine = null;
+  permissionHandler = null;
+  currentChatPhase = null;
+  currentChatAgentRole = null;
+  currentChatRunNumber = 0;
+
+  // Reset session stats
+  sessionStats.totalCost = 0;
+  sessionStats.totalTokens = 0;
+  sessionStats.sessionTime = 0;
+  sessionStats.activeAgents = 0;
+}

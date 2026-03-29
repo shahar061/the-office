@@ -74,21 +74,19 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     const prevActive = new Set<AgentRole>();
 
-    const unsub = useOfficeStore.subscribe((state) => {
-      const current = state.activeAgents;
-
+    function syncActiveAgents(current: Set<AgentRole>) {
       // Detect newly active agents (entered)
       for (const role of current) {
         if (!prevActive.has(role)) {
-          scene.showCharacter(role);
+          scene!.showCharacter(role);
           audioManager.playSfx('agent-appear');
-          const character = scene.getCharacter(role);
+          const character = scene!.getCharacter(role);
           if (character) {
             character.moveTo(character.getDeskTile());
-            const entrance = scene.getEntrancePosition();
-            const mapRenderer = scene.getMapRenderer();
+            const entrance = scene!.getEntrancePosition();
+            const mapRenderer = scene!.getMapRenderer();
             const pos = mapRenderer.tileToPixel(entrance.x, entrance.y);
-            scene.getCamera().nudgeToward(
+            scene!.getCamera().nudgeToward(
               pos.x + mapRenderer.tileSize / 2,
               pos.y + mapRenderer.tileSize,
             );
@@ -99,12 +97,19 @@ export function useSceneSync(scene: OfficeScene | null) {
       // Detect deactivated agents (closed)
       for (const role of prevActive) {
         if (!current.has(role)) {
-          scene.hideCharacter(role);
+          scene!.hideCharacter(role);
         }
       }
 
       prevActive.clear();
       for (const role of current) prevActive.add(role);
+    }
+
+    // Process any agents that became active before the scene was ready
+    syncActiveAgents(useOfficeStore.getState().activeAgents);
+
+    const unsub = useOfficeStore.subscribe((state) => {
+      syncActiveAgents(state.activeAgents);
     });
 
     return unsub;
@@ -184,8 +189,18 @@ export function useSceneSync(scene: OfficeScene | null) {
   useEffect(() => {
     if (!scene) return;
 
+    // PC seats available for TL clones (spawn points in the Tiled map)
+    const PC_SEATS = ['pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5', 'pc-6'];
+    const occupiedSeats = new Set<string>();
+    // Maps cloneId → { seat, characterId }
+    const cloneMap = new Map<string, { seat: string; characterId: string }>();
+
+    function getNextSeat(): string | undefined {
+      return PC_SEATS.find(s => !occupiedSeats.has(s));
+    }
+
     function handleChoreography(e: Event) {
-      const { step } = (e as CustomEvent).detail;
+      const { step, cloneId } = (e as CustomEvent).detail;
       const mapRenderer = scene!.getMapRenderer();
       const warTable = scene!.getWarTable();
       if (!warTable) return;
@@ -237,6 +252,7 @@ export function useSceneSync(scene: OfficeScene | null) {
           break;
         }
         case 'tl-reading': {
+          scene!.showCharacter('team-lead');
           const tl = scene!.getCharacter('team-lead');
           if (tl) {
             tl.moveTo(tableTile);
@@ -251,13 +267,57 @@ export function useSceneSync(scene: OfficeScene | null) {
           }
           break;
         }
-        case 'tl-done': {
+        case 'tl-coordinator-done': {
+          // Coordinator TL finishes — move to desk
           const tl = scene!.getCharacter('team-lead');
           if (tl) {
             const desk = tl.getDeskTile();
             tl.moveTo(desk);
-            tl.setIdle();
+            tl.setWorking('type');
           }
+          break;
+        }
+        case 'tl-clone-spawned': {
+          if (!cloneId) break;
+          const seat = getNextSeat();
+          if (!seat) break;
+          occupiedSeats.add(seat);
+          const characterId = `tl-clone-${cloneId}`;
+          cloneMap.set(cloneId, { seat, characterId });
+          const clone = scene!.createClone(characterId, 'team-lead', seat);
+          if (clone) {
+            const entrance = scene!.getEntrancePosition();
+            clone.repositionTo(entrance.x, entrance.y);
+            clone.show(scene!.getMapRenderer().getCharacterContainer());
+            clone.moveTo(clone.getDeskTile());
+          }
+          break;
+        }
+        case 'tl-clone-writing': {
+          if (!cloneId) break;
+          const info = cloneMap.get(cloneId);
+          if (!info) break;
+          const clone = scene!.getCharacter(info.characterId);
+          if (clone) clone.setWorking('type');
+          break;
+        }
+        case 'tl-clone-done': {
+          if (!cloneId) break;
+          const info = cloneMap.get(cloneId);
+          if (!info) break;
+          const clone = scene!.getCharacter(info.characterId);
+          if (clone) clone.setIdle();
+          break;
+        }
+        case 'tl-done': {
+          // All clones finished — clean up
+          const tl = scene!.getCharacter('team-lead');
+          if (tl) tl.setIdle();
+          for (const [, { characterId, seat }] of cloneMap) {
+            scene!.destroyClone(characterId);
+            occupiedSeats.delete(seat);
+          }
+          cloneMap.clear();
           break;
         }
       }
