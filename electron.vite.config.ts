@@ -45,6 +45,7 @@ export default defineConfig({
         '@shared': path.resolve(__dirname, 'shared'),
       },
     },
+    define: { __APP_VERSION__: JSON.stringify(require('./package.json').version) },
     build: {
       outDir: 'dist/renderer',
     },
