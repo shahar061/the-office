@@ -14,7 +14,7 @@ const styles = {
     height: '100%',
     background: '#0f0f1a',
     overflow: 'hidden',
-    paddingTop: '48px',
+    paddingTop: '8px',
   },
   toolbar: {
     display: 'flex',
