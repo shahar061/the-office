@@ -348,7 +348,8 @@ export class OfficeScene {
 
   /** Create fog overlay. Defaults to CEO room center; pass coords to override. */
   createFog(centerX?: number, centerY?: number): void {
-    if (this.fog) return; // already exists
+    if (this.fog && !this.fog.isDestroyed()) return; // already exists and active
+    if (this.fog?.isDestroyed()) this.fog = null;
     const mapPxW = this.mapRenderer.width * this.mapRenderer.tileSize;
     const mapPxH = this.mapRenderer.height * this.mapRenderer.tileSize;
 

@@ -16,7 +16,7 @@ export function loadAgentDefinition(mdPath: string): [string, AgentDefinition] {
   return [name, {
     description: (frontmatter.description as string) || name,
     prompt: body.trim(),
-    tools: (frontmatter.tools as string[] | undefined) || undefined,
+    tools: (frontmatter.allowedTools as string[] | undefined) || (frontmatter.tools as string[] | undefined) || undefined,
   }];
 }
 

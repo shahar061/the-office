@@ -95,6 +95,25 @@ export class Camera {
     return targets;
   }
 
+  getWorldX(): number { return this.currentX; }
+  getWorldY(): number { return this.currentY; }
+  getZoom(): number { return this.currentZoom; }
+  getViewWidth(): number { return this.viewWidth; }
+  getViewHeight(): number { return this.viewHeight; }
+
+  /** Actual visible world-space bounds after map-edge clamping. */
+  getVisibleBounds(): { left: number; right: number; top: number; bottom: number } {
+    const cx = this.container.x;
+    const cy = this.container.y;
+    const z = this.currentZoom || 1;
+    return {
+      left: -cx / z,
+      top: -cy / z,
+      right: (this.viewWidth - cx) / z,
+      bottom: (this.viewHeight - cy) / z,
+    };
+  }
+
   setViewSize(width: number, height: number): void {
     this.viewWidth = width;
     this.viewHeight = height;
@@ -144,6 +163,18 @@ export class Camera {
   setZoom(zoom: number): void {
     this.manualOverride = true;
     this.targetZoom = Math.max(this.getMinZoom(), Math.min(4, zoom));
+  }
+
+  /** Instantly snap to a position + zoom (no LERP animation). */
+  snapTo(x: number, y: number, zoom: number): void {
+    this.manualOverride = true;
+    this.targetX = x;
+    this.targetY = y;
+    this.currentX = x;
+    this.currentY = y;
+    const z = Math.max(this.getMinZoom(), Math.min(4, zoom));
+    this.targetZoom = z;
+    this.currentZoom = z;
   }
 
   resetToPhase(phase: string): void {
