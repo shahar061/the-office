@@ -10,6 +10,7 @@ export interface SessionConfig {
   prompt: string;
   systemPrompt?: string;
   cwd?: string;
+  model?: string;
   agents?: Record<string, { description: string; prompt: string; tools?: string[] }>;
   allowedTools?: string[];
   env?: Record<string, string>;
@@ -217,6 +218,7 @@ export class SDKBridge extends EventEmitter {
     if (config.agents) options.agents = config.agents;
     if (config.allowedTools) options.allowedTools = config.allowedTools;
     if (config.maxTurns) options.maxTurns = config.maxTurns;
+    if (config.model) options.model = config.model;
 
     // Pass full process.env merged with any auth overrides
     options.env = config.env
