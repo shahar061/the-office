@@ -53,35 +53,10 @@ export function useWarRoomIntro(scene: OfficeScene | null) {
     const camera = scene.getCamera();
     camera.snapTo(pmPos.x, pmPos.y, 2.5);
 
-    // Walk PM to a walkable tile in the boardroom
-    const mapRenderer = scene.getMapRenderer();
-    const boardroom = mapRenderer.getZone('boardroom');
-    if (boardroom) {
-      // Find a walkable tile within the boardroom zone (center-first search)
-      const cx = boardroom.x + Math.floor(boardroom.width / 2);
-      const cy = boardroom.y + Math.floor(boardroom.height / 2);
-      let target: { x: number; y: number } | null = null;
-
-      // Spiral out from center to find nearest walkable tile
-      for (let radius = 0; radius <= Math.max(boardroom.width, boardroom.height); radius++) {
-        for (let dy = -radius; dy <= radius && !target; dy++) {
-          for (let dx = -radius; dx <= radius && !target; dx++) {
-            if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
-            const tx = cx + dx;
-            const ty = cy + dy;
-            if (tx >= boardroom.x && tx < boardroom.x + boardroom.width &&
-                ty >= boardroom.y && ty < boardroom.y + boardroom.height &&
-                mapRenderer.isWalkable(tx, ty)) {
-              target = { x: tx, y: ty };
-            }
-          }
-        }
-        if (target) break;
-      }
-
-      if (target) {
-        pm.moveTo(target);
-      }
+    // Walk PM to the warroom seat in the boardroom
+    const seat = scene.getMapRenderer().getSpawnPoint('warroom-seat');
+    if (seat) {
+      pm.moveTo(seat);
     }
 
     // Track PM position each frame: update fog center + camera
