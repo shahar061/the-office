@@ -101,8 +101,9 @@ export function useWarRoomIntro(scene: OfficeScene | null) {
   const handleIntroComplete = useCallback(async () => {
     if (!scene) return;
 
-    // Fog fades out
+    // Fog fades out + camera slowly zooms out to fit screen
     scene.skipFog();
+    scene.getCamera().fitToScreen();
 
     // Signal backend that intro is done
     try {
