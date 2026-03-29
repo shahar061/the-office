@@ -1,14 +1,14 @@
 // Audio asset imports (Vite resolves these to URLs)
-import musicUrl from '../assets/audio/office-bgm.ogg?url';
-import chatSendUrl from '../assets/audio/chat-send.ogg?url';
-import phaseStartUrl from '../assets/audio/phase-start.ogg?url';
-import phaseCompleteUrl from '../assets/audio/phase-complete.ogg?url';
-import artifactWrittenUrl from '../assets/audio/artifact-written.ogg?url';
-import agentAppearUrl from '../assets/audio/agent-appear.ogg?url';
-import cardPinnedUrl from '../assets/audio/card-pinned.ogg?url';
-import reviewReadyUrl from '../assets/audio/review-ready.ogg?url';
-import agentWaitingUrl from '../assets/audio/agent-waiting.ogg?url';
-import permissionRequestUrl from '../assets/audio/permission-request.ogg?url';
+import musicUrl from '../assets/audio/office-bgm.mp3?url';
+import chatSendUrl from '../assets/audio/chat-send.mp3?url';
+import phaseStartUrl from '../assets/audio/phase-start.mp3?url';
+import phaseCompleteUrl from '../assets/audio/phase-complete.mp3?url';
+import artifactWrittenUrl from '../assets/audio/artifact-written.mp3?url';
+import agentAppearUrl from '../assets/audio/agent-appear.mp3?url';
+import cardPinnedUrl from '../assets/audio/card-pinned.mp3?url';
+import reviewReadyUrl from '../assets/audio/review-ready.mp3?url';
+import agentWaitingUrl from '../assets/audio/agent-waiting.mp3?url';
+import permissionRequestUrl from '../assets/audio/permission-request.mp3?url';
 
 export type SfxName =
   | 'chat-send'
