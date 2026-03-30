@@ -400,16 +400,10 @@ export class TiledMapRenderer {
         }
       }
 
-      // furniture-mid and furniture-above render on top of characters visually
-      // but must not block pointer events on the character layer beneath them
-      if (layerName === 'furniture-mid' || layerName === 'furniture-above') {
-        container.eventMode = 'none'
-      }
-
       this.layerContainers.set(layerName, container)
 
       this.rootContainer.addChild(container)
-      if (layerName === 'furniture-below') {
+      if (layerName === 'furniture-above') {
         this.rootContainer.addChild(this.characterContainer)
       }
     }
