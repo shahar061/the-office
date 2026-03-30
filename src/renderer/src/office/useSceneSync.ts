@@ -27,20 +27,27 @@ export function useSceneSync(scene: OfficeScene | null) {
         if (!character) continue;
 
         // Skip if state hasn't changed
-        if (prevInfo && prevInfo.state === info.state && prevInfo.toolName === info.toolName) {
+        if (prevInfo && prevInfo.state === info.state && prevInfo.toolName === info.toolName && prevInfo.toolTarget === info.toolTarget) {
           continue;
         }
 
         switch (info.state) {
           case 'typing':
             character.setWorking('type');
+            if (info.toolName && info.toolTarget) {
+              character.showToolBubble(info.toolName, info.toolTarget);
+            }
             break;
           case 'reading':
             character.setWorking('read');
+            if (info.toolName && info.toolTarget) {
+              character.showToolBubble(info.toolName, info.toolTarget);
+            }
             break;
           case 'idle':
             if (prevInfo && prevInfo.state !== 'idle') {
               character.setIdle();
+              character.hideToolBubble();
             }
             break;
           // 'walking' is handled internally by Character.moveTo()
