@@ -87,7 +87,7 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
       activity = { ...activity, actions: updatedActions };
     } else if (event.type === 'agent:closed') {
       const existing = chars.get(role);
-      if (existing) chars.set(role, { ...existing, state: 'idle', lastActive: event.timestamp });
+      if (existing) chars.set(role, { ...existing, state: 'idle', toolName: undefined, toolTarget: undefined, lastActive: event.timestamp });
       active.delete(role);
     }
 
