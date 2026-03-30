@@ -144,7 +144,7 @@ export class InteractiveObjects {
     if (!state || !state.available) return;
     state.hovered = hovered;
     state.tooltip.visible = hovered;
-    state.outlineFilter.alpha = hovered ? 1 : 0;
+    state.outlineFilter.alpha = hovered ? 1 : 0.4;
   }
 
   setAvailable(objectName: string, available: boolean): void {
@@ -153,7 +153,10 @@ export class InteractiveObjects {
     state.available = available;
     state.group.eventMode = available ? 'static' : 'none';
     state.group.cursor = available ? 'pointer' : 'default';
-    if (!available) {
+    if (available) {
+      // Subtle persistent glow so user can see clickable artifacts
+      state.outlineFilter.alpha = state.hovered ? 1 : 0.4;
+    } else {
       state.tooltip.visible = false;
       state.outlineFilter.alpha = 0;
       state.hovered = false;
