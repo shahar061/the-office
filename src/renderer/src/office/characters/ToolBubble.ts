@@ -44,6 +44,7 @@ export class ToolBubble {
   constructor() {
     this.container = new Container();
     this.container.zIndex = 10000;
+    this.container.eventMode = 'none';
     this.container.alpha = 0;
     this.container.visible = false;
 

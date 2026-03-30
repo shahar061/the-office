@@ -47,9 +47,9 @@ export function MessageBubble({ msg, isWaiting }: MessageBubbleProps): React.JSX
     ? 'You'
     : isSystem
       ? 'System'
-      : msg.agentRole
+      : msg.agentLabel ?? (msg.agentRole
         ? agentDisplayName(msg.agentRole)
-        : 'Agent';
+        : 'Agent');
 
   const accentColor = isUser
     ? colors.accent

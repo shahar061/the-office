@@ -53,6 +53,7 @@ export type AgentEventType =
 export interface AgentEvent {
   agentId: string;
   agentRole: AgentRole;
+  agentLabel?: string;  // Display override, e.g. "Team Lead #2"
   source: 'sdk';
   type: AgentEventType;
   isTopLevel?: boolean;  // true for init events, false for sub-task events
@@ -108,6 +109,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'agent' | 'system';
   agentRole?: AgentRole;
+  agentLabel?: string;
   text: string;
   timestamp: number;
 }

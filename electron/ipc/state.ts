@@ -164,6 +164,7 @@ export function onAgentEvent(event: AgentEvent): void {
     sendChat({
       role: 'agent',
       agentRole: event.agentRole,
+      agentLabel: event.agentLabel,
       text: event.message,
     });
   }
