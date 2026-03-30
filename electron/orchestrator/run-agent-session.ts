@@ -60,7 +60,11 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
   if (config.expectedOutput) {
     const outputPath = path.join(config.cwd, config.expectedOutput);
     if (!fs.existsSync(outputPath)) {
-      throw new Error(`Expected output not found: ${config.expectedOutput}`);
+      throw new Error(
+        `Agent finished but did not produce the expected file: ${config.expectedOutput}. `
+        + 'This can happen when the API rate-limits the session or the agent runs out of context. '
+        + 'Try again in a minute.'
+      );
     }
   }
 }

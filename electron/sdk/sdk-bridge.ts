@@ -181,6 +181,21 @@ export function translateMessage(
     ];
   }
 
+  // rate limit events
+  if (type === 'rate_limit_event') {
+    const retryAfter = (msg.retry_after as number | undefined) ?? 0;
+    const message = retryAfter > 0
+      ? `Rate limited by API — retrying in ${Math.ceil(retryAfter)}s...`
+      : 'Rate limited by API — retrying...';
+    return [
+      {
+        ...base,
+        type: 'agent:message',
+        message,
+      },
+    ];
+  }
+
   // stream_event messages
   if (type === 'stream_event') {
     const event = msg.event as Record<string, unknown> | undefined;
