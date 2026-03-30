@@ -3,6 +3,7 @@ import { CharacterSprite, type Direction, type AnimState } from './CharacterSpri
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
 import type { AgentRole } from '../../../../shared/types';
+import { ToolBubble, toolIcon } from './ToolBubble';
 
 export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
 
@@ -46,6 +47,7 @@ export class Character {
   private fadeDuration: number = 0;
   private fadeElapsed: number = 0;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private toolBubble: ToolBubble;
 
   constructor(options: CharacterOptions) {
     this.agentId = options.agentId;
@@ -64,6 +66,8 @@ export class Character {
     this.px = pos.x + this.mapRenderer.tileSize / 2;
     this.py = pos.y + this.mapRenderer.tileSize;
     this.sprite.setPosition(this.px, this.py);
+    this.toolBubble = new ToolBubble();
+    this.sprite.container.addChild(this.toolBubble.container);
   }
 
   getState(): CharacterState {
@@ -130,6 +134,14 @@ export class Character {
     });
   }
 
+  showToolBubble(toolName: string, target: string): void {
+    this.toolBubble.show(toolIcon(toolName), target);
+  }
+
+  hideToolBubble(): void {
+    this.toolBubble.startLinger();
+  }
+
   show(parent: import('pixi.js').Container): void {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.isVisible = true;
@@ -166,6 +178,8 @@ export class Character {
         }
       }
     }
+
+    this.toolBubble.update(dt);
 
     // Skip movement/idle logic when not visible
     if (!this.isVisible) return;
@@ -250,6 +264,7 @@ export class Character {
 
   destroy(): void {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    this.toolBubble.destroy();
     this.sprite.destroy();
   }
 }
