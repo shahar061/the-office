@@ -38,9 +38,12 @@ export class ToolBubble {
   private state: BubbleState = 'hidden';
   private fadeElapsed = 0;
   private lingerElapsed = 0;
+  private bgW = 0;
+  private bgH = 0;
 
   constructor() {
     this.container = new Container();
+    this.container.zIndex = 10000;
     this.container.alpha = 0;
     this.container.visible = false;
 
@@ -74,15 +77,11 @@ export class ToolBubble {
     }
 
     // Redraw background to fit text
-    const bgW = Math.min(this.label.width + PADDING_X * 2, MAX_WIDTH);
-    const bgH = this.label.height + PADDING_Y * 2;
+    this.bgW = Math.min(this.label.width + PADDING_X * 2, MAX_WIDTH);
+    this.bgH = this.label.height + PADDING_Y * 2;
     this.bg.clear();
-    this.bg.roundRect(0, 0, bgW, bgH, CORNER_RADIUS);
+    this.bg.roundRect(0, 0, this.bgW, this.bgH, CORNER_RADIUS);
     this.bg.fill({ color: BG_COLOR, alpha: BG_ALPHA });
-
-    // Center above sprite
-    this.container.x = -bgW / 2;
-    this.container.y = OFFSET_Y - bgH;
 
     if (this.state === 'hidden' || this.state === 'fading-out') {
       // Start fade in
@@ -102,6 +101,12 @@ export class ToolBubble {
     if (this.state === 'hidden') return;
     this.state = 'lingering';
     this.lingerElapsed = 0;
+  }
+
+  /** Position bubble centered above a character at world coordinates (px, py). */
+  setPosition(px: number, py: number): void {
+    this.container.x = px - this.bgW / 2;
+    this.container.y = py + OFFSET_Y - this.bgH;
   }
 
   hide(): void {

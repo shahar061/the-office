@@ -67,7 +67,6 @@ export class Character {
     this.py = pos.y + this.mapRenderer.tileSize;
     this.sprite.setPosition(this.px, this.py);
     this.toolBubble = new ToolBubble();
-    this.sprite.container.addChild(this.toolBubble.container);
   }
 
   getState(): CharacterState {
@@ -147,6 +146,7 @@ export class Character {
     this.isVisible = true;
     this.sprite.setAlpha(0);
     parent.addChild(this.sprite.container);
+    parent.addChild(this.toolBubble.container);
     this.enableClick();
     this.fadeDirection = 'in';
     this.fadeDuration = 0.5;
@@ -175,6 +175,8 @@ export class Character {
         if (alpha === 0) {
           this.isVisible = false;
           this.sprite.container.parent?.removeChild(this.sprite.container);
+          this.toolBubble.hide();
+          this.toolBubble.container.parent?.removeChild(this.toolBubble.container);
         }
       }
     }
@@ -191,6 +193,9 @@ export class Character {
     }
     // Y-sort: characters closer to bottom render in front
     this.sprite.container.zIndex = this.py;
+    // Bubble floats above all characters
+    this.toolBubble.setPosition(this.px, this.py);
+    this.toolBubble.container.zIndex = 100000;
   }
 
   private updateWalk(dt: number): void {
