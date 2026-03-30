@@ -283,7 +283,28 @@ export class SDKBridge extends EventEmitter {
 
     try {
       for await (const msg of gen) {
-        console.log('[SDKBridge] Message type:', (msg as any)?.type, (msg as any)?.subtype || '');
+        const m = msg as any;
+        const mType = m?.type;
+        const mSubtype = m?.subtype || '';
+        console.log('[SDKBridge] Message type:', mType, mSubtype);
+
+        // Detailed logging for debugging agent behavior
+        if (mType === 'assistant') {
+          const content = m?.message?.content ?? m?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === 'tool_use') {
+                const input = block.input || {};
+                const target = input.file_path || input.command || input.pattern || input.path || '';
+                console.log(`[SDKBridge]   tool_use: ${block.name} → ${String(target).slice(0, 100)}`);
+              } else if (block.type === 'text' && block.text) {
+                console.log(`[SDKBridge]   text: ${block.text.slice(0, 150)}${block.text.length > 150 ? '...' : ''}`);
+              }
+            }
+          }
+        } else if (mType === 'result') {
+          console.log(`[SDKBridge]   result: ${m?.subtype || m?.result || 'unknown'}`, m?.is_error ? '(ERROR)' : '');
+        }
         const events = translateMessage(
           msg as unknown as Record<string, unknown>,
           config.agentRole,
