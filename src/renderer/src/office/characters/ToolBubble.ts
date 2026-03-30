@@ -1,16 +1,16 @@
 import { Container, Graphics, Text } from 'pixi.js';
 
 const TOOL_ICONS: Record<string, string> = {
-  Write: '✏',
-  Edit: '✏',
-  Read: '👁',
-  Bash: '▶',
-  Grep: '🔍',
-  Glob: '🔍',
-  Agent: '🤖',
+  Write: '>',
+  Edit: '>',
+  Read: '<',
+  Bash: '$',
+  Grep: '?',
+  Glob: '?',
+  Agent: '@',
 };
 
-const DEFAULT_ICON = '⚙';
+const DEFAULT_ICON = '*';
 
 const PADDING_X = 4;
 const PADDING_Y = 2;

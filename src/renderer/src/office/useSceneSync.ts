@@ -48,7 +48,7 @@ export function useSceneSync(scene: OfficeScene | null) {
             if (prevInfo && prevInfo.state !== 'idle') {
               character.setIdle();
               if (state.activeAgents.has(role as any)) {
-                character.showToolBubble('', '💭');
+                character.showToolBubble('', '...');
               } else {
                 character.hideToolBubble();
               }
