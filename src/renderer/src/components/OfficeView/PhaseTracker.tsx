@@ -68,7 +68,9 @@ export function PhaseTracker({ highlightedPhases }: PhaseTrackerProps) {
 
   const introMode = highlightedPhases !== undefined && highlightedPhases !== null;
 
-  const actionButton = phase !== 'idle' ? getActionButton(phase, status) : null;
+  // Derive effective status: if no active PhaseInfo but phase is in completedPhases, treat as completed
+  const effectiveStatus = status ?? (completedPhases.includes(phase as Phase) ? 'completed' : undefined);
+  const actionButton = phase !== 'idle' ? getActionButton(phase, effectiveStatus) : null;
 
   const handleAction = useCallback(async () => {
     if (!actionButton || starting) return;
