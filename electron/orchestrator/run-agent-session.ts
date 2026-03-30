@@ -36,35 +36,60 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
     tools.push('AskUserQuestion');
   }
 
-  // 3. Run SDK session
-  const bridge = new SDKBridge();
-  bridge.on('agentEvent', (event: AgentEvent) => {
-    if (config.agentLabel) event.agentLabel = config.agentLabel;
-    config.onEvent(event);
-  });
+  // 3. Run SDK session (with retry if expected output is missing)
+  const maxAttempts = config.expectedOutput ? 2 : 1;
 
-  await bridge.runSession({
-    agentId: config.agentName,
-    agentRole,
-    systemPrompt: agentDef.prompt,  // Agent's persona/instructions from markdown
-    prompt: config.prompt,           // Orchestrator's contextual instructions
-    cwd: config.cwd,
-    model: config.model,
-    allowedTools: tools,
-    env: config.env,
-    onWaiting: config.excludeAskUser ? undefined : (questions) => config.onWaiting(agentRole, questions),
-    onToolPermission: config.onToolPermission,
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const bridge = new SDKBridge();
+    bridge.on('agentEvent', (event: AgentEvent) => {
+      if (config.agentLabel) event.agentLabel = config.agentLabel;
+      config.onEvent(event);
+    });
 
-  // 4. Verify expected output
-  if (config.expectedOutput) {
-    const outputPath = path.join(config.cwd, config.expectedOutput);
-    if (!fs.existsSync(outputPath)) {
-      throw new Error(
-        `Agent finished but did not produce the expected file: ${config.expectedOutput}. `
-        + 'This can happen when the API rate-limits the session or the agent runs out of context. '
-        + 'Try again in a minute.'
-      );
+    const prompt = attempt === 1
+      ? config.prompt
+      : `RETRY: Your previous session ended without producing the required file: ${config.expectedOutput}.\n`
+        + `You MUST use the Write tool to create this file before finishing.\n\n`
+        + config.prompt;
+
+    await bridge.runSession({
+      agentId: config.agentName,
+      agentRole,
+      systemPrompt: agentDef.prompt,
+      prompt,
+      cwd: config.cwd,
+      model: config.model,
+      allowedTools: tools,
+      env: config.env,
+      onWaiting: config.excludeAskUser ? undefined : (questions) => config.onWaiting(agentRole, questions),
+      onToolPermission: config.onToolPermission,
+    });
+
+    // 4. Verify expected output
+    if (config.expectedOutput) {
+      const outputPath = path.join(config.cwd, config.expectedOutput);
+      if (fs.existsSync(outputPath)) {
+        return; // Success
+      }
+
+      if (attempt < maxAttempts) {
+        console.warn(`[AgentSession] Expected output missing after attempt ${attempt}, retrying...`);
+        // Emit a visible message so the user knows what's happening
+        config.onEvent({
+          agentId: config.agentName,
+          agentRole,
+          source: 'sdk',
+          type: 'agent:message',
+          timestamp: Date.now(),
+          message: `File ${config.expectedOutput} was not created. Retrying...`,
+        });
+      } else {
+        throw new Error(
+          `Agent finished but did not produce the expected file: ${config.expectedOutput}. `
+          + 'This can happen when the API rate-limits the session or the agent runs out of context. '
+          + 'Try again in a minute.'
+        );
+      }
     }
   }
 }
