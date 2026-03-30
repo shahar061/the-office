@@ -218,13 +218,19 @@ export default function OfficeView() {
     return () => window.removeEventListener('war-table-click', handleWarTableClick);
   }, []);
 
-  // Handle phase restart — clear renderer stores
+  // Handle phase restart — clear renderer stores and re-sync from backend
   useEffect(() => {
-    const cleanup = window.office.onPhaseRestart((_targetPhase: string) => {
+    const cleanup = window.office.onPhaseRestart(async (_targetPhase: string) => {
       useWarTableStore.getState().reset();
       useChatStore.getState().clearMessages();
       useOfficeStore.getState().reset();
       useArtifactStore.getState().reset();
+      // Re-fetch cleaned project state from backend (updated completedPhases)
+      const freshState = await window.office.getProjectState();
+      useProjectStore.getState().setProjectState(freshState);
+      // Re-hydrate artifacts from disk (imagine artifacts may still exist)
+      const status = await window.office.getArtifactStatus();
+      useArtifactStore.getState().hydrateFromStatus(status);
     });
     return cleanup;
   }, []);
