@@ -229,6 +229,23 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
   }
 }
 
+/** Create a PhaseMachine from persisted project state (for app restart scenarios). */
+function ensurePhaseMachine(): void {
+  if (phaseMachine || !currentProjectDir) return;
+  const state = projectManager.getProjectState(currentProjectDir);
+  const pm = new PhaseMachine(state.currentPhase, state.completedPhases);
+  setPhaseMachine(pm);
+  pm.on('change', (info: PhaseInfo) => {
+    send(IPC_CHANNELS.PHASE_CHANGE, info);
+    if (currentProjectDir) {
+      projectManager.updateProjectState(currentProjectDir, {
+        currentPhase: info.phase,
+        completedPhases: pm.completedPhases,
+      });
+    }
+  });
+}
+
 export function initPhaseHandlers(): void {
   // ── Phases ──
 
@@ -240,15 +257,15 @@ export function initPhaseHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.START_WARROOM, async () => {
     if (!currentProjectDir) throw new Error('No project open');
-    if (!phaseMachine) throw new Error('No phase machine — start imagine first');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+    if (!phaseMachine) ensurePhaseMachine();
     return handleStartWarroom();
   });
 
   ipcMain.handle(IPC_CHANNELS.START_BUILD, async (_event, config: BuildConfig) => {
     if (!currentProjectDir) throw new Error('No project open');
-    if (!phaseMachine) throw new Error('No phase machine — start imagine first');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+    if (!phaseMachine) ensurePhaseMachine();
     return handleStartBuild(config);
   });
 
