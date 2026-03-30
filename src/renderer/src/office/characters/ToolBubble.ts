@@ -60,7 +60,7 @@ export class ToolBubble {
   }
 
   show(icon: string, target: string): void {
-    const displayText = `${icon} ${target}`;
+    const displayText = target ? `${icon} ${target}` : icon;
     this.label.text = displayText;
 
     // Truncate if too wide

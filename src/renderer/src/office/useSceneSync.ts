@@ -47,7 +47,11 @@ export function useSceneSync(scene: OfficeScene | null) {
           case 'idle':
             if (prevInfo && prevInfo.state !== 'idle') {
               character.setIdle();
-              character.hideToolBubble();
+              if (state.activeAgents.has(role as any)) {
+                character.showToolBubble('', '💭');
+              } else {
+                character.hideToolBubble();
+              }
             }
             break;
           // 'walking' is handled internally by Character.moveTo()
