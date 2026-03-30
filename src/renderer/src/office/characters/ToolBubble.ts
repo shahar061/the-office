@@ -66,7 +66,8 @@ export class ToolBubble {
     // Truncate if too wide
     if (this.label.width > MAX_WIDTH - PADDING_X * 2) {
       let truncated = displayText;
-      while (truncated.length > 3 && this.label.width > MAX_WIDTH - PADDING_X * 2) {
+      let iterations = 0;
+      while (truncated.length > 3 && this.label.width > MAX_WIDTH - PADDING_X * 2 && iterations++ < 50) {
         truncated = truncated.slice(0, -2) + '…';
         this.label.text = truncated;
       }
