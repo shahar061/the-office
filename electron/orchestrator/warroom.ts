@@ -183,6 +183,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     const results = await Promise.allSettled(
       batch.map(async (phase) => {
         const cloneId = `tl-${phase.id}`;
+        const cloneNumber = phases.indexOf(phase) + 1;
         onWarTableChoreography({ step: 'tl-clone-writing', cloneId, phaseId: phase.id });
 
         const phaseTaskList = phase.tasks
@@ -191,6 +192,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
 
         await runAgentSession({
           agentName: 'team-lead',
+          agentLabel: `Team Lead #${cloneNumber}`,
           agentsDir,
           prompt: [
             `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,

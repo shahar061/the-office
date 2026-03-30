@@ -55,7 +55,7 @@ function EntryRow({ entry }: { entry: LogEntry }) {
   });
 
   const agentColor = entry.agentRole ? AGENT_COLORS[entry.agentRole] ?? colors.textMuted : colors.accent;
-  const agentName = entry.agentRole ? agentDisplayName(entry.agentRole) : 'You';
+  const agentName = entry.agentLabel ?? (entry.agentRole ? agentDisplayName(entry.agentRole) : 'You');
 
   if (entry.type === 'phase-transition') {
     return (

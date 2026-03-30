@@ -7,6 +7,7 @@ import { resolveRole } from '../sdk/sdk-bridge';
 
 export interface AgentSessionConfig {
   agentName: string;
+  agentLabel?: string;
   agentsDir: string;
   prompt: string;
   cwd: string;
@@ -37,7 +38,10 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
 
   // 3. Run SDK session
   const bridge = new SDKBridge();
-  bridge.on('agentEvent', (event: AgentEvent) => config.onEvent(event));
+  bridge.on('agentEvent', (event: AgentEvent) => {
+    if (config.agentLabel) event.agentLabel = config.agentLabel;
+    config.onEvent(event);
+  });
 
   await bridge.runSession({
     agentId: config.agentName,

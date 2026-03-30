@@ -8,6 +8,7 @@ export interface LogEntry {
   timestamp: number;
   type: 'tool-start' | 'tool-done' | 'agent-message' | 'user-message' | 'agent-lifecycle' | 'phase-transition';
   agentRole?: AgentRole;
+  agentLabel?: string;
   toolName?: string;
   target?: string;
   text?: string;
@@ -47,7 +48,7 @@ function formatTimestamp(ts: number): string {
 
 function serializeEntry(entry: LogEntry): string {
   const time = formatTimestamp(entry.timestamp);
-  const agent = entry.agentRole ? agentDisplayName(entry.agentRole) : 'System';
+  const agent = entry.agentLabel ?? (entry.agentRole ? agentDisplayName(entry.agentRole) : 'System');
 
   switch (entry.type) {
     case 'tool-start':
@@ -95,52 +96,36 @@ export const useLogStore = create<LogStore>((set, get) => ({
     const { addEntry } = get();
     const ts = event.timestamp;
     const role = event.agentRole;
+    const label = event.agentLabel;
 
     if (event.type === 'agent:created' && event.isTopLevel) {
       addEntry({
-        id: nextId(),
-        timestamp: ts,
-        type: 'agent-lifecycle',
-        agentRole: role,
-        text: 'agent started',
+        id: nextId(), timestamp: ts, type: 'agent-lifecycle',
+        agentRole: role, agentLabel: label, text: 'agent started',
       });
     } else if (event.type === 'agent:tool:start') {
       const toolName = event.toolName ?? 'Tool';
       if (toolName === 'AskUserQuestion') return;
       addEntry({
-        id: nextId(),
-        timestamp: ts,
-        type: 'tool-start',
-        agentRole: role,
-        toolName,
-        target: extractToolTarget(event),
+        id: nextId(), timestamp: ts, type: 'tool-start',
+        agentRole: role, agentLabel: label, toolName, target: extractToolTarget(event),
       });
     } else if (event.type === 'agent:tool:done') {
       const toolName = event.toolName ?? 'Tool';
       if (toolName === 'AskUserQuestion') return;
       addEntry({
-        id: nextId(),
-        timestamp: ts,
-        type: 'tool-done',
-        agentRole: role,
-        toolName,
-        target: extractToolTarget(event),
+        id: nextId(), timestamp: ts, type: 'tool-done',
+        agentRole: role, agentLabel: label, toolName, target: extractToolTarget(event),
       });
     } else if (event.type === 'agent:message' && event.message) {
       addEntry({
-        id: nextId(),
-        timestamp: ts,
-        type: 'agent-message',
-        agentRole: role,
-        text: event.message,
+        id: nextId(), timestamp: ts, type: 'agent-message',
+        agentRole: role, agentLabel: label, text: event.message,
       });
     } else if (event.type === 'agent:closed') {
       addEntry({
-        id: nextId(),
-        timestamp: ts,
-        type: 'agent-lifecycle',
-        agentRole: role,
-        text: 'agent closed',
+        id: nextId(), timestamp: ts, type: 'agent-lifecycle',
+        agentRole: role, agentLabel: label, text: 'agent closed',
       });
     }
   },
