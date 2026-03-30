@@ -8,6 +8,7 @@ export interface CharacterInfo {
   role: AgentRole;
   state: CharacterState;
   toolName?: string;
+  toolTarget?: string;
   lastActive: number;
 }
 
@@ -63,7 +64,7 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
       }
     } else if (event.type === 'agent:tool:start') {
       const charState = READ_TOOLS.has(event.toolName || '') ? 'reading' : 'typing';
-      chars.set(role, { role, state: charState, toolName: event.toolName, lastActive: event.timestamp });
+      chars.set(role, { role, state: charState, toolName: event.toolName, toolTarget: extractToolTarget(event), lastActive: event.timestamp });
 
       const tool = event.toolName ?? '';
       if (tool !== 'AskUserQuestion') {
@@ -78,7 +79,7 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
       }
     } else if (event.type === 'agent:tool:done') {
       const existing = chars.get(role);
-      if (existing) chars.set(role, { ...existing, state: 'idle', toolName: undefined, lastActive: event.timestamp });
+      if (existing) chars.set(role, { ...existing, state: 'idle', toolName: undefined, toolTarget: undefined, lastActive: event.timestamp });
 
       const updatedActions = activity.actions.map((a) =>
         a.id === event.toolId ? { ...a, status: 'done' as const } : a,
