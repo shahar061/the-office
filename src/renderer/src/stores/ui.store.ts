@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppTab = 'chat' | 'office' | 'agents' | 'logs' | 'about';
+export type AppTab = 'chat' | 'office' | 'agents' | 'kanban' | 'logs' | 'about';
 
 interface UIStore {
   isExpanded: boolean;

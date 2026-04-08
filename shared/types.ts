@@ -91,6 +91,7 @@ export interface ProjectState {
   completedPhases: Phase[];
   interrupted: boolean;
   introSeen: boolean;
+  buildIntroSeen: boolean;
 }
 
 export interface PhaseInfo {
@@ -219,6 +220,8 @@ export interface KanbanTask {
   status: 'queued' | 'active' | 'review' | 'done' | 'failed';
   assignedAgent: AgentRole;
   phaseId: string;
+  dependsOn: string[];
+  error?: string;
 }
 
 export interface KanbanState {
@@ -226,6 +229,8 @@ export interface KanbanState {
   currentPhase: string;
   completionPercent: number;
   tasks: KanbanTask[];
+  failed?: boolean;
+  failedTaskId?: string;
 }
 
 // ── Stats ──
@@ -304,6 +309,10 @@ export const IPC_CHANNELS = {
   WARROOM_INTRO_DONE: 'office:warroom-intro-done',
   // Logs
   FLUSH_LOGS: 'office:flush-logs',
+  // Build
+  BUILD_INTRO_DONE: 'office:build-intro-done',
+  BUILD_RESUME: 'office:build-resume',
+  BUILD_RESTART: 'office:build-restart',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -359,6 +368,10 @@ export interface OfficeAPI {
   warRoomIntroDone(): Promise<void>;
   // Logs
   flushLogs(logText: string): Promise<void>;
+  // Build
+  buildIntroDone(): Promise<void>;
+  resumeBuild(): Promise<void>;
+  restartBuild(config: BuildConfig): Promise<void>;
 }
 
 declare global {
