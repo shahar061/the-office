@@ -25,6 +25,8 @@ export interface BuildOrchestratorConfig {
   onKanbanUpdate: (state: KanbanState) => void;
   onWaiting: (agentRole: AgentRole, questions: AskQuestion[]) => Promise<Record<string, string>>;
   onSystemMessage: (text: string) => void;
+  onActStart?: (actName: string) => void;
+  onActComplete?: (actName: string) => void;
 }
 
 /** State tracking for resume support. */
@@ -143,6 +145,8 @@ export async function runBuild(
       await runTaskSession(task, config, artifactStore, completedTaskOutputs);
     },
     onStatusChange: (taskId, status, error) => {
+      if (status === 'active') config.onActStart?.(taskId);
+      if (status === 'done' || status === 'failed') config.onActComplete?.(taskId);
       taskStatuses.set(taskId, status);
       if (error) taskErrors.set(taskId, error);
       emitKanban();

@@ -132,6 +132,8 @@ async function handleStartImagine(userIdea: string): Promise<void> {
       onArtifactAvailable: (info) => {
         send(IPC_CHANNELS.ARTIFACT_AVAILABLE, info);
       },
+      onActStart: (actName) => statsCollector?.onActStart('imagine', actName),
+      onActComplete: (actName) => statsCollector?.onActComplete('imagine', actName),
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
@@ -173,6 +175,8 @@ async function handleStartWarroom(): Promise<void> {
       onEvent: onAgentEvent,
       onWaiting: handleAgentWaiting,
       onSystemMessage,
+      onActStart: (actName) => statsCollector?.onActStart('warroom', actName),
+      onActComplete: (actName) => statsCollector?.onActComplete('warroom', actName),
       onWarTableState: (state: WarTableVisualState) => {
         send(IPC_CHANNELS.WAR_TABLE_STATE, state);
       },
@@ -252,6 +256,8 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
       onKanbanUpdate: (kanbanState) => send(IPC_CHANNELS.KANBAN_UPDATE, kanbanState),
       onWaiting: handleAgentWaiting,
       onSystemMessage,
+      onActStart: (actName) => statsCollector?.onActStart('build', actName),
+      onActComplete: (actName) => statsCollector?.onActComplete('build', actName),
     });
 
     statsCollector?.onPhaseComplete('build');

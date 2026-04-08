@@ -210,6 +210,8 @@ export interface PhaseConfig {
   env: Record<string, string>;
   onEvent: (event: AgentEvent) => void;
   onWaiting: (agentRole: AgentRole, questions: AskQuestion[]) => Promise<Record<string, string>>;
+  onActStart?: (actName: string) => void;
+  onActComplete?: (actName: string) => void;
 }
 
 // ── Kanban ──

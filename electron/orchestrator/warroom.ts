@@ -42,6 +42,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   // Ensure docs/office/ exists (imagine agents may have created it, but be safe)
   fs.mkdirSync(path.join(projectDir, 'docs', 'office'), { recursive: true });
 
+  config.onActStart?.('PM Plan');
   onWarTableState('growing');
   onWarTableChoreography({ step: 'pm-reading' });
   onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
@@ -78,6 +79,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   }
 
   onWarTableChoreography({ step: 'pm-done' });
+  config.onActComplete?.('PM Plan');
 
   // ── Act 2: Review Gate ──
 
@@ -89,6 +91,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
 
   // ── Act 3: Coordinator TL writes tasks.yaml ──
 
+  config.onActStart?.('TL Tasks');
   onWarTableState('expanding');
   onWarTableChoreography({ step: 'tl-reading' });
   onSystemMessage('Team Lead is analyzing the plan and creating task manifest...');
@@ -167,10 +170,12 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   }
 
   onWarTableChoreography({ step: 'tl-coordinator-done', totalClones: phases.length });
+  config.onActComplete?.('TL Tasks');
   onSystemMessage(`Spawning ${phases.length} spec writers...`);
 
   // ── Act 4: Parallel spec-writer TL clones (worker pool) ──
 
+  config.onActStart?.('TL Specs');
   artifactStore.ensureSpecsDir();
   const settings = await getSettings();
   const maxConcurrency = settings.maxParallelTLs || 4;
@@ -255,6 +260,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     }
   }
 
+  config.onActComplete?.('TL Specs');
   onWarTableChoreography({ step: 'tl-done' });
   onWarTableState('complete');
   onSystemMessage('All specs complete. Review the war table or continue to Build.');

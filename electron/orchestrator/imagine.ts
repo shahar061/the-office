@@ -12,6 +12,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
   const artifactStore = new ArtifactStore(projectDir);
 
   // 1. CEO — Discovery
+  config.onActStart?.('CEO Discovery');
   await runAgentSession({
     agentName: 'ceo',
     agentsDir,
@@ -31,11 +32,13 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onEvent,
     onWaiting,
   });
+  config.onActComplete?.('CEO Discovery');
   onSystemMessage('CEO completed Discovery phase. Product Manager starting Definition...');
   onArtifactAvailable({ key: 'vision-brief', filename: '01-vision-brief.md', agentRole: 'ceo' });
 
   // 2. PM — Definition
   const visionBrief = artifactStore.readArtifact('01-vision-brief.md');
+  config.onActStart?.('PM Definition');
   await runAgentSession({
     agentName: 'product-manager',
     agentsDir,
@@ -56,11 +59,13 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onEvent,
     onWaiting,
   });
+  config.onActComplete?.('PM Definition');
   onSystemMessage('Product Manager completed Definition. Market Researcher starting Validation...');
   onArtifactAvailable({ key: 'prd', filename: '02-prd.md', agentRole: 'product-manager' });
 
   // 3. Market Researcher — Validation
   const prd = artifactStore.readArtifact('02-prd.md');
+  config.onActStart?.('Market Research');
   await runAgentSession({
     agentName: 'market-researcher',
     agentsDir,
@@ -83,11 +88,13 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onEvent,
     onWaiting,
   });
+  config.onActComplete?.('Market Research');
   onSystemMessage('Market Researcher completed Validation. Chief Architect starting Architecture...');
   onArtifactAvailable({ key: 'market-analysis', filename: '03-market-analysis.md', agentRole: 'market-researcher' });
 
   // 4. Chief Architect — Architecture
   const allDocs = artifactStore.getImagineContext();
+  config.onActStart?.('Architecture');
   await runAgentSession({
     agentName: 'chief-architect',
     agentsDir,
@@ -107,6 +114,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     onEvent,
     onWaiting,
   });
+  config.onActComplete?.('Architecture');
   onSystemMessage('Chief Architect completed Architecture. Imagine phase complete.');
   onArtifactAvailable({ key: 'system-design', filename: '04-system-design.md', agentRole: 'chief-architect' });
 }
