@@ -237,9 +237,12 @@ export class SDKBridge extends EventEmitter {
     if (config.model) options.model = config.model;
 
     // Pass full process.env merged with any auth overrides
-    options.env = config.env
-      ? { ...process.env, ...config.env }
-      : { ...process.env };
+    // Set max output tokens high enough for large spec writes (default 32K is too low)
+    options.env = {
+      ...process.env,
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '128000',
+      ...(config.env ?? {}),
+    };
 
     // Use 'default' permission mode so canUseTool callback fires
     options.permissionMode = 'default';
