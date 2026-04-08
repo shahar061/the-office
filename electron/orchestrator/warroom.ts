@@ -4,20 +4,13 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
 import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse, AppSettings } from '../../shared/types';
 import yaml from 'js-yaml';
+import { runPool } from './worker-pool';
 
 interface ParsedPhase {
   id: string;
   name: string;
   dependsOn: string[];
   tasks: { id: string; description: string; assigned_agent: string; model: string }[];
-}
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
 }
 
 export interface WarroomConfig extends PhaseConfig {
@@ -167,86 +160,89 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   onWarTableChoreography({ step: 'tl-coordinator-done', totalClones: phases.length });
   onSystemMessage(`Spawning ${phases.length} spec writers...`);
 
-  // ── Act 4: Parallel spec-writer TL clones ──
+  // ── Act 4: Parallel spec-writer TL clones (worker pool) ──
 
   artifactStore.ensureSpecsDir();
   const settings = await getSettings();
   const maxConcurrency = settings.maxParallelTLs || 4;
-  const batches = chunk(phases, maxConcurrency);
 
-  for (const batch of batches) {
-    // Emit spawn events for this batch
-    for (const phase of batch) {
-      const cloneId = `tl-${phase.id}`;
-      onWarTableChoreography({ step: 'tl-clone-spawned', cloneId, phaseId: phase.id });
-    }
+  const systemDesign = artifactStore.getSystemDesign();
+  const phaseSummary = buildPhaseSummary(phases);
 
-    // Run batch in parallel
-    const results = await Promise.allSettled(
-      batch.map(async (phase) => {
-        const cloneId = `tl-${phase.id}`;
-        const cloneNumber = phases.indexOf(phase) + 1;
-        onWarTableChoreography({ step: 'tl-clone-writing', cloneId, phaseId: phase.id });
+  const results = await runPool(
+    phases,
+    maxConcurrency,
+    async (phase, index) => {
+      const cloneNumber = index + 1;
+      onWarTableChoreography({ step: 'tl-clone-writing', cloneId: `tl-${phase.id}`, phaseId: phase.id });
 
-        const phaseTaskList = phase.tasks
-          .map(t => `- ${t.id}: ${t.description} (agent: ${t.assigned_agent}, model: ${t.model})`)
-          .join('\n');
+      const phaseTaskList = phase.tasks
+        .map(t => `- ${t.id}: ${t.description} (agent: ${t.assigned_agent}, model: ${t.model})`)
+        .join('\n');
 
-        await runAgentSession({
-          agentName: 'team-lead',
-          agentLabel: `Team Lead #${cloneNumber}`,
-          agentsDir,
-          prompt: [
-            `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,
-            '',
-            `Write the spec to docs/office/specs/phase-${phase.id}.md`,
-            '',
-            'Follow strict TDD (red-green-refactor) for every task. Each step must have:',
-            '- Checkbox syntax (- [ ]) for tracking',
-            '- Complete code — no placeholders',
-            '- Exact file paths and test commands',
-            '- Bite-sized steps (2-5 minutes each)',
-            '',
-            `## Phase Tasks`,
-            phaseTaskList,
-            '',
-            '## Plan',
-            plan,
-            '',
-            context,
-          ].join('\n'),
-          cwd: projectDir,
-          env,
-          excludeAskUser: true,
-          expectedOutput: `docs/office/specs/phase-${phase.id}.md`,
-          onEvent,
-          onWaiting,
-        });
+      await runAgentSession({
+        agentName: 'team-lead',
+        agentLabel: `Team Lead #${cloneNumber}`,
+        agentsDir,
+        prompt: [
+          `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,
+          '',
+          `Write the spec to docs/office/specs/phase-${phase.id}.md`,
+          '',
+          'IMPORTANT: All context you need is provided below. Do NOT read files from disk,',
+          'do NOT explore the project directory, do NOT run find/ls/cat commands.',
+          'Write the spec directly based on the provided context.',
+          '',
+          'Follow strict TDD (red-green-refactor) for every task. Each step must have:',
+          '- Checkbox syntax (- [ ]) for tracking',
+          '- Complete code — no placeholders',
+          '- Exact file paths and test commands',
+          '- Bite-sized steps (2-5 minutes each)',
+          '',
+          '## Phase Tasks',
+          phaseTaskList,
+          '',
+          '## All Phases (dependency order)',
+          phaseSummary,
+          '',
+          '## System Design',
+          systemDesign,
+        ].join('\n'),
+        cwd: projectDir,
+        env,
+        excludeAskUser: true,
+        expectedOutput: `docs/office/specs/phase-${phase.id}.md`,
+        onEvent,
+        onWaiting,
+      });
 
-        onWarTableChoreography({ step: 'tl-clone-done', cloneId, phaseId: phase.id });
+      onWarTableChoreography({ step: 'tl-clone-done', cloneId: `tl-${phase.id}`, phaseId: phase.id });
 
-        // Emit task cards for this phase
-        const taskEntries = phase.tasks;
-        const milestoneId = milestoneEntries.find(m =>
-          m.title.toLowerCase().includes(phase.name.toLowerCase())
-        )?.id || `m${phases.indexOf(phase) + 1}`;
+      // Emit task cards for this phase
+      const milestoneId = milestoneEntries.find(m =>
+        m.title.toLowerCase().includes(phase.name.toLowerCase())
+      )?.id || `m${index + 1}`;
 
-        for (const t of taskEntries) {
-          onWarTableCardAdded({ id: t.id, type: 'task', title: t.description, parentId: milestoneId });
-          await delay(250);
-        }
-      })
-    );
-
-    // Log failures but don't block other batches
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'rejected') {
-        const phase = batch[i];
-        const reason = (results[i] as PromiseRejectedResult).reason;
-        const errMsg = reason instanceof Error ? reason.message : String(reason);
-        console.error(`[Warroom] Spec writer failed for phase ${phase.id}:`, reason);
-        onSystemMessage(`Error: spec writer for phase "${phase.name}" failed — ${errMsg}`);
+      for (const t of phase.tasks) {
+        onWarTableCardAdded({ id: t.id, type: 'task', title: t.description, parentId: milestoneId });
+        await delay(250);
       }
+    },
+    {
+      onStart: (phase) => {
+        onWarTableChoreography({ step: 'tl-clone-spawned', cloneId: `tl-${phase.id}`, phaseId: phase.id });
+      },
+    },
+  );
+
+  // Log failures
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].status === 'rejected') {
+      const phase = phases[i];
+      const reason = (results[i] as PromiseRejectedResult).reason;
+      const errMsg = reason instanceof Error ? reason.message : String(reason);
+      console.error(`[Warroom] Spec writer failed for phase ${phase.id}:`, reason);
+      onSystemMessage(`Error: spec writer for phase "${phase.name}" failed — ${errMsg}`);
     }
   }
 
