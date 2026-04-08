@@ -89,6 +89,10 @@ contextBridge.exposeInMainWorld('office', {
   resumeBuild: () => ipcRenderer.invoke(IPC_CHANNELS.BUILD_RESUME),
   restartBuild: (config: BuildConfig) => ipcRenderer.invoke(IPC_CHANNELS.BUILD_RESTART, config),
 
+  // Stats
+  onStatsState: (cb: (s: any) => void) => onEvent(IPC_CHANNELS.STATS_STATE, cb),
+  getStatsState: () => ipcRenderer.invoke(IPC_CHANNELS.GET_STATS_STATE),
+
   // Logs
   flushLogs: (logText: string) => ipcRenderer.invoke(IPC_CHANNELS.FLUSH_LOGS, logText),
 });

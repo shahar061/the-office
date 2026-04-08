@@ -54,7 +54,11 @@ import {
   setPendingIntro,
   pendingBuildIntro,
   setPendingBuildIntro,
+  statsCollector,
+  setStatsCollector,
 } from './state';
+import { StatsCollector } from '../stats/stats-collector';
+import type { StatsState } from '../../shared/types';
 import type { BuildState } from '../orchestrator/build';
 
 let lastBuildState: BuildState | null = null;
@@ -106,6 +110,11 @@ async function handleStartImagine(userIdea: string): Promise<void> {
 
   pm.transition('imagine');
 
+  if (!statsCollector && currentProjectDir) {
+    setStatsCollector(new StatsCollector(currentProjectDir));
+  }
+  statsCollector?.onPhaseStart('imagine');
+
   const ph = new PermissionHandler(
     'auto-all',
     (req: PermissionRequest) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
@@ -124,6 +133,7 @@ async function handleStartImagine(userIdea: string): Promise<void> {
         send(IPC_CHANNELS.ARTIFACT_AVAILABLE, info);
       },
     });
+    statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
   } catch (err: any) {
     console.error('[Main] Imagine failed:', err);
@@ -140,6 +150,11 @@ async function handleStartWarroom(): Promise<void> {
   setCurrentChatRunNumber(0);
 
   phaseMachine!.transition('warroom');
+
+  if (!statsCollector && currentProjectDir) {
+    setStatsCollector(new StatsCollector(currentProjectDir));
+  }
+  statsCollector?.onPhaseStart('warroom');
 
   let ph = permissionHandler;
   if (!ph) {
@@ -185,6 +200,7 @@ async function handleStartWarroom(): Promise<void> {
         maxParallelTLs: 4,
       }),
     });
+    statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -202,6 +218,11 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
   setCurrentChatRunNumber(0);
 
   phaseMachine!.transition('build');
+
+  if (!statsCollector && currentProjectDir) {
+    setStatsCollector(new StatsCollector(currentProjectDir));
+  }
+  statsCollector?.onPhaseStart('build');
 
   const ph = new PermissionHandler(
     config.permissionMode,
@@ -233,6 +254,7 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
       onSystemMessage,
     });
 
+    statsCollector?.onPhaseComplete('build');
     if (!lastBuildState.taskErrors.size) {
       phaseMachine!.markCompleted('build');
       phaseMachine!.transition('complete');
@@ -504,4 +526,16 @@ export function initPhaseHandlers(): void {
       await shell.openExternal(url);
     }
   });
+
+  ipcMain.handle(IPC_CHANNELS.GET_STATS_STATE, async (): Promise<StatsState | null> => {
+    return statsCollector?.getState() ?? null;
+  });
+
+  // Push stats to renderer periodically
+  setInterval(() => {
+    if (statsCollector) {
+      statsCollector.flush();
+      send(IPC_CHANNELS.STATS_STATE, statsCollector.getState());
+    }
+  }, 10_000);
 }

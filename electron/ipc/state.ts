@@ -17,6 +17,7 @@ import { AuthManager } from '../auth/auth-manager';
 import { ProjectManager } from '../project/project-manager';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
+import { StatsCollector } from '../stats/stats-collector';
 
 // ── Constants ──
 
@@ -34,6 +35,7 @@ export let mainWindow: BrowserWindow | null = null;
 export let currentProjectDir: string | null = null;
 export let artifactStore: ArtifactStore | null = null;
 export let chatHistoryStore: ChatHistoryStore | null = null;
+export let statsCollector: StatsCollector | null = null;
 export let phaseMachine: PhaseMachine | null = null;
 export let permissionHandler: PermissionHandler | null = null;
 export let activeAbort: (() => void) | null = null;
@@ -102,6 +104,10 @@ export function setChatHistoryStore(store: ChatHistoryStore | null): void {
   chatHistoryStore = store;
 }
 
+export function setStatsCollector(sc: StatsCollector | null): void {
+  statsCollector = sc;
+}
+
 export function setPhaseMachine(pm: PhaseMachine | null): void {
   phaseMachine = pm;
 }
@@ -155,6 +161,19 @@ export function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>, persist: bo
 }
 
 export function onAgentEvent(event: AgentEvent): void {
+  // Forward to stats collector
+  if (statsCollector) {
+    // Intercept synthetic rate limit info messages
+    if (event.type === 'agent:message' && event.message?.startsWith('__rate_limit_info__')) {
+      try {
+        const info = JSON.parse(event.message.slice('__rate_limit_info__'.length));
+        statsCollector.onRateLimit(info);
+      } catch { /* ignore parse errors */ }
+      return; // Don't forward synthetic messages to chat/renderer
+    }
+    statsCollector.onAgentEvent(event);
+  }
+
   send(IPC_CHANNELS.AGENT_EVENT, event);
 
   // Track agent session boundaries for run numbering
@@ -223,6 +242,10 @@ export function resetSessionState(): void {
   pendingReview = null;
   pendingIntro = null;
   pendingBuildIntro = null;
+
+  // Reset stats collector
+  if (statsCollector) statsCollector.flush();
+  statsCollector = null;
 
   // Reset phase/chat tracking
   phaseMachine = null;
