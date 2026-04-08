@@ -39,6 +39,10 @@ export class ArtifactStore {
     return parts.join('\n\n---\n\n');
   }
 
+  getSystemDesign(): string {
+    return this.readArtifact('04-system-design.md');
+  }
+
   getTasksYaml(): string | null {
     const filePath = path.join(this.officeDir, 'tasks.yaml');
     if (!fs.existsSync(filePath)) return null;

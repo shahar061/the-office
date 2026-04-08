@@ -141,6 +141,19 @@ describe('ArtifactStore', () => {
     });
   });
 
+  describe('getSystemDesign()', () => {
+    it('returns system design content when file exists', () => {
+      const officeDir = setupOfficeDir(tmpDir);
+      fs.writeFileSync(path.join(officeDir, '04-system-design.md'), '# System Design\nArchitecture details here.');
+      expect(store.getSystemDesign()).toBe('# System Design\nArchitecture details here.');
+    });
+
+    it('throws when system design file does not exist', () => {
+      setupOfficeDir(tmpDir);
+      expect(() => store.getSystemDesign()).toThrow('Artifact not found');
+    });
+  });
+
   describe('officeDir getter', () => {
     it('returns the correct path', () => {
       expect(store.officeDir).toBe(path.join(tmpDir, 'docs/office'));
