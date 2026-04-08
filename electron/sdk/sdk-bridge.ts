@@ -165,35 +165,49 @@ export function translateMessage(
   if (type === 'result') {
     const cost = (msg.total_cost_usd as number | undefined) ?? 0;
     const usage = msg.usage as Record<string, unknown> | undefined;
-    let tokens = 0;
-    if (usage) {
-      const inputTokens = (usage.input_tokens as number | undefined) ?? 0;
-      const outputTokens = (usage.output_tokens as number | undefined) ?? 0;
-      tokens = inputTokens + outputTokens;
-    }
+    const inputTokens = (usage?.input_tokens as number | undefined) ?? 0;
+    const outputTokens = (usage?.output_tokens as number | undefined) ?? 0;
+    const cacheReadTokens = (usage?.cache_read_input_tokens as number | undefined) ?? 0;
+    const cacheWriteTokens = (usage?.cache_creation_input_tokens as number | undefined) ?? 0;
+    const durationMs = (msg.duration_ms as number | undefined) ?? 0;
+
     return [
       {
         ...base,
         type: 'session:cost:update',
         cost,
-        tokens,
+        tokens: inputTokens + outputTokens,
+        message: JSON.stringify({ inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, durationMs }),
       },
     ];
   }
 
   // rate limit events
   if (type === 'rate_limit_event') {
+    const rateInfo = msg.rate_limit_info as Record<string, unknown> | undefined;
     const retryAfter = (msg.retry_after as number | undefined) ?? 0;
     const message = retryAfter > 0
       ? `Rate limited by API — retrying in ${Math.ceil(retryAfter)}s...`
       : 'Rate limited by API — retrying...';
-    return [
+
+    const events: AgentEvent[] = [
       {
         ...base,
         type: 'agent:message',
         message,
       },
     ];
+
+    // Attach rate limit info as a separate synthetic event for StatsCollector
+    if (rateInfo) {
+      events.push({
+        ...base,
+        type: 'agent:message',
+        message: `__rate_limit_info__${JSON.stringify(rateInfo)}`,
+      });
+    }
+
+    return events;
   }
 
   // stream_event messages
