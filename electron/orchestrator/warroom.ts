@@ -8,6 +8,7 @@ import yaml from 'js-yaml';
 interface ParsedPhase {
   id: string;
   name: string;
+  dependsOn: string[];
   tasks: { id: string; description: string; assigned_agent: string; model: string }[];
 }
 
@@ -147,6 +148,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   const phases: ParsedPhase[] = (parsed.phases || []).map((p: any) => ({
     id: p.id,
     name: p.name,
+    dependsOn: p.depends_on || [],
     tasks: (p.tasks || []).map((t: any) => ({
       id: t.id,
       description: t.description,
@@ -251,6 +253,16 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   onWarTableChoreography({ step: 'tl-done' });
   onWarTableState('complete');
   onSystemMessage('All specs complete. Review the war table or continue to Build.');
+}
+
+function buildPhaseSummary(phases: ParsedPhase[]): string {
+  const header = '| # | Phase | Depends On |';
+  const separator = '|---|-------|------------|';
+  const rows = phases.map((p, i) => {
+    const deps = p.dependsOn.length > 0 ? p.dependsOn.join(', ') : '—';
+    return `| ${i + 1} | ${p.name} (${p.id}) | ${deps} |`;
+  });
+  return [header, separator, ...rows].join('\n');
 }
 
 function delay(ms: number): Promise<void> {
