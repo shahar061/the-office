@@ -4,6 +4,7 @@ import { useOfficeStore } from '../../stores/office.store';
 import { useLogStore } from '../../stores/log.store';
 import { useProjectStore } from '../../stores/project.store';
 import { useKanbanStore } from '../../stores/kanban.store';
+import { useStatsStore } from '../../stores/stats.store';
 import { colors } from '../../theme';
 
 interface IconRailProps {
@@ -22,6 +23,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { id: 'office', icon: '🖥️', label: 'Office' },
   { id: 'agents', icon: '👥', label: 'Agents' },
   { id: 'kanban', icon: '📋', label: 'Kanban' },
+  { id: 'stats', icon: '📊', label: 'Stats' },
 ];
 
 const UTILITY_ITEMS: NavItem[] = [
@@ -157,6 +159,13 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
   const kanbanTasks = useKanbanStore((s) => s.kanban.tasks);
   const showKanban = completedPhases.includes('warroom');
   const kanbanHasActive = kanbanTasks.some(t => t.status === 'active' || t.status === 'review');
+  const rateLimitWarning = useStatsStore((s) => {
+    const rl = s.stats?.rateLimit;
+    if (!rl) return null;
+    if (rl.status === 'rejected') return 'error';
+    if (rl.status === 'allowed_warning' || rl.utilization > 0.8) return 'warning';
+    return null;
+  });
 
   const visiblePrimary = PRIMARY_ITEMS.filter(item =>
     item.id === 'kanban' ? showKanban : true
@@ -170,15 +179,17 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
           item={item}
           active={activeTab === item.id}
           badge={
-            item.id === 'kanban' && activeTab !== 'kanban'
-              ? kanbanFailed
-                ? <div style={{ ...styles.badge, background: colors.error }} />
-                : kanbanHasActive
+            item.id === 'stats' && activeTab !== 'stats' && rateLimitWarning
+              ? <div style={{ ...styles.badge, background: rateLimitWarning === 'error' ? colors.error : colors.warning }} />
+              : item.id === 'kanban' && activeTab !== 'kanban'
+                ? kanbanFailed
+                  ? <div style={{ ...styles.badge, background: colors.error }} />
+                  : kanbanHasActive
+                    ? <div style={styles.badge} />
+                    : undefined
+                : item.id === 'agents' && agentActive && activeTab !== 'agents'
                   ? <div style={styles.badge} />
                   : undefined
-              : item.id === 'agents' && agentActive && activeTab !== 'agents'
-                ? <div style={styles.badge} />
-                : undefined
           }
           onClick={() => onTabChange(item.id)}
         />

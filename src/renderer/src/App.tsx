@@ -6,6 +6,7 @@ import { useOfficeStore } from '@/stores/office.store';
 import { useArtifactStore } from '@/stores/artifact.store';
 import { useWarTableStore } from './stores/war-table.store';
 import { useLogStore } from './stores/log.store';
+import { useStatsStore } from './stores/stats.store';
 import { audioManager } from './audio/AudioManager';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
@@ -21,6 +22,7 @@ export default function App() {
   const handleAgentEvent = useOfficeStore((s) => s.handleAgentEvent);
   const markArtifactAvailable = useArtifactStore((s) => s.markAvailable);
   const hydrateArtifacts = useArtifactStore((s) => s.hydrateFromStatus);
+  const setStats = useStatsStore((s) => s.setStats);
 
   useEffect(() => {
     const unsubs = [
@@ -33,6 +35,7 @@ export default function App() {
         markArtifactAvailable(payload.key);
         audioManager.playSfx('artifact-written');
       }),
+      window.office.onStatsState(setStats),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
     return () => unsubs.forEach((fn) => fn());
@@ -61,6 +64,7 @@ export default function App() {
   useEffect(() => {
     if (projectState) {
       window.office.getArtifactStatus().then(hydrateArtifacts);
+      window.office.getStatsState().then((s: any) => { if (s) setStats(s); });
     }
   }, [projectState?.path]);
 
@@ -77,6 +81,7 @@ export default function App() {
             useWarTableStore.getState().reset();
             useKanbanStore.getState().reset();
             useLogStore.getState().reset();
+            useStatsStore.getState().reset();
             setProjectState(state);
             // Re-hydrate artifacts from disk (reset cleared them, effect may not re-fire for same path)
             window.office.getArtifactStatus().then(hydrateArtifacts);
