@@ -242,6 +242,57 @@ export interface SessionStats {
   activeAgents: number;
 }
 
+// ── Stats Panel ──
+
+export interface RateLimitState {
+  status: 'allowed' | 'allowed_warning' | 'rejected';
+  utilization: number;
+  rateLimitType: string;
+  resetsAt: number | null;
+  isUsingOverage: boolean;
+  overageStatus: string | null;
+}
+
+export interface ActStats {
+  name: string;
+  startedAt: number;
+  completedAt: number | null;
+  cost: number;
+  tokens: number;
+}
+
+export interface PhaseStats {
+  startedAt: number;
+  completedAt: number | null;
+  cost: number;
+  inputTokens: number;
+  outputTokens: number;
+  acts: ActStats[];
+}
+
+export interface AgentStats {
+  cost: number;
+  inputTokens: number;
+  outputTokens: number;
+  timeActiveMs: number;
+  tasksCompleted: number;
+  phases: string[];
+}
+
+export interface StatsState {
+  rateLimit: RateLimitState | null;
+  session: {
+    totalCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totalCacheReadTokens: number;
+    totalCacheWriteTokens: number;
+    startedAt: number;
+  };
+  phases: Record<string, PhaseStats>;
+  agents: Record<string, AgentStats>;
+}
+
 // ── Settings ──
 
 export interface AppSettings {
@@ -313,6 +364,9 @@ export const IPC_CHANNELS = {
   BUILD_INTRO_DONE: 'office:build-intro-done',
   BUILD_RESUME: 'office:build-resume',
   BUILD_RESTART: 'office:build-restart',
+  // Stats
+  STATS_STATE: 'office:stats-state',
+  GET_STATS_STATE: 'office:get-stats-state',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -372,6 +426,9 @@ export interface OfficeAPI {
   buildIntroDone(): Promise<void>;
   resumeBuild(): Promise<void>;
   restartBuild(config: BuildConfig): Promise<void>;
+  // Stats
+  onStatsState(callback: (state: StatsState) => void): () => void;
+  getStatsState(): Promise<StatsState>;
 }
 
 declare global {
