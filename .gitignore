@@ -22,6 +22,7 @@ out/
 .claude/
 .superpowers/
 .worktrees/
+docs/superpowers/
 
 # Electron
 release/
