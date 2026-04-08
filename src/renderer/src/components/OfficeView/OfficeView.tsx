@@ -27,6 +27,7 @@ import { IconRail } from '../IconRail/IconRail';
 import { LogViewer } from '../LogViewer/LogViewer';
 import { AboutPanel } from '../AboutPanel/AboutPanel';
 import { useLogStore } from '../../stores/log.store';
+import { KanbanBoard } from '../KanbanBoard/KanbanBoard';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -502,6 +503,13 @@ export default function OfficeView() {
                   }}>
                     <AboutPanel />
                   </div>
+
+                  <div style={{
+                    ...styles.expandedChatPanel,
+                    display: activeTab === 'kanban' ? 'flex' : 'none',
+                  }}>
+                    <KanbanBoard />
+                  </div>
                 </div>
               </>
             ) : (
@@ -561,6 +569,20 @@ export default function OfficeView() {
                   position: 'relative' as const,
                 }}>
                   <AboutPanel />
+                </div>
+
+                <div style={{
+                  display: activeTab === 'kanban' ? 'flex' : 'none',
+                  flexDirection: 'column' as const,
+                  width: '320px',
+                  minWidth: '320px',
+                  overflow: 'hidden',
+                  background: colors.bg,
+                  borderRight: `1px solid ${colors.border}`,
+                  zIndex: 1,
+                  position: 'relative' as const,
+                }}>
+                  <KanbanBoard />
                 </div>
 
                 {/* Expand chevron */}
