@@ -52,7 +52,12 @@ import {
   setPendingReview,
   pendingIntro,
   setPendingIntro,
+  pendingBuildIntro,
+  setPendingBuildIntro,
 } from './state';
+import type { BuildState } from '../orchestrator/build';
+
+let lastBuildState: BuildState | null = null;
 
 function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
   const sessionPath = path.join(projectDir, 'docs', 'office', 'session.yaml');
@@ -204,8 +209,18 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
   );
   setPermissionHandler(ph);
 
+  // Build intro gate — show intro if not seen
+  const state = projectManager.getProjectState(currentProjectDir!);
+  if (!state.buildIntroSeen) {
+    await new Promise<void>((resolve) => {
+      setPendingBuildIntro({ resolve });
+      send(IPC_CHANNELS.PHASE_CHANGE, { phase: 'build', status: 'starting' } as PhaseInfo);
+    });
+    projectManager.updateProjectState(currentProjectDir!, { buildIntroSeen: true });
+  }
+
   try {
-    await runBuild({
+    lastBuildState = await runBuild({
       projectDir: currentProjectDir!,
       agentsDir,
       apiKey: authManager.getApiKey() || '',
@@ -213,13 +228,18 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
       permissionHandler: ph,
       buildConfig: config,
       onEvent: onAgentEvent,
-      onKanbanUpdate: (state) => send(IPC_CHANNELS.KANBAN_UPDATE, state),
+      onKanbanUpdate: (kanbanState) => send(IPC_CHANNELS.KANBAN_UPDATE, kanbanState),
       onWaiting: handleAgentWaiting,
       onSystemMessage,
     });
-    phaseMachine!.markCompleted('build');
-    phaseMachine!.transition('complete');
-    phaseMachine!.markCompleted('complete');
+
+    if (!lastBuildState.taskErrors.size) {
+      phaseMachine!.markCompleted('build');
+      phaseMachine!.transition('complete');
+      phaseMachine!.markCompleted('complete');
+    } else {
+      phaseMachine!.markFailed();
+    }
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Build failed:', err);
@@ -429,6 +449,31 @@ export function initPhaseHandlers(): void {
       pendingIntro.resolve();
       setPendingIntro(null);
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BUILD_INTRO_DONE, async () => {
+    if (pendingBuildIntro) {
+      pendingBuildIntro.resolve();
+      setPendingBuildIntro(null);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BUILD_RESUME, async () => {
+    if (!currentProjectDir || !lastBuildState) throw new Error('No build state to resume');
+    if (!phaseMachine) ensurePhaseMachine();
+    const config: BuildConfig = {
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    };
+    return handleStartBuild(config);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BUILD_RESTART, async (_event, config: BuildConfig) => {
+    lastBuildState = null;
+    if (!currentProjectDir) throw new Error('No project open');
+    if (!phaseMachine) ensurePhaseMachine();
+    return handleStartBuild(config);
   });
 
   // ── Logs ──

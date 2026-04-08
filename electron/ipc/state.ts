@@ -76,6 +76,13 @@ export function setPendingIntro(pi: PendingIntro | null): void {
   pendingIntro = pi;
 }
 
+// Pending build intro completion
+export let pendingBuildIntro: PendingIntro | null = null;
+
+export function setPendingBuildIntro(pi: PendingIntro | null): void {
+  pendingBuildIntro = pi;
+}
+
 // ── Setter functions ──
 // ESM modules can't reassign imported `let` bindings, so we expose setters.
 
@@ -215,6 +222,7 @@ export function resetSessionState(): void {
   rejectPendingQuestions('Project switch');
   pendingReview = null;
   pendingIntro = null;
+  pendingBuildIntro = null;
 
   // Reset phase/chat tracking
   phaseMachine = null;

@@ -11,6 +11,7 @@ const DEFAULT_STATE: Omit<ProjectState, 'name' | 'path'> = {
   completedPhases: [],
   interrupted: false,
   introSeen: false,
+  buildIntroSeen: false,
 };
 
 export class ProjectManager {
@@ -40,6 +41,7 @@ export class ProjectManager {
       completedPhases: [],
       interrupted: false,
       introSeen: false,
+      buildIntroSeen: false,
     };
     fs.writeFileSync(configPath, JSON.stringify(initialState, null, 2), 'utf-8');
 
@@ -72,6 +74,7 @@ export class ProjectManager {
         completedPhases: data.completedPhases ?? [],
         interrupted: data.interrupted ?? false,
         introSeen: data.introSeen ?? true,
+        buildIntroSeen: data.buildIntroSeen ?? false,
       };
     } catch {
       return {
@@ -79,6 +82,7 @@ export class ProjectManager {
         path: projectPath,
         ...DEFAULT_STATE,
         introSeen: true,
+        buildIntroSeen: false,
       };
     }
   }
