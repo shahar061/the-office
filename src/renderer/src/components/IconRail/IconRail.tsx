@@ -1,20 +1,19 @@
-import { useState } from 'react';
-import type { AppTab } from '../../stores/ui.store';
+// src/renderer/src/components/IconRail/IconRail.tsx
+
+import { useState, useCallback } from 'react';
+import type { PanelId } from '../SplitLayout/layout-types';
+import { useLayoutStore } from '../../stores/layout.store';
 import { useOfficeStore } from '../../stores/office.store';
 import { useLogStore } from '../../stores/log.store';
 import { useProjectStore } from '../../stores/project.store';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useStatsStore } from '../../stores/stats.store';
 import { useChatStore } from '../../stores/chat.store';
+import { collectPanelIds, findLeafByPanelId } from '../SplitLayout/layout-utils';
 import { colors } from '../../theme';
 
-interface IconRailProps {
-  activeTab: AppTab;
-  onTabChange: (tab: AppTab) => void;
-}
-
 interface NavItem {
-  id: AppTab;
+  id: PanelId;
   icon: string;
   label: string;
 }
@@ -52,21 +51,21 @@ const styles = {
     background: colors.borderLight,
     margin: '4px 0',
   },
-  iconButton: (active: boolean) => ({
+  iconButton: (inWorkspace: boolean) => ({
     width: '32px',
     height: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '15px',
-    background: active ? 'rgba(59,130,246,0.1)' : 'transparent',
-    borderLeft: active ? `2px solid ${colors.accent}` : '2px solid transparent',
+    background: inWorkspace ? 'rgba(59,130,246,0.1)' : 'transparent',
+    borderLeft: inWorkspace ? `2px solid ${colors.accent}` : '2px solid transparent',
     borderRight: 'none',
     borderTop: 'none',
     borderBottom: 'none',
     borderRadius: '0 4px 4px 0',
-    opacity: active ? 1 : 0.45,
-    cursor: 'pointer',
+    opacity: inWorkspace ? 1 : 0.45,
+    cursor: 'grab',
     position: 'relative' as const,
     padding: 0,
     fontFamily: 'inherit',
@@ -138,23 +137,27 @@ const styles = {
 
 function IconButton({
   item,
-  active,
+  inWorkspace,
   badge,
   onClick,
+  onDragStart,
 }: {
   item: NavItem;
-  active: boolean;
+  inWorkspace: boolean;
   badge?: React.ReactNode;
   onClick: () => void;
+  onDragStart: (e: React.DragEvent) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
   return (
     <button
+      draggable
+      onDragStart={onDragStart}
       style={{
-        ...styles.iconButton(active),
-        opacity: active ? 1 : hovered ? 0.75 : 0.45,
-        background: active
+        ...styles.iconButton(inWorkspace),
+        opacity: inWorkspace ? 1 : hovered ? 0.75 : 0.45,
+        background: inWorkspace
           ? 'rgba(59,130,246,0.1)'
           : hovered
             ? colors.surface
@@ -167,12 +170,19 @@ function IconButton({
     >
       {item.icon}
       {badge}
-      {hovered && !active && <div style={styles.tooltip}>{item.label}</div>}
+      {hovered && !inWorkspace && <div style={styles.tooltip}>{item.label}</div>}
     </button>
   );
 }
 
-export function IconRail({ activeTab, onTabChange }: IconRailProps) {
+export function IconRail() {
+  const tree = useLayoutStore((s) => s.tree);
+  const focusedPaneId = useLayoutStore((s) => s.focusedPaneId);
+  const replacePanel = useLayoutStore((s) => s.replacePanel);
+  const setFocusedPane = useLayoutStore((s) => s.setFocusedPane);
+
+  const activePanels = collectPanelIds(tree);
+
   const agentActive = useOfficeStore((s) => s.agentActivity.isActive);
   const waitingForResponse = useChatStore((s) => s.waitingForResponse);
   const unreadCount = useLogStore((s) => s.unreadCount);
@@ -193,32 +203,57 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
     item.id === 'kanban' ? showKanban : true
   );
 
+  const handleClick = useCallback((panelId: PanelId) => {
+    // If panel is already in workspace, focus it
+    const existing = findLeafByPanelId(tree, panelId);
+    if (existing) {
+      setFocusedPane(existing.id);
+      return;
+    }
+    // Otherwise, replace the focused pane (or first leaf)
+    if (focusedPaneId) {
+      replacePanel(focusedPaneId, panelId);
+    }
+  }, [tree, focusedPaneId, replacePanel, setFocusedPane]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, panelId: PanelId) => {
+    e.dataTransfer.setData('text/plain', panelId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const getBadge = (id: PanelId): React.ReactNode => {
+    if (id === 'chat' && waitingForResponse && !activePanels.has('chat')) {
+      return <>
+        <div style={styles.pingBadge} />
+        <div style={styles.pingRing} />
+      </>;
+    }
+    if (id === 'stats' && rateLimitWarning) {
+      return <div style={{ ...styles.badge, background: rateLimitWarning === 'error' ? colors.error : colors.warning }} />;
+    }
+    if (id === 'kanban') {
+      if (kanbanFailed) return <div style={{ ...styles.badge, background: colors.error }} />;
+      if (kanbanHasActive) return <div style={styles.badge} />;
+    }
+    if (id === 'agents' && agentActive) {
+      return <div style={styles.badge} />;
+    }
+    if (id === 'logs' && unreadCount > 0) {
+      return <div style={styles.countBadge}>{unreadCount > 99 ? '99+' : unreadCount}</div>;
+    }
+    return undefined;
+  };
+
   return (
     <div style={styles.rail}>
       {visiblePrimary.map((item) => (
         <IconButton
           key={item.id}
           item={item}
-          active={activeTab === item.id}
-          badge={
-            item.id === 'chat' && waitingForResponse && activeTab !== 'chat'
-              ? <>
-                  <div style={styles.pingBadge} />
-                  <div style={styles.pingRing} />
-                </>
-              : item.id === 'stats' && activeTab !== 'stats' && rateLimitWarning
-                ? <div style={{ ...styles.badge, background: rateLimitWarning === 'error' ? colors.error : colors.warning }} />
-                : item.id === 'kanban' && activeTab !== 'kanban'
-                  ? kanbanFailed
-                    ? <div style={{ ...styles.badge, background: colors.error }} />
-                    : kanbanHasActive
-                      ? <div style={styles.badge} />
-                      : undefined
-                  : item.id === 'agents' && agentActive && activeTab !== 'agents'
-                    ? <div style={styles.badge} />
-                    : undefined
-          }
-          onClick={() => onTabChange(item.id)}
+          inWorkspace={activePanels.has(item.id)}
+          badge={getBadge(item.id)}
+          onClick={() => handleClick(item.id)}
+          onDragStart={(e) => handleDragStart(e, item.id)}
         />
       ))}
       <div style={styles.divider} />
@@ -226,13 +261,10 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
         <IconButton
           key={item.id}
           item={item}
-          active={activeTab === item.id}
-          badge={
-            item.id === 'logs' && unreadCount > 0 && activeTab !== 'logs'
-              ? <div style={styles.countBadge}>{unreadCount > 99 ? '99+' : unreadCount}</div>
-              : undefined
-          }
-          onClick={() => onTabChange(item.id)}
+          inWorkspace={activePanels.has(item.id)}
+          badge={getBadge(item.id)}
+          onClick={() => handleClick(item.id)}
+          onDragStart={(e) => handleDragStart(e, item.id)}
         />
       ))}
     </div>
