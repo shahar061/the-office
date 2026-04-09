@@ -6,6 +6,7 @@ import { SpriteAdapter } from './characters/SpriteAdapter';
 import { AGENT_CONFIGS } from './characters/agents.config';
 import { InteractiveObjects } from './InteractiveObjects';
 import { FogOfWar } from './engine/FogOfWar';
+import { MonitorGlow } from './MonitorGlow';
 import { WarTable } from './WarTable';
 import type { AgentRole } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
@@ -35,8 +36,10 @@ export class OfficeScene {
   private interactiveObjects!: InteractiveObjects;
   private characterPopup: Container | null = null;
   private characterPopupRole: AgentRole | null = null;
+  private characterPopupAgentId: string | null = null;
   private characterPopupSize = { w: 120, h: 52 };
   private fog: FogOfWar | null = null;
+  private monitorGlow!: MonitorGlow;
   private warTable!: WarTable;
 
   constructor(app: Application) {
@@ -90,6 +93,9 @@ export class OfficeScene {
 
     this.worldContainer.addChild(this.mapRenderer.getContainer());
     this.characterLayer = this.mapRenderer.getCharacterContainer();
+
+    this.monitorGlow = new MonitorGlow(this.mapRenderer.getMonitorGlowRects());
+    this.worldContainer.addChild(this.monitorGlow.container);
 
     // Load character spritesheets
     const sheetTextures = new Map<string, Texture>();
@@ -171,8 +177,8 @@ export class OfficeScene {
 
     // Character popup: show on character click, dismiss on background click
     window.addEventListener('character-click', (e: Event) => {
-      const { role } = (e as CustomEvent).detail;
-      this.showCharacterPopup(role);
+      const { agentId } = (e as CustomEvent).detail;
+      this.showCharacterPopup(agentId);
     });
 
     this.app.stage.eventMode = 'static';
@@ -190,6 +196,7 @@ export class OfficeScene {
       character.update(dt);
     }
     this.interactiveObjects.update(dt);
+    this.monitorGlow.update(dt);
     if (this.warTable) {
       this.warTable.update(dt);
     }
@@ -200,8 +207,8 @@ export class OfficeScene {
   }
 
   private updatePopupPosition(): void {
-    if (!this.characterPopup || !this.characterPopupRole) return;
-    const character = this.characters.get(this.characterPopupRole);
+    if (!this.characterPopup || !this.characterPopupAgentId) return;
+    const character = this.characters.get(this.characterPopupAgentId);
     if (!character || !character.isVisible) {
       this.dismissCharacterPopup();
       return;
@@ -251,20 +258,29 @@ export class OfficeScene {
     return this.characters;
   }
 
-  showCharacterPopup(role: AgentRole): void {
+  showCharacterPopup(agentId: string): void {
     this.dismissCharacterPopup();
 
-    const character = this.characters.get(role);
+    const character = this.characters.get(agentId);
     if (!character || !character.isVisible) return;
 
+    // Use the character's role for config lookup (works for both originals and clones)
+    const role = character.role;
     const config = AGENT_CONFIGS[role];
+    if (!config) return;
     const color = parseInt(config.color.slice(1), 16);
     const pos = character.getPixelPosition();
+
+    // For clones, show a label like "Team Lead #2" instead of just "Team Lead"
+    const isClone = agentId !== role;
+    const displayName = isClone
+      ? `${config.displayName} (${agentId.replace('tl-clone-tl-', 'spec: ')})`
+      : config.displayName;
 
     const popup = new Container();
     popup.label = 'character-popup';
 
-    const bgW = 120;
+    const bgW = isClone ? 160 : 120;
     const bgH = 52;
     const bg = new Graphics();
     bg.setStrokeStyle({ width: 1, color });
@@ -273,7 +289,7 @@ export class OfficeScene {
     bg.stroke();
 
     const nameText = new Text({
-      text: config.displayName,
+      text: displayName,
       style: { fontSize: 9, fill: config.color, fontWeight: 'bold', fontFamily: 'monospace' },
     });
     nameText.x = 8;
@@ -302,6 +318,7 @@ export class OfficeScene {
 
     this.characterPopupSize = { w: bgW, h: bgH };
     this.characterPopupRole = role;
+    this.characterPopupAgentId = agentId;
     this.positionPopup(popup, pos, bgW, bgH);
 
     this.worldContainer.addChild(popup);
@@ -314,6 +331,7 @@ export class OfficeScene {
       this.characterPopup.destroy({ children: true });
       this.characterPopup = null;
       this.characterPopupRole = null;
+      this.characterPopupAgentId = null;
     }
   }
 
@@ -372,6 +390,10 @@ export class OfficeScene {
     this.characters.delete(cloneId);
     // Give hide animation time to complete, then destroy
     setTimeout(() => character.destroy(), 1500);
+  }
+
+  setMonitorGlow(seatName: string, on: boolean): void {
+    this.monitorGlow.setGlowing(seatName, on);
   }
 
   getWarTable(): WarTable {
