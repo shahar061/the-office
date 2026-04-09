@@ -137,3 +137,50 @@ describe('LayoutStore', () => {
     expect(useLayoutStore.getState().focusedPaneId).toBe('pane-1');
   });
 });
+
+describe('LayoutStore — workflows', () => {
+  beforeEach(() => {
+    useLayoutStore.getState().resetToDefault('imagine');
+  });
+
+  it('full workflow: split, resize, replace, close', () => {
+    const tree0 = useLayoutStore.getState().tree as SplitNode;
+    const officePaneId = (tree0.children[1] as LeafNode).id;
+
+    // Split office pane to add kanban on the right
+    useLayoutStore.getState().splitPane(officePaneId, 'horizontal', 'kanban', 'after');
+    const tree1 = useLayoutStore.getState().tree as SplitNode;
+    const rightSplit = tree1.children[1] as SplitNode;
+    expect(rightSplit.type).toBe('split');
+
+    // Resize the new split
+    useLayoutStore.getState().resizePane(rightSplit.id, 0.7);
+    const tree2 = useLayoutStore.getState().tree as SplitNode;
+    expect((tree2.children[1] as SplitNode).ratio).toBe(0.7);
+
+    // Replace kanban with agents
+    const kanbanPaneId = (rightSplit.children[1] as LeafNode).id;
+    useLayoutStore.getState().replacePanel(kanbanPaneId, 'agents');
+    const tree3 = useLayoutStore.getState().tree as SplitNode;
+    const updatedRight = tree3.children[1] as SplitNode;
+    expect((updatedRight.children[1] as LeafNode).panelId).toBe('agents');
+
+    // Close the agents pane — office absorbs the space
+    useLayoutStore.getState().closePane(kanbanPaneId);
+    const tree4 = useLayoutStore.getState().tree as SplitNode;
+    expect(tree4.children[1].type).toBe('leaf');
+    expect((tree4.children[1] as LeafNode).panelId).toBe('office');
+  });
+
+  it('duplicate panel prevention across operations', () => {
+    const tree0 = useLayoutStore.getState().tree as SplitNode;
+    const officePaneId = (tree0.children[1] as LeafNode).id;
+
+    // Try to split with a panel already in the tree
+    useLayoutStore.getState().splitPane(officePaneId, 'horizontal', 'chat', 'after');
+
+    // Should be rejected — tree unchanged
+    const tree1 = useLayoutStore.getState().tree as SplitNode;
+    expect(tree1.children[1].type).toBe('leaf');
+  });
+});
