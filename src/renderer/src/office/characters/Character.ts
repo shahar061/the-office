@@ -42,6 +42,7 @@ export class Character {
   private idleWanderDelay = 3 + Math.random() * 5;
   private wanderBounds: WanderBounds | null = null;
 
+  private arrivalCallback: (() => void) | null = null;
   public isVisible: boolean = false;
   private fadeDirection: 'in' | 'out' | null = null;
   private fadeDuration: number = 0;
@@ -91,6 +92,11 @@ export class Character {
     }
   }
 
+  walkToAndThen(tile: { x: number; y: number }, callback: () => void): void {
+    this.arrivalCallback = callback;
+    this.moveTo(tile);
+  }
+
   setWorking(workType: 'type' | 'read'): void {
     const currentTile = this.getTilePosition();
     if (currentTile.x === this.deskTile.x && currentTile.y === this.deskTile.y) {
@@ -128,7 +134,7 @@ export class Character {
     this.sprite.container.on('pointertap', (e) => {
       e.stopPropagation();
       window.dispatchEvent(new CustomEvent('character-click', {
-        detail: { role: this.role, state: this.state },
+        detail: { role: this.role, agentId: this.agentId, state: this.state },
       }));
     });
   }
@@ -206,6 +212,12 @@ export class Character {
         this.sprite.setAnimation(this.state as AnimState, 'down');
       } else {
         this.setIdle();
+      }
+      // Fire arrival callback after state transition
+      if (this.arrivalCallback) {
+        const cb = this.arrivalCallback;
+        this.arrivalCallback = null;
+        cb();
       }
       return;
     }
