@@ -14,6 +14,10 @@ import { AboutPanel } from '../AboutPanel/AboutPanel';
 import { KanbanBoard } from '../KanbanBoard/KanbanBoard';
 import { StatsPanel } from '../StatsPanel/StatsPanel';
 import { OfficeCanvas } from '../../office/OfficeCanvas';
+import { ArtifactToolbox } from '../OfficeView/ArtifactToolbox';
+import { AudioControls } from '../OfficeView/AudioControls';
+import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
+import { PlanOverlay } from '../OfficeView/PlanOverlay';
 
 const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   chat: { icon: '💬', label: 'Chat' },
@@ -122,8 +126,16 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
 
       {/* Panel content */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {panelId === 'chat' && <ChatPanel />}
-        {panelId === 'office' && <OfficeCanvas onSceneReady={onSceneReady} />}
+        {panelId === 'chat' && <ChatPanel isExpanded={true} />}
+        {panelId === 'office' && (
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <OfficeCanvas onSceneReady={onSceneReady} />
+            <ArtifactToolbox />
+            <AudioControls />
+            <ArtifactOverlay />
+            <PlanOverlay />
+          </div>
+        )}
         {panelId === 'agents' && <AgentsScreen />}
         {panelId === 'kanban' && <KanbanBoard />}
         {panelId === 'stats' && <StatsPanel />}
