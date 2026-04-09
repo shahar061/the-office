@@ -72,3 +72,31 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set({ tree, focusedPaneId: null });
   },
 }));
+
+// ── Auto-save on tree changes ──
+
+let _currentPhase: string | null = null;
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function setCurrentLayoutPhase(phase: string): void {
+  _currentPhase = phase;
+}
+
+function debouncedSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    const { tree } = useLayoutStore.getState();
+    if (!_currentPhase) return;
+    try {
+      const existing = (await window.office.getLayouts()) ?? {};
+      existing[_currentPhase] = tree;
+      await window.office.saveLayouts(existing);
+    } catch {
+      // Save failed — not critical
+    }
+  }, 500);
+}
+
+useLayoutStore.subscribe((state, prev) => {
+  if (state.tree !== prev.tree) debouncedSave();
+});

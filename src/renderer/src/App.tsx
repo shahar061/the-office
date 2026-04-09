@@ -7,6 +7,7 @@ import { useArtifactStore } from '@/stores/artifact.store';
 import { useWarTableStore } from './stores/war-table.store';
 import { useLogStore } from './stores/log.store';
 import { useStatsStore } from './stores/stats.store';
+import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
 import { audioManager } from './audio/AudioManager';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
@@ -73,6 +74,21 @@ export default function App() {
     }
   }, [projectState?.path]);
 
+  // Load layout for current phase
+  useEffect(() => {
+    if (!projectState) return;
+    const phase = projectState.currentPhase;
+    setCurrentLayoutPhase(phase);
+
+    window.office.getLayouts().then((saved: Record<string, unknown> | null) => {
+      if (saved && saved[phase]) {
+        useLayoutStore.getState().loadLayout(saved[phase] as any);
+      } else {
+        useLayoutStore.getState().resetToDefault(phase as any);
+      }
+    });
+  }, [projectState?.path, projectState?.currentPhase]);
+
   const view = projectState ? 'office' : 'picker';
 
   return (
@@ -87,6 +103,7 @@ export default function App() {
             useKanbanStore.getState().reset();
             useLogStore.getState().reset();
             useStatsStore.getState().reset();
+            useLayoutStore.getState().resetToDefault('idle');
             setProjectState(state);
             // Re-hydrate artifacts from disk (reset cleared them, effect may not re-fire for same path)
             window.office.getArtifactStatus().then(hydrateArtifacts);
