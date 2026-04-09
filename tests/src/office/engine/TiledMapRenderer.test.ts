@@ -165,6 +165,51 @@ describe('TiledMapRenderer', () => {
     })
   })
 
+  describe('getMonitorGlowRects', () => {
+    it('parses rectangles from monitor-glow object layer in pixel space', () => {
+      const map = makeMap({
+        layers: [
+          {
+            name: 'monitor-glow',
+            type: 'objectgroup',
+            objects: [
+              { name: 'monitor-pc-1', x: 100, y: 50, width: 12, height: 7 },
+              { name: 'monitor-pc-2', x: 200, y: 80, width: 12, height: 7 },
+            ],
+          },
+        ],
+      })
+      const renderer = new TiledMapRenderer(map, [mockTexture])
+      const rects = renderer.getMonitorGlowRects()
+      expect(rects.size).toBe(2)
+      expect(rects.get('monitor-pc-1')).toEqual({ x: 100, y: 50, width: 12, height: 7 })
+      expect(rects.get('monitor-pc-2')).toEqual({ x: 200, y: 80, width: 12, height: 7 })
+    })
+
+    it('defaults width and height to 0 when not provided', () => {
+      const map = makeMap({
+        layers: [
+          {
+            name: 'monitor-glow',
+            type: 'objectgroup',
+            objects: [
+              { name: 'monitor-pc-1', x: 100, y: 50 },
+            ],
+          },
+        ],
+      })
+      const renderer = new TiledMapRenderer(map, [mockTexture])
+      const rects = renderer.getMonitorGlowRects()
+      expect(rects.get('monitor-pc-1')).toEqual({ x: 100, y: 50, width: 0, height: 0 })
+    })
+
+    it('returns empty map when monitor-glow layer is missing', () => {
+      const renderer = new TiledMapRenderer(makeMap(), [mockTexture])
+      const rects = renderer.getMonitorGlowRects()
+      expect(rects.size).toBe(0)
+    })
+  })
+
   describe('tile layers', () => {
     it('creates containers in correct render order', () => {
       const map = makeMap({

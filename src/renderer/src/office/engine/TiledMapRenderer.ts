@@ -96,6 +96,7 @@ export class TiledMapRenderer {
   private zones: Map<string, ZoneRect> = new Map()
   private interactiveObjects: Map<string, ZoneRect> = new Map()
   private warRoomObjects: Map<string, PolygonObject> = new Map()
+  private monitorGlowRects: Map<string, ZoneRect> = new Map()
   private layerContainers: Map<string, Container> = new Map()
   private characterContainer: Container
   private rootContainer: Container
@@ -120,6 +121,7 @@ export class TiledMapRenderer {
     this.parseZones()
     this.parseInteractiveObjects()
     this.parseWarRoomObjects()
+    this.parseMonitorGlowRects()
     this.collectExtractionTargets()
     this.buildTileLayers()
   }
@@ -276,6 +278,23 @@ export class TiledMapRenderer {
       // Also register in interactiveObjects so tile extraction picks it up
       this.interactiveObjects.set(obj.name, rect)
     }
+  }
+
+  private parseMonitorGlowRects(): void {
+    const layer = this.findLayer('monitor-glow', 'objectgroup')
+    if (!layer?.objects) return
+    for (const obj of layer.objects) {
+      this.monitorGlowRects.set(obj.name, {
+        x: obj.x,
+        y: obj.y,
+        width: obj.width ?? 0,
+        height: obj.height ?? 0,
+      })
+    }
+  }
+
+  getMonitorGlowRects(): Map<string, ZoneRect> {
+    return this.monitorGlowRects
   }
 
   getInteractiveObjects(): Map<string, ZoneRect> {
