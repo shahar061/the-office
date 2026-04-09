@@ -5,6 +5,7 @@ import { useLogStore } from '../../stores/log.store';
 import { useProjectStore } from '../../stores/project.store';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useStatsStore } from '../../stores/stats.store';
+import { useChatStore } from '../../stores/chat.store';
 import { colors } from '../../theme';
 
 interface IconRailProps {
@@ -113,6 +114,26 @@ const styles = {
     padding: '0 3px',
     lineHeight: 1,
   },
+  pingBadge: {
+    position: 'absolute' as const,
+    top: '3px',
+    right: '3px',
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    background: colors.warning,
+  },
+  pingRing: {
+    position: 'absolute' as const,
+    top: '3px',
+    right: '3px',
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    border: `1.5px solid ${colors.warning}`,
+    boxSizing: 'border-box' as const,
+    animation: 'icon-rail-ping 1.5s ease-out infinite',
+  },
 } as const;
 
 function IconButton({
@@ -153,6 +174,7 @@ function IconButton({
 
 export function IconRail({ activeTab, onTabChange }: IconRailProps) {
   const agentActive = useOfficeStore((s) => s.agentActivity.isActive);
+  const waitingForResponse = useChatStore((s) => s.waitingForResponse);
   const unreadCount = useLogStore((s) => s.unreadCount);
   const completedPhases = useProjectStore((s) => s.projectState?.completedPhases ?? []);
   const kanbanFailed = useKanbanStore((s) => s.kanban.failed);
@@ -179,17 +201,22 @@ export function IconRail({ activeTab, onTabChange }: IconRailProps) {
           item={item}
           active={activeTab === item.id}
           badge={
-            item.id === 'stats' && activeTab !== 'stats' && rateLimitWarning
-              ? <div style={{ ...styles.badge, background: rateLimitWarning === 'error' ? colors.error : colors.warning }} />
-              : item.id === 'kanban' && activeTab !== 'kanban'
-                ? kanbanFailed
-                  ? <div style={{ ...styles.badge, background: colors.error }} />
-                  : kanbanHasActive
+            item.id === 'chat' && waitingForResponse && activeTab !== 'chat'
+              ? <>
+                  <div style={styles.pingBadge} />
+                  <div style={styles.pingRing} />
+                </>
+              : item.id === 'stats' && activeTab !== 'stats' && rateLimitWarning
+                ? <div style={{ ...styles.badge, background: rateLimitWarning === 'error' ? colors.error : colors.warning }} />
+                : item.id === 'kanban' && activeTab !== 'kanban'
+                  ? kanbanFailed
+                    ? <div style={{ ...styles.badge, background: colors.error }} />
+                    : kanbanHasActive
+                      ? <div style={styles.badge} />
+                      : undefined
+                  : item.id === 'agents' && agentActive && activeTab !== 'agents'
                     ? <div style={styles.badge} />
                     : undefined
-                : item.id === 'agents' && agentActive && activeTab !== 'agents'
-                  ? <div style={styles.badge} />
-                  : undefined
           }
           onClick={() => onTabChange(item.id)}
         />

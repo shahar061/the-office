@@ -68,7 +68,7 @@ const styles = {
   },
   inputRow: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     background: colors.surface,
     border: `1px solid ${colors.border}`,
     borderRadius: '8px',
@@ -85,6 +85,8 @@ const styles = {
     resize: 'none' as const,
     fontFamily: 'inherit',
     lineHeight: 1.4,
+    overflow: 'hidden',
+    maxHeight: '120px',
   },
   sendButton: (enabled: boolean) => ({
     background: 'transparent',
@@ -100,7 +102,7 @@ const styles = {
   }),
   expandedInputRow: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     background: colors.surface,
     border: `1px solid ${colors.border}`,
     borderRadius: '8px',
@@ -159,15 +161,6 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Listen for agent waiting events
-  useEffect(() => {
-    const unsub = window.office.onAgentWaiting((payload) => {
-      audioManager.playSfx('agent-waiting');
-      setWaiting(payload);
-    });
-    return unsub;
-  }, []);
-
   // Load chat history when returning to a project with existing phases
   useEffect(() => {
     if (!projectState || projectState.currentPhase === 'idle') return;
@@ -190,6 +183,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
 
     audioManager.playSfx('chat-send');
     setInputValue('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
 
     // If answering a question, inject the question as an agent message first
     if (waitingForResponse && waitingSessionId) {
@@ -232,6 +226,18 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
     } else {
       await window.office.sendMessage(text);
     }
+  }
+
+  function autoResizeTextarea() {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInputValue(e.target.value);
+    autoResizeTextarea();
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -399,7 +405,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
               style={styles.inputField}
               placeholder={inputPlaceholder}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
             />
             <button

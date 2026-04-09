@@ -3,16 +3,25 @@ import { IPC_CHANNELS } from '../../shared/types';
 import type { Phase } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
+import { resumePhase, resumeWarroomAfterReview } from './phase-handlers';
 import {
   mainWindow,
   currentProjectDir,
   artifactStore,
   chatHistoryStore,
   projectManager,
+  pendingQuestions,
   setCurrentProjectDir,
   setArtifactStore,
   setChatHistoryStore,
+  setCurrentChatPhase,
+  setCurrentChatAgentRole,
+  setCurrentChatRunNumber,
   resetSessionState,
+  send,
+  loadWaitingState,
+  loadPendingReview,
+  setPendingReview,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -22,12 +31,64 @@ export function initProjectHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async (_event, projectPath: string) => {
     try {
+      // Read persisted waiting state BEFORE reset clears the file
+      const saved = loadWaitingState(projectPath);
+
       resetSessionState();
       projectManager.openProject(projectPath);
       setCurrentProjectDir(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
       chatHistoryStore?.flush();
-      setChatHistoryStore(new ChatHistoryStore(projectPath));
+      const newChatStore = new ChatHistoryStore(projectPath);
+      setChatHistoryStore(newChatStore);
+
+      // Restore persisted waiting question (survives app restart)
+      if (saved && saved.questions?.length) {
+        // Set chat context so the USER_RESPONSE handler can persist the Q&A
+        if (saved.phase) {
+          setCurrentChatPhase(saved.phase);
+          setCurrentChatAgentRole(saved.agentRole);
+          const runNum = newChatStore.nextRunNumber(saved.phase, saved.agentRole);
+          // Use the latest existing run (the one that asked the question), not a new one
+          setCurrentChatRunNumber(Math.max(runNum - 1, 1));
+        }
+
+        // Register a pending entry that resumes the phase after the user answers
+        const savedPhase = saved.phase ?? 'imagine';
+        pendingQuestions.set(saved.sessionId, {
+          resolve: () => { resumePhase(savedPhase as Phase); },
+          reject: () => {},
+        });
+
+        // Emit after a tick so the renderer's listeners are ready
+        setTimeout(() => send(IPC_CHANNELS.AGENT_WAITING, saved), 100);
+      }
+
+      // Restore persisted warroom plan review (survives app restart)
+      const savedReview = loadPendingReview(projectPath);
+      if (savedReview) {
+        try {
+          const store = new ArtifactStore(projectPath);
+          const planContent = store.readArtifact('plan.md');
+
+          // Register a pending review that resumes warroom after the user responds
+          setPendingReview({
+            resolve: (response) => { resumeWarroomAfterReview(response); },
+          });
+
+          // Re-emit review + war table state so the overlay reappears
+          setTimeout(() => {
+            send(IPC_CHANNELS.WAR_TABLE_STATE, 'review');
+            send(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, {
+              content: planContent,
+              artifact: savedReview.artifact,
+            });
+          }, 100);
+        } catch {
+          // plan.md missing — stale review state, ignore
+        }
+      }
+
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to open project';

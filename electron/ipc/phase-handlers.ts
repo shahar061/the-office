@@ -56,6 +56,9 @@ import {
   setPendingBuildIntro,
   statsCollector,
   setStatsCollector,
+  clearWaitingState,
+  persistPendingReview,
+  clearPendingReview,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -77,22 +80,24 @@ function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
   }
 }
 
-async function handleStartImagine(userIdea: string): Promise<void> {
+async function handleStartImagine(userIdea: string, resume = false): Promise<void> {
   setCurrentChatPhase('imagine');
   setCurrentChatAgentRole('ceo');
   setCurrentChatRunNumber(chatHistoryStore?.nextRunNumber('imagine', 'ceo') ?? 1);
 
-  sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
+  if (!resume) {
+    sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
 
-  // Persist user's initial idea
-  if (chatHistoryStore) {
-    const ideaMsg: ChatMessage = {
-      id: randomUUID(),
-      role: 'user',
-      text: userIdea,
-      timestamp: Date.now(),
-    };
-    chatHistoryStore.appendMessage('imagine', 'ceo', currentChatRunNumber, ideaMsg);
+    // Persist user's initial idea
+    if (chatHistoryStore) {
+      const ideaMsg: ChatMessage = {
+        id: randomUUID(),
+        role: 'user',
+        text: userIdea,
+        timestamp: Date.now(),
+      };
+      chatHistoryStore.appendMessage('imagine', 'ceo', currentChatRunNumber, ideaMsg);
+    }
   }
 
   const state = projectManager.getProjectState(currentProjectDir!);
@@ -141,7 +146,7 @@ async function handleStartImagine(userIdea: string): Promise<void> {
     console.error('[Main] Imagine failed:', err);
     const errMsg = err.stderr || err.message || 'Unknown error';
     sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
-    rejectPendingQuestions('Imagine phase failed');
+    rejectPendingQuestions('Imagine phase failed', true);
     pm.markFailed();
   }
 }
@@ -191,6 +196,7 @@ async function handleStartWarroom(): Promise<void> {
           setPendingReview({ resolve });
           const payload: WarTableReviewPayload = { content, artifact };
           send(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, payload);
+          if (currentProjectDir) persistPendingReview(currentProjectDir, artifact);
         });
       },
       waitForIntro: () => {
@@ -210,7 +216,7 @@ async function handleStartWarroom(): Promise<void> {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
     onSystemMessage(`Warroom failed: ${errMsg}`);
-    rejectPendingQuestions('Warroom phase failed');
+    rejectPendingQuestions('Warroom phase failed', true);
     setPendingReview(null);
     phaseMachine!.markFailed();
   }
@@ -272,7 +278,7 @@ async function handleStartBuild(config: BuildConfig): Promise<void> {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Build failed:', err);
     onSystemMessage(`Build failed: ${errMsg}`);
-    rejectPendingQuestions('Build phase failed');
+    rejectPendingQuestions('Build phase failed', true);
     phaseMachine!.markFailed();
   }
 }
@@ -292,6 +298,143 @@ function ensurePhaseMachine(): void {
       });
     }
   });
+}
+
+/**
+ * Resume a phase after the user answers a restored pending question.
+ * Reads chat history to build a continuation prompt so the agent
+ * knows what was already discussed.
+ */
+export async function resumePhase(phase: Phase): Promise<void> {
+  if (!currentProjectDir || !chatHistoryStore) return;
+
+  // Build conversation context from persisted chat history
+  const history = chatHistoryStore.getPhaseHistory(phase);
+  const allMessages = history.flatMap(h => h.runs.flatMap(r => r.messages));
+  allMessages.sort((a, b) => a.timestamp - b.timestamp);
+
+  const conversationLines: string[] = [];
+  let originalIdea = '';
+  for (const msg of allMessages) {
+    if (msg.role === 'user') {
+      if (!originalIdea) originalIdea = msg.text;
+      conversationLines.push(`User: ${msg.text}`);
+    } else if (msg.role === 'agent') {
+      const label = msg.agentRole ?? 'Agent';
+      conversationLines.push(`${label}: ${msg.text}`);
+    }
+  }
+
+  if (phase === 'imagine') {
+    const prompt = [
+      originalIdea || 'Continue the project',
+      '',
+      '--- Previous conversation (already happened, do NOT repeat these questions) ---',
+      conversationLines.join('\n'),
+      '--- End of previous conversation ---',
+      '',
+      'Continue from where you left off. The user has already answered your question above.',
+    ].join('\n');
+
+    sendChat({ role: 'system', text: 'Resuming conversation...' });
+    await handleStartImagine(prompt, true);
+  } else if (phase === 'warroom') {
+    // Warroom questions are rare (agents use excludeAskUser),
+    // but if one occurs, restart the full warroom.
+    await handleStartWarroom();
+  } else if (phase === 'build') {
+    await handleStartBuild({
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    });
+  }
+}
+
+/**
+ * Resume the warroom after the user responds to a restored plan review.
+ * Skips intro + PM (plan already exists) and continues from the TL step.
+ */
+export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewResponse): Promise<void> {
+  if (!currentProjectDir) return;
+
+  setCurrentChatPhase('warroom');
+  setCurrentChatAgentRole(null);
+  setCurrentChatRunNumber(0);
+
+  // Ensure phase machine exists
+  if (!phaseMachine) {
+    const state = projectManager.getProjectState(currentProjectDir);
+    const pm = new PhaseMachine(state.currentPhase, state.completedPhases);
+    setPhaseMachine(pm);
+    pm.on('change', (info: PhaseInfo) => {
+      send(IPC_CHANNELS.PHASE_CHANGE, info);
+      if (currentProjectDir) {
+        projectManager.updateProjectState(currentProjectDir, {
+          currentPhase: info.phase,
+          completedPhases: pm.completedPhases,
+        });
+      }
+    });
+  }
+
+  phaseMachine!.transition('warroom');
+
+  if (!statsCollector && currentProjectDir) {
+    setStatsCollector(new StatsCollector(currentProjectDir));
+  }
+  statsCollector?.onPhaseStart('warroom');
+
+  if (!permissionHandler) {
+    setPermissionHandler(new PermissionHandler(
+      'auto-all',
+      (req: PermissionRequest) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    ));
+  }
+
+  try {
+    await runWarroom({
+      projectDir: currentProjectDir,
+      agentsDir,
+      env: authManager.getAuthEnv() || {},
+      onEvent: onAgentEvent,
+      onWaiting: handleAgentWaiting,
+      onSystemMessage,
+      onActStart: (actName) => statsCollector?.onActStart('warroom', actName),
+      onActComplete: (actName) => statsCollector?.onActComplete('warroom', actName),
+      onWarTableState: (state: WarTableVisualState) => {
+        send(IPC_CHANNELS.WAR_TABLE_STATE, state);
+      },
+      onWarTableCardAdded: (card: WarTableCard) => {
+        send(IPC_CHANNELS.WAR_TABLE_CARD_ADDED, card);
+      },
+      onWarTableChoreography: (payload: WarTableChoreographyPayload) => {
+        send(IPC_CHANNELS.WAR_TABLE_CHOREOGRAPHY, payload);
+      },
+      onReviewReady: (content: string, artifact: 'plan' | 'tasks') => {
+        return new Promise<WarTableReviewResponse>((resolve) => {
+          setPendingReview({ resolve });
+          const payload: WarTableReviewPayload = { content, artifact };
+          send(IPC_CHANNELS.WAR_TABLE_REVIEW_READY, payload);
+          if (currentProjectDir) persistPendingReview(currentProjectDir, artifact);
+        });
+      },
+      waitForIntro: () => Promise.resolve(), // not used in resume path
+      getSettings: async (): Promise<AppSettings> => ({
+        defaultModelPreset: 'default',
+        defaultPermissionMode: 'auto-safe',
+        maxParallelTLs: 4,
+      }),
+      resumeReviewResponse: reviewResponse,
+    });
+    statsCollector?.onPhaseComplete('warroom');
+    phaseMachine!.markCompleted('warroom');
+  } catch (err: any) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[Main] Warroom resume failed:', err);
+    onSystemMessage(`Warroom resume failed: ${errMsg}`);
+    phaseMachine!.markFailed();
+  }
 }
 
 export function initPhaseHandlers(): void {
@@ -331,7 +474,7 @@ export function initPhaseHandlers(): void {
     if (phaseMachine) {
       phaseMachine.markInterrupted();
     }
-    rejectPendingQuestions('Phase restart');
+    rejectPendingQuestions('Phase restart', true);
     setPendingReview(null);
 
     // 2. Clean artifacts from target phase onward
@@ -421,6 +564,9 @@ export function initPhaseHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
+    // Clear persisted waiting state regardless of whether a live session exists
+    if (currentProjectDir) clearWaitingState(currentProjectDir);
+
     const pending = pendingQuestions.get(sessionId);
     if (pending) {
       if (chatHistoryStore && currentChatPhase && currentChatAgentRole && currentChatRunNumber > 0) {
@@ -466,6 +612,7 @@ export function initPhaseHandlers(): void {
   // ── War Table ──
 
   ipcMain.handle(IPC_CHANNELS.WAR_TABLE_REVIEW_RESPONSE, async (_event, response: WarTableReviewResponse) => {
+    if (currentProjectDir) clearPendingReview(currentProjectDir);
     if (pendingReview) {
       pendingReview.resolve(response);
       setPendingReview(null);

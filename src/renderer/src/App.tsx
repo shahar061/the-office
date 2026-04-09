@@ -18,6 +18,7 @@ export default function App() {
   const setProjectState = useProjectStore((s) => s.setProjectState);
   const setPhaseInfo = useProjectStore((s) => s.setPhaseInfo);
   const addMessage = useChatStore((s) => s.addMessage);
+  const setWaiting = useChatStore((s) => s.setWaiting);
   const setKanban = useKanbanStore((s) => s.setKanban);
   const handleAgentEvent = useOfficeStore((s) => s.handleAgentEvent);
   const markArtifactAvailable = useArtifactStore((s) => s.markAvailable);
@@ -34,6 +35,10 @@ export default function App() {
       window.office.onArtifactAvailable((payload) => {
         markArtifactAvailable(payload.key);
         audioManager.playSfx('artifact-written');
+      }),
+      window.office.onAgentWaiting((payload) => {
+        audioManager.playSfx('agent-waiting');
+        setWaiting(payload);
       }),
       window.office.onStatsState(setStats),
     ];

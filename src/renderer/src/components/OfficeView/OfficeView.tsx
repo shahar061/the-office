@@ -360,6 +360,10 @@ export default function OfficeView() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.3); }
         }
+        @keyframes icon-rail-ping {
+          0% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.8); opacity: 0; }
+        }
       `}</style>
 
       {/* Top bar */}

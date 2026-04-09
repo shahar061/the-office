@@ -21,6 +21,8 @@ export interface WarroomConfig extends PhaseConfig {
   onReviewReady: (content: string, artifact: 'plan' | 'tasks') => Promise<WarTableReviewResponse>;
   waitForIntro: () => Promise<void>;
   getSettings: () => Promise<AppSettings>;
+  /** If provided, skip intro + PM + review gate and resume from the TL step. */
+  resumeReviewResponse?: WarTableReviewResponse;
 }
 
 export async function runWarroom(config: WarroomConfig): Promise<void> {
@@ -32,62 +34,72 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   const artifactStore = new ArtifactStore(projectDir);
   const context = artifactStore.getImagineContext();
 
-  // ── Intro: PM walks to boardroom with cinematic dialog ──
+  let reviewResponse: WarTableReviewResponse;
 
-  onWarTableChoreography({ step: 'intro-walk' });
-  await waitForIntro();
+  if (config.resumeReviewResponse) {
+    // ── Resuming after app restart — skip intro, PM, and review gate ──
+    reviewResponse = config.resumeReviewResponse;
+    onSystemMessage('Resuming War Room from plan review...');
+  } else {
+    // ── Intro: PM walks to boardroom with cinematic dialog ──
 
-  // ── Act 1: PM reads artifacts and writes plan ──
+    onWarTableChoreography({ step: 'intro-walk' });
+    await waitForIntro();
 
-  // Ensure docs/office/ exists (imagine agents may have created it, but be safe)
-  fs.mkdirSync(path.join(projectDir, 'docs', 'office'), { recursive: true });
+    // ── Act 1: PM reads artifacts and writes plan ──
 
-  config.onActStart?.('PM Plan');
-  onWarTableState('growing');
-  onWarTableChoreography({ step: 'pm-reading' });
-  onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
+    // Ensure docs/office/ exists (imagine agents may have created it, but be safe)
+    fs.mkdirSync(path.join(projectDir, 'docs', 'office'), { recursive: true });
 
-  await runAgentSession({
-    agentName: 'project-manager',
-    agentsDir,
-    prompt: [
-      'You are the Project Manager leading the War Room planning phase.',
-      'Based on the design documents below, create a human-readable implementation plan.',
-      '',
-      'CRITICAL: You MUST use the Write tool to save the plan to docs/office/plan.md.',
-      'Do NOT just output the plan as text — you MUST write it to the file using the Write tool.',
-      'The session will fail if docs/office/plan.md does not exist when you finish.',
-      '',
-      context,
-    ].join('\n'),
-    cwd: projectDir,
-    env,
-    excludeAskUser: true,
-    expectedOutput: 'docs/office/plan.md',
-    onEvent,
-    onWaiting,
-  });
+    config.onActStart?.('PM Plan');
+    onWarTableState('growing');
+    onWarTableChoreography({ step: 'pm-reading' });
+    onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
 
-  // Parse milestones and emit cards with staggered timing
-  onWarTableChoreography({ step: 'pm-writing' });
-  onSystemMessage('Project Manager is drafting the plan...');
+    await runAgentSession({
+      agentName: 'project-manager',
+      agentsDir,
+      prompt: [
+        'You are the Project Manager leading the War Room planning phase.',
+        'Based on the design documents below, create a human-readable implementation plan.',
+        '',
+        'CRITICAL: You MUST use the Write tool to save the plan to docs/office/plan.md.',
+        'Do NOT just output the plan as text — you MUST write it to the file using the Write tool.',
+        'The session will fail if docs/office/plan.md does not exist when you finish.',
+        '',
+        context,
+      ].join('\n'),
+      cwd: projectDir,
+      env,
+      excludeAskUser: true,
+      expectedOutput: 'docs/office/plan.md',
+      onEvent,
+      onWaiting,
+    });
 
-  const milestones = artifactStore.parsePlanMilestones();
-  for (const m of milestones) {
-    onWarTableCardAdded({ id: m.id, type: 'milestone', title: m.title });
-    await delay(400);
+    // Parse milestones and emit cards with staggered timing
+    onWarTableChoreography({ step: 'pm-writing' });
+    onSystemMessage('Project Manager is drafting the plan...');
+
+    const milestones = artifactStore.parsePlanMilestones();
+    for (const m of milestones) {
+      onWarTableCardAdded({ id: m.id, type: 'milestone', title: m.title });
+      await delay(400);
+    }
+
+    onWarTableChoreography({ step: 'pm-done' });
+    config.onActComplete?.('PM Plan');
+
+    // ── Act 2: Review Gate ──
+
+    onWarTableState('review');
+    onSystemMessage('Plan ready for review. Click the war table to review.');
+
+    reviewResponse = await onReviewReady(artifactStore.readArtifact('plan.md'), 'plan');
   }
 
-  onWarTableChoreography({ step: 'pm-done' });
-  config.onActComplete?.('PM Plan');
-
-  // ── Act 2: Review Gate ──
-
-  onWarTableState('review');
-  onSystemMessage('Plan ready for review. Click the war table to review.');
-
+  // Read plan for TL prompt (works for both fresh and resume paths)
   const plan = artifactStore.readArtifact('plan.md');
-  const reviewResponse = await onReviewReady(plan, 'plan');
 
   // ── Act 3: Coordinator TL writes tasks.yaml ──
 
