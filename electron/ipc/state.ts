@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import { app, BrowserWindow } from 'electron';
 import { randomUUID } from 'crypto';
@@ -215,6 +216,11 @@ export function handleAgentWaiting(agentRole: AgentRole, questions: AskQuestion[
 
     const payload: AgentWaitingPayload = { sessionId, agentRole, questions };
     send(IPC_CHANNELS.AGENT_WAITING, payload);
+
+    // Persist so the question survives app restart
+    if (currentProjectDir) {
+      persistWaitingState(currentProjectDir, payload);
+    }
   });
 }
 
@@ -222,11 +228,98 @@ export function onSystemMessage(text: string): void {
   sendChat({ role: 'system', text });
 }
 
-export function rejectPendingQuestions(reason: string): void {
+export function rejectPendingQuestions(reason: string, clearPersistedState = false): void {
   for (const [, pending] of pendingQuestions) {
     pending.reject(new Error(reason));
   }
   pendingQuestions.clear();
+
+  if (clearPersistedState && currentProjectDir) clearWaitingState(currentProjectDir);
+}
+
+// ── Waiting-state persistence ──
+
+const OFFICE_DIR = '.the-office';
+const PENDING_QUESTION_FILE = 'pending-question.json';
+
+function pendingQuestionPath(projectDir: string): string {
+  return path.join(projectDir, OFFICE_DIR, PENDING_QUESTION_FILE);
+}
+
+export function persistWaitingState(projectDir: string, payload: AgentWaitingPayload): void {
+  try {
+    const dir = path.join(projectDir, OFFICE_DIR);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      pendingQuestionPath(projectDir),
+      JSON.stringify({ ...payload, phase: currentChatPhase }, null, 2),
+      'utf-8',
+    );
+  } catch (err) {
+    console.error('[State] Failed to persist waiting state:', err);
+  }
+}
+
+export function clearWaitingState(projectDir: string): void {
+  try {
+    const fp = pendingQuestionPath(projectDir);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  } catch (err) {
+    console.error('[State] Failed to clear waiting state:', err);
+  }
+}
+
+export function loadWaitingState(projectDir: string): (AgentWaitingPayload & { phase?: Phase }) | null {
+  try {
+    const fp = pendingQuestionPath(projectDir);
+    if (!fs.existsSync(fp)) return null;
+    return JSON.parse(fs.readFileSync(fp, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+// ── Pending-review persistence (warroom plan review gate) ──
+
+const PENDING_REVIEW_FILE = 'pending-review.json';
+
+function pendingReviewPath(projectDir: string): string {
+  return path.join(projectDir, OFFICE_DIR, PENDING_REVIEW_FILE);
+}
+
+export interface PersistedReview {
+  artifact: 'plan' | 'tasks';
+  phase: Phase;
+}
+
+export function persistPendingReview(projectDir: string, artifact: 'plan' | 'tasks'): void {
+  try {
+    const dir = path.join(projectDir, OFFICE_DIR);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const data: PersistedReview = { artifact, phase: currentChatPhase ?? 'warroom' };
+    fs.writeFileSync(pendingReviewPath(projectDir), JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[State] Failed to persist pending review:', err);
+  }
+}
+
+export function clearPendingReview(projectDir: string): void {
+  try {
+    const fp = pendingReviewPath(projectDir);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  } catch (err) {
+    console.error('[State] Failed to clear pending review:', err);
+  }
+}
+
+export function loadPendingReview(projectDir: string): PersistedReview | null {
+  try {
+    const fp = pendingReviewPath(projectDir);
+    if (!fs.existsSync(fp)) return null;
+    return JSON.parse(fs.readFileSync(fp, 'utf-8'));
+  } catch {
+    return null;
+  }
 }
 
 /** Reset all session state when switching projects. */

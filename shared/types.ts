@@ -345,6 +345,9 @@ export const IPC_CHANNELS = {
   // Settings
   GET_SETTINGS: 'office:get-settings',
   SAVE_SETTINGS: 'office:save-settings',
+  // Layouts
+  GET_LAYOUTS: 'office:get-layouts',
+  SAVE_LAYOUTS: 'office:save-layouts',
   // Utilities
   OPEN_EXTERNAL: 'office:open-external',
   // Artifacts
@@ -409,6 +412,8 @@ export interface OfficeAPI {
 
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: AppSettings): Promise<void>;
+  getLayouts(): Promise<Record<string, unknown> | null>;
+  saveLayouts(layouts: Record<string, unknown>): Promise<void>;
   openExternal(url: string): Promise<void>;
   onArtifactAvailable(callback: (payload: ArtifactAvailablePayload) => void): () => void;
   readArtifact(filename: string): Promise<{ content: string } | { error: string }>;

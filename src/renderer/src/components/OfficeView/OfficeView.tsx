@@ -1,34 +1,25 @@
 import { useEffect, useCallback } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
-import { useUIStore } from '../../stores/ui.store';
 import { useArtifactStore } from '../../stores/artifact.store';
 import { useOfficeStore } from '../../stores/office.store';
 import { useAgentsStore } from '../../stores/agents.store';
 import { colors } from '../../theme';
 import { PermissionPrompt } from '../PermissionPrompt/PermissionPrompt';
-import { OfficeCanvas } from '../../office/OfficeCanvas';
 import { useSceneSync } from '../../office/useSceneSync';
 import type { OfficeScene } from '../../office/OfficeScene';
-import { ArtifactToolbox } from './ArtifactToolbox';
-import { AudioControls } from './AudioControls';
-import { ArtifactOverlay } from './ArtifactOverlay';
-import { PlanOverlay } from './PlanOverlay';
 import { audioManager } from '../../audio/AudioManager';
 import { useAudioStore } from '../../stores/audio.store';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
-import { ChatPanel } from './ChatPanel';
-import { AgentsScreen } from '../AgentsScreen/AgentsScreen';
 import { useIntro, CEO_INTRO_STEPS } from './useIntro';
 import { useWarRoomIntro, WARROOM_SPEAKER, WARROOM_SPEAKER_COLOR } from './useWarRoomIntro';
 import { useWarTableStore } from '../../stores/war-table.store';
 import { IconRail } from '../IconRail/IconRail';
-import { LogViewer } from '../LogViewer/LogViewer';
-import { AboutPanel } from '../AboutPanel/AboutPanel';
 import { useLogStore } from '../../stores/log.store';
-import { KanbanBoard } from '../KanbanBoard/KanbanBoard';
-import { StatsPanel } from '../StatsPanel/StatsPanel';
+import { SplitLayout } from '../SplitLayout/PaneRenderer';
+import { useLayoutStore } from '../../stores/layout.store';
+import { findLeafByPanelId } from '../SplitLayout/layout-utils';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,53 +88,12 @@ const styles = {
     flex: 1,
     overflow: 'hidden',
   },
-  canvasArea: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#0a0a15',
-    color: '#334155',
-    fontSize: '13px',
-    fontStyle: 'italic',
-    userSelect: 'none' as const,
-  },
-  chevronButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '20px',
-    background: colors.surface,
-    border: 'none',
-    borderLeft: `1px solid ${colors.border}`,
-    borderRight: `1px solid ${colors.border}`,
-    color: '#666',
-    cursor: 'pointer',
-    fontSize: '14px',
-    flexShrink: 0,
-    transition: 'background 0.15s, color 0.15s',
-    fontFamily: 'inherit',
-  },
-  expandedContent: {
-    position: 'relative' as const,
-    flex: 1,
-    display: 'flex',
-    overflow: 'hidden',
-  },
-  expandedChatPanel: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    width: '100%',
-    background: colors.bg,
-    overflow: 'hidden',
-  },
 } as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function OfficeView() {
   const { authStatus, projectState, currentPhase } = useProjectStore();
-  const { isExpanded, activeTab, toggleExpanded, setActiveTab } = useUIStore();
 
   const phase = projectState?.currentPhase ?? 'idle';
   const projectName = projectState?.name ?? 'No project';
@@ -296,20 +246,18 @@ export default function OfficeView() {
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
-  // Clear unread when switching to logs tab
-  useEffect(() => {
-    if (activeTab === 'logs') {
-      useLogStore.getState().clearUnread();
-    }
-  }, [activeTab]);
-
   // Handle character view-details click from Pixi canvas
   useEffect(() => {
     function handleViewDetails(e: Event) {
       const { role } = (e as CustomEvent).detail;
       const { selectAgent } = useAgentsStore.getState();
       selectAgent(role);
-      useUIStore.getState().setActiveTab('agents');
+      // Focus the agents pane if it exists
+      const tree = useLayoutStore.getState().tree;
+      const agentsLeaf = findLeafByPanelId(tree, 'agents');
+      if (agentsLeaf) {
+        useLayoutStore.getState().setFocusedPane(agentsLeaf.id);
+      }
     }
     window.addEventListener('character-view-details', handleViewDetails);
     return () => window.removeEventListener('character-view-details', handleViewDetails);
@@ -360,6 +308,10 @@ export default function OfficeView() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(1.3); }
         }
+        @keyframes icon-rail-ping {
+          0% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.8); opacity: 0; }
+        }
       `}</style>
 
       {/* Top bar */}
@@ -408,30 +360,10 @@ export default function OfficeView() {
 
       {/* Main area */}
       <div style={{ ...styles.main, position: 'relative' }}>
-        {/* Icon Rail — always visible */}
-        <IconRail activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* PixiJS canvas -- single instance, always mounted */}
-        <div style={{
-          ...styles.canvasArea,
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          right: 0,
-          left: activeTab === 'office'
-            ? 40
-            : isExpanded
-              ? 40
-              : 380,
-          zIndex: 0,
-          visibility: isExpanded && activeTab !== 'office' ? 'hidden' : 'visible',
-        }}>
-          <OfficeCanvas onSceneReady={handleSceneReady} />
-          <ArtifactToolbox />
-          <AudioControls />
-          <ArtifactOverlay />
-          <PlanOverlay />
-          {showIntro && (
+        <IconRail />
+        <SplitLayout onSceneReady={handleSceneReady} />
+        {showIntro && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'auto', left: '40px' }}>
             <IntroSequence
               steps={CEO_INTRO_STEPS}
               speaker="CEO"
@@ -440,8 +372,10 @@ export default function OfficeView() {
               onChatHighlightChange={handleChatHighlightChange}
               onStepChange={handleStepChange}
             />
-          )}
-          {showWarRoomIntro && showWarRoomDialog && (
+          </div>
+        )}
+        {showWarRoomIntro && showWarRoomDialog && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'auto', left: '40px' }}>
             <IntroSequence
               steps={warRoomSteps}
               speaker={WARROOM_SPEAKER}
@@ -451,181 +385,7 @@ export default function OfficeView() {
               onChatHighlightChange={() => {}}
               onStepChange={() => {}}
             />
-          )}
-        </div>
-
-        {activeTab !== 'office' && (
-          <>
-            {isExpanded ? (
-              <>
-                {/* Collapse chevron */}
-                <button
-                  style={{ ...styles.chevronButton, zIndex: 2, position: 'relative' }}
-                  onClick={toggleExpanded}
-                  title="Collapse to side-by-side"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#2a2a4a';
-                    e.currentTarget.style.color = '#e5e5e5';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = colors.surface;
-                    e.currentTarget.style.color = '#666';
-                  }}
-                >
-                  ‹
-                </button>
-
-                {/* Expanded content area */}
-                <div style={{ ...styles.expandedContent, zIndex: 1 }}>
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'chat' ? 'flex' : 'none',
-                  }}>
-                    <ChatPanel isExpanded={true} />
-                  </div>
-
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'agents' ? 'flex' : 'none',
-                  }}>
-                    <AgentsScreen />
-                  </div>
-
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'logs' ? 'flex' : 'none',
-                  }}>
-                    <LogViewer />
-                  </div>
-
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'about' ? 'flex' : 'none',
-                  }}>
-                    <AboutPanel />
-                  </div>
-
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'kanban' ? 'flex' : 'none',
-                  }}>
-                    <KanbanBoard />
-                  </div>
-
-                  <div style={{
-                    ...styles.expandedChatPanel,
-                    display: activeTab === 'stats' ? 'flex' : 'none',
-                  }}>
-                    <StatsPanel />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Collapsed: show active panel in 320px */}
-                <div style={{
-                  display: activeTab === 'chat' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <ChatPanel
-                    isExpanded={false}
-                    highlightClassName={introChatHighlight ? 'chat-panel-highlight' : undefined}
-                  />
-                </div>
-
-                <div style={{
-                  display: activeTab === 'agents' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  overflow: 'hidden',
-                  background: colors.bg,
-                  borderRight: `1px solid ${colors.border}`,
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <AgentsScreen />
-                </div>
-
-                <div style={{
-                  display: activeTab === 'logs' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  overflow: 'hidden',
-                  background: colors.bg,
-                  borderRight: `1px solid ${colors.border}`,
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <LogViewer />
-                </div>
-
-                <div style={{
-                  display: activeTab === 'about' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  overflow: 'hidden',
-                  background: colors.bg,
-                  borderRight: `1px solid ${colors.border}`,
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <AboutPanel />
-                </div>
-
-                <div style={{
-                  display: activeTab === 'kanban' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  overflow: 'hidden',
-                  background: colors.bg,
-                  borderRight: `1px solid ${colors.border}`,
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <KanbanBoard />
-                </div>
-
-                <div style={{
-                  display: activeTab === 'stats' ? 'flex' : 'none',
-                  flexDirection: 'column' as const,
-                  width: '320px',
-                  minWidth: '320px',
-                  overflow: 'hidden',
-                  background: colors.bg,
-                  borderRight: `1px solid ${colors.border}`,
-                  zIndex: 1,
-                  position: 'relative' as const,
-                }}>
-                  <StatsPanel />
-                </div>
-
-                {/* Expand chevron */}
-                <button
-                  style={{ ...styles.chevronButton, zIndex: 1, position: 'relative' }}
-                  onClick={toggleExpanded}
-                  title="Expand to full width"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#2a2a4a';
-                    e.currentTarget.style.color = '#e5e5e5';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = colors.surface;
-                    e.currentTarget.style.color = '#666';
-                  }}
-                >
-                  ›
-                </button>
-              </>
-            )}
-          </>
+          </div>
         )}
       </div>
       <PermissionPrompt />

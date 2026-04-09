@@ -65,6 +65,10 @@ contextBridge.exposeInMainWorld('office', {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
   saveSettings: (s: AppSettings) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, s),
 
+  // Layouts
+  getLayouts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_LAYOUTS),
+  saveLayouts: (layouts: Record<string, unknown>) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_LAYOUTS, layouts),
+
   // Utilities
   openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
 
