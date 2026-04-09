@@ -1,4 +1,6 @@
 import { ipcMain, dialog } from 'electron';
+import fs from 'fs';
+import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
 import type { Phase } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
@@ -22,6 +24,7 @@ import {
   loadWaitingState,
   loadPendingReview,
   setPendingReview,
+  dataDir,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -164,5 +167,24 @@ export function initProjectHandlers(): void {
       }
     }
     return status;
+  });
+
+  // ── Layouts ──
+
+  ipcMain.handle(IPC_CHANNELS.GET_LAYOUTS, async () => {
+    const layoutsPath = path.join(dataDir, 'layouts.json');
+    try {
+      if (fs.existsSync(layoutsPath)) {
+        return JSON.parse(fs.readFileSync(layoutsPath, 'utf-8'));
+      }
+    } catch {
+      // Corrupted file — return null to use defaults
+    }
+    return null;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_LAYOUTS, async (_event, layouts: Record<string, unknown>) => {
+    const layoutsPath = path.join(dataDir, 'layouts.json');
+    fs.writeFileSync(layoutsPath, JSON.stringify(layouts, null, 2), 'utf-8');
   });
 }
