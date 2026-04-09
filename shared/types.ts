@@ -193,6 +193,7 @@ export interface WarTableChoreographyPayload {
       | 'tl-done';
   cloneId?: string;
   phaseId?: string;
+  phaseName?: string;
   totalClones?: number;
 }
 
@@ -325,6 +326,7 @@ export const IPC_CHANNELS = {
   START_BUILD: 'office:start-build',
   PHASE_CHANGE: 'office:phase-change',
   RESTART_PHASE: 'office:restart-phase',
+  RESUME_PHASE: 'office:resume-phase',
   PHASE_RESTART: 'office:phase-restart',
   // Chat
   SEND_MESSAGE: 'office:send-message',
@@ -394,6 +396,7 @@ export interface OfficeAPI {
   startBuild(config: BuildConfig): Promise<void>;
   onPhaseChange(callback: (phase: PhaseInfo) => void): () => void;
   restartPhase(payload: RestartPhasePayload): Promise<void>;
+  resumePhase(): Promise<void>;
   onPhaseRestart(callback: (targetPhase: Phase) => void): () => void;
 
   sendMessage(message: string): Promise<void>;

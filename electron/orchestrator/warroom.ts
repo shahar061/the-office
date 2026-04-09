@@ -200,7 +200,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     maxConcurrency,
     async (phase, index) => {
       const cloneNumber = index + 1;
-      onWarTableChoreography({ step: 'tl-clone-writing', cloneId: `tl-${phase.id}`, phaseId: phase.id });
+      onWarTableChoreography({ step: 'tl-clone-writing', cloneId: `tl-${phase.id}`, phaseId: phase.id, phaseName: phase.name });
 
       const phaseTaskList = phase.tasks
         .map(t => `- ${t.id}: ${t.description} (agent: ${t.assigned_agent}, model: ${t.model})`)
@@ -256,7 +256,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     },
     {
       onStart: (phase) => {
-        onWarTableChoreography({ step: 'tl-clone-spawned', cloneId: `tl-${phase.id}`, phaseId: phase.id });
+        onWarTableChoreography({ step: 'tl-clone-spawned', cloneId: `tl-${phase.id}`, phaseId: phase.id, phaseName: phase.name });
       },
     },
   );
