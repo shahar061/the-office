@@ -33,10 +33,11 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
     const init = async () => {
       await app.init({
         background: '#1a1a2e',
-        resizeTo: container,
         antialias: false,
         roundPixels: true,
         resolution: 1,
+        width: container.clientWidth,
+        height: container.clientHeight,
       });
 
       // Bail if this mount was invalidated while awaiting
@@ -69,12 +70,15 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
       }
     });
 
-    // ResizeObserver notifies the scene/camera of container size changes.
-    // PixiJS handles canvas element resizing via resizeTo: container.
+    // Single ResizeObserver handles both PixiJS canvas and camera resizing
+    // so they stay perfectly in sync (no split-frame mismatches).
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width === 0 || height === 0) continue;
+        if (appRef.current?.renderer) {
+          appRef.current.renderer.resize(width, height);
+        }
         if (sceneRef.current) {
           sceneRef.current.onResize(width, height);
         }
@@ -101,7 +105,7 @@ export function OfficeCanvas({ onSceneReady }: OfficeCanvasProps = {}) {
   return (
     <div
       ref={containerRef}
-      style={{ flex: 1, overflow: 'hidden', imageRendering: 'pixelated' }}
+      style={{ width: '100%', height: '100%', overflow: 'hidden', imageRendering: 'pixelated' }}
     />
   );
 }

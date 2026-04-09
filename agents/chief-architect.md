@@ -8,6 +8,7 @@ allowedTools:
   - Write
   - Edit
   - Read
+  - AskUserQuestion
 ---
 
 # Chief Architect - Architecture Phase Leader

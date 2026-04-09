@@ -250,11 +250,20 @@ export class SDKBridge extends EventEmitter {
     if (config.maxTurns) options.maxTurns = config.maxTurns;
     if (config.model) options.model = config.model;
 
-    // Pass full process.env merged with any auth overrides
-    // Set max output tokens high enough for large spec writes (default 32K is too low)
+    // Build a clean environment for the agent subprocess.
+    // Strip npm_* vars that leak the Electron dev server's identity and confuse
+    // agents about which project they're working in (e.g. npm_package_name="the-office").
+    // Override PWD to match cwd so agents see a consistent working directory.
+    const cleanEnv: Record<string, string> = {};
+    for (const [key, val] of Object.entries(process.env)) {
+      if (val !== undefined && !key.startsWith('npm_') && key !== 'INIT_CWD') {
+        cleanEnv[key] = val;
+      }
+    }
     options.env = {
-      ...process.env,
+      ...cleanEnv,
       CLAUDE_CODE_MAX_OUTPUT_TOKENS: '128000',
+      ...(config.cwd ? { PWD: config.cwd } : {}),
       ...(config.env ?? {}),
     };
 
@@ -278,11 +287,11 @@ export class SDKBridge extends EventEmitter {
         return { behavior: 'allow' as const };
       }
 
-      // Other tools → delegate to permission callback (or auto-approve if no callback)
+      // Other tools → delegate to permission callback or deny
       if (config.onToolPermission) {
         return config.onToolPermission(toolName, input);
       }
-      return { behavior: 'allow' as const };
+      return { behavior: 'deny' as const, message: `Tool "${toolName}" is not in this agent's allowed tools.` };
     };
 
     // Capture stderr from the claude subprocess

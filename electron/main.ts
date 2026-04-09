@@ -19,6 +19,22 @@ import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers } from './ipc/phase-handlers';
 
+// ── Suppress noisy Chromium/macOS warnings from stderr ──
+// These are harmless but spam the console (~30 lines per menu interaction):
+//   - "representedObject is not a WeakPtrToElectronMenuModelAsNSObject" (macOS Electron menu bug)
+//   - "SharedImageManager::ProduceOverlay ... non-existent mailbox" (transient GPU resource)
+const SUPPRESSED_PATTERNS = [
+  'representedObject is not a WeakPtrToElectronMenuModelAsNSObject',
+  'SharedImageManager::ProduceOverlay',
+  'Invalid mailbox',
+];
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+process.stderr.write = (chunk: any, ...args: any[]): boolean => {
+  const str = typeof chunk === 'string' ? chunk : chunk.toString();
+  if (SUPPRESSED_PATTERNS.some((p) => str.includes(p))) return true;
+  return (originalStderrWrite as any)(chunk, ...args);
+};
+
 // ── Window ──
 
 function createWindow(): void {

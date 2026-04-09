@@ -101,7 +101,7 @@ export class Character {
     const currentTile = this.getTilePosition();
     if (currentTile.x === this.deskTile.x && currentTile.y === this.deskTile.y) {
       this.state = workType;
-      this.sprite.setAnimation(workType, 'down');
+      this.sprite.setAnimation(workType, 'up');
     } else {
       this.pendingWork = workType;
       this.moveTo(this.deskTile);
@@ -209,7 +209,7 @@ export class Character {
       if (this.pendingWork) {
         this.state = this.pendingWork;
         this.pendingWork = null;
-        this.sprite.setAnimation(this.state as AnimState, 'down');
+        this.sprite.setAnimation(this.state as AnimState, 'up');
       } else {
         this.setIdle();
       }

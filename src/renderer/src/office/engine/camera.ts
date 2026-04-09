@@ -27,6 +27,7 @@ export class Camera {
   private viewWidth = 960;
   private viewHeight = 800;
   private manualOverride = false;
+  private currentPhase: string | null = null;
   private mapWidth = 640;
   private mapHeight = 480;
   private nudgeOffsetX: number = 0;
@@ -117,10 +118,9 @@ export class Camera {
   setViewSize(width: number, height: number): void {
     this.viewWidth = width;
     this.viewHeight = height;
-    // Ensure zoom stays at least the minimum to fill the viewport
-    const minZoom = this.getMinZoom();
-    if (this.targetZoom < minZoom) {
-      this.targetZoom = minZoom;
+    // Re-focus on the current phase so zoom adapts to the new viewport
+    if (!this.manualOverride && this.currentPhase) {
+      this.focusOnPhase(this.currentPhase);
     }
   }
 
@@ -130,18 +130,18 @@ export class Camera {
    */
   focusOnPhase(phase: string): void {
     if (this.manualOverride) return;
+    this.currentPhase = phase;
     const target = this.phaseTargets[phase];
     const minZoom = this.getMinZoom();
     if (target) {
       this.targetX = target.x;
       this.targetY = target.y;
-      this.targetZoom = Math.max(target.zoom, minZoom);
     } else {
-      // Default: center map, fit to screen
       this.targetX = this.mapWidth / 2;
       this.targetY = this.mapHeight / 2;
-      this.targetZoom = minZoom;
     }
+    // Always fit the full map within the viewport (no clipping)
+    this.targetZoom = minZoom;
   }
 
   /**

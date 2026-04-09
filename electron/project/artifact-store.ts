@@ -49,6 +49,10 @@ export class ArtifactStore {
     return fs.readFileSync(filePath, 'utf-8');
   }
 
+  hasArtifact(filename: string): boolean {
+    return fs.existsSync(path.join(this.officeDir, filename));
+  }
+
   readArtifact(filename: string): string {
     const filePath = path.join(this.officeDir, filename);
     if (!fs.existsSync(filePath)) {

@@ -11,6 +11,9 @@ import {
   collectPanelIds,
   getDepth,
   findLeaf,
+  findLeafByPanelId,
+  firstLeaf,
+  hasDuplicatePanels,
 } from '../components/SplitLayout/layout-utils';
 import { getDefaultLayout } from '../components/SplitLayout/default-layouts';
 
@@ -47,11 +50,25 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     const { tree } = get();
     const result = removeLeaf(tree, paneId);
     if (result === null) return;
-    set({ tree: result, focusedPaneId: null });
+    // Auto-focus the nearest surviving leaf
+    const nextFocus = firstLeaf(result).id;
+    set({ tree: result, focusedPaneId: nextFocus });
   },
 
   replacePanel(paneId, newPanelId) {
     const { tree } = get();
+    const existingLeaf = findLeafByPanelId(tree, newPanelId);
+    if (existingLeaf) {
+      // Panel already in the tree — if it's the same pane, nothing to do
+      if (existingLeaf.id === paneId) return;
+      // Otherwise swap: source pane gets the target's current panel
+      const targetLeaf = findLeaf(tree, paneId);
+      if (!targetLeaf) return;
+      let updated = replacePanelInTree(tree, paneId, newPanelId);
+      updated = replacePanelInTree(updated, existingLeaf.id, targetLeaf.panelId);
+      set({ tree: updated });
+      return;
+    }
     set({ tree: replacePanelInTree(tree, paneId, newPanelId) });
   },
 
@@ -69,6 +86,8 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   },
 
   loadLayout(tree) {
+    // Reject corrupted layouts with duplicate panels
+    if (hasDuplicatePanels(tree)) return;
     set({ tree, focusedPaneId: null });
   },
 }));

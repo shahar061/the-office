@@ -6,6 +6,7 @@ import { useWarTableStore } from '../stores/war-table.store';
 import type { OfficeScene } from './OfficeScene';
 import type { AgentRole } from '../../../../shared/types';
 import { audioManager } from '../audio/AudioManager';
+import { useSpecProgressStore } from '../stores/spec-progress.store';
 
 /**
  * Watches the Zustand office store and synchronizes character state
@@ -223,6 +224,7 @@ export function useSceneSync(scene: OfficeScene | null) {
           // Warroom intro handles PM walk and fog — choreography is managed by useWarRoomIntro
           // Show PM character so it's visible in the scene
           scene!.showCharacter('project-manager');
+          useSpecProgressStore.getState().reset();
           break;
         }
         case 'pm-reading': {
@@ -290,11 +292,18 @@ export function useSceneSync(scene: OfficeScene | null) {
         }
         case 'tl-clone-spawned': {
           if (!cloneId) break;
+          const { phaseId, phaseName } = (e as CustomEvent).detail;
           const seat = getNextSeat();
           if (!seat) break;
           occupiedSeats.add(seat);
           const characterId = `tl-clone-${cloneId}`;
           cloneMap.set(cloneId, { seat, characterId });
+
+          // Track in progress store
+          if (phaseId) {
+            useSpecProgressStore.getState().addPhase(phaseId, phaseName || phaseId);
+          }
+
           const clone = scene!.createClone(characterId, 'team-lead', seat);
           if (clone) {
             const entrance = scene!.getEntrancePosition();
@@ -306,29 +315,74 @@ export function useSceneSync(scene: OfficeScene | null) {
         }
         case 'tl-clone-writing': {
           if (!cloneId) break;
-          const info = cloneMap.get(cloneId);
-          if (!info) break;
-          const clone = scene!.getCharacter(info.characterId);
-          if (clone) clone.setWorking('type');
+          const { phaseId: writingPhaseId } = (e as CustomEvent).detail;
+          const writingInfo = cloneMap.get(cloneId);
+          if (!writingInfo) break;
+
+          // Settle-in delay before typing starts
+          setTimeout(() => {
+            const clone = scene!.getCharacter(writingInfo.characterId);
+            if (clone) clone.setWorking('type');
+            // Monitor glow on
+            scene!.setMonitorGlow(writingInfo.seat, true);
+          }, 500);
+
+          // Update progress store
+          if (writingPhaseId) {
+            useSpecProgressStore.getState().setStatus(writingPhaseId, 'active');
+          }
           break;
         }
         case 'tl-clone-done': {
           if (!cloneId) break;
-          const info = cloneMap.get(cloneId);
-          if (!info) break;
-          const clone = scene!.getCharacter(info.characterId);
-          if (clone) clone.setIdle();
+          const { phaseId: donePhaseId } = (e as CustomEvent).detail;
+          const doneInfo = cloneMap.get(cloneId);
+          if (!doneInfo) break;
+
+          // Monitor glow off
+          scene!.setMonitorGlow(doneInfo.seat, false);
+
+          // Update progress store
+          if (donePhaseId) {
+            useSpecProgressStore.getState().setStatus(donePhaseId, 'done');
+          }
+
+          const doneClone = scene!.getCharacter(doneInfo.characterId);
+          if (doneClone) {
+            doneClone.setIdle();
+            // Brief pause, then walk to entrance and fade out
+            setTimeout(() => {
+              const entrance = scene!.getEntrancePosition();
+              doneClone.walkToAndThen(entrance, () => {
+                scene!.destroyClone(doneInfo.characterId);
+                occupiedSeats.delete(doneInfo.seat);
+                cloneMap.delete(cloneId);
+              });
+            }, 1000);
+          } else {
+            // Clone already gone — just clean up
+            occupiedSeats.delete(doneInfo.seat);
+            cloneMap.delete(cloneId);
+          }
           break;
         }
         case 'tl-done': {
-          // All clones finished — clean up
+          // All clones finished — clean up any stragglers
           const tl = scene!.getCharacter('team-lead');
-          if (tl) tl.setIdle();
+          if (tl) {
+            tl.moveTo(tableTile);
+            tl.setIdle();
+          }
           for (const [, { characterId, seat }] of cloneMap) {
             scene!.destroyClone(characterId);
             occupiedSeats.delete(seat);
           }
           cloneMap.clear();
+
+          // Hide progress strip after a brief delay
+          setTimeout(() => {
+            useSpecProgressStore.getState().hide();
+          }, 2000);
           break;
         }
       }

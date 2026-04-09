@@ -166,6 +166,89 @@
         }, 
         {
          "draworder":"topdown",
+         "id":10,
+         "name":"monitor-glow",
+         "objects":[
+                {
+                 "height":6.9674867769692,
+                 "id":108,
+                 "name":"monitor-pc-1",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":12.059709072272,
+                 "x":322.003438079071,
+                 "y":75.1270793350506
+                }, 
+                {
+                 "height":6.71338634240608,
+                 "id":109,
+                 "name":"monitor-pc-2",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.7217557282024,
+                 "x":386.234683258917,
+                 "y":75.2196746324589
+                }, 
+                {
+                 "height":6.96749,
+                 "id":114,
+                 "name":"monitor-pc-3",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":12.0597,
+                 "x":321.94560357524,
+                 "y":139.081178514763
+                }, 
+                {
+                 "height":6.96749,
+                 "id":115,
+                 "name":"monitor-pc-4",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":12.0597,
+                 "x":385.797613536108,
+                 "y":138.903305871576
+                }, 
+                {
+                 "height":6.96749,
+                 "id":116,
+                 "name":"monitor-pc-5",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":12.0597,
+                 "x":321.967304037709,
+                 "y":203.026393740662
+                }, 
+                {
+                 "height":6.96749,
+                 "id":117,
+                 "name":"monitor-pc-6",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":12.0597,
+                 "x":385.912519263607,
+                 "y":203.026393740662
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
          "id":6,
          "name":"spawn-points",
          "objects":[
@@ -552,8 +635,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":10,
- "nextobjectid":108,
+ "nextlayerid":11,
+ "nextobjectid":118,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.0",

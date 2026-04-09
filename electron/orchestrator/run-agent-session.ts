@@ -46,9 +46,15 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
       config.onEvent(event);
     });
 
+    // Prepend a brief working-directory reminder so agents don't hallucinate paths.
+    const cwdReminder = `IMPORTANT: Your working directory is ${config.cwd}. `
+      + `Always use relative paths (e.g. "docs/office/file.md") when calling Write, Read, or Edit tools. `
+      + `Never guess absolute paths.\n\n`;
+
     const prompt = attempt === 1
-      ? config.prompt
-      : `RETRY: Your previous session ended without producing the required file: ${config.expectedOutput}.\n`
+      ? cwdReminder + config.prompt
+      : cwdReminder
+        + `RETRY: Your previous session ended without producing the required file: ${config.expectedOutput}.\n`
         + `You MUST use the Write tool to create this file before finishing.\n\n`
         + config.prompt;
 

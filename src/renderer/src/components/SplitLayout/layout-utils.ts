@@ -1,6 +1,6 @@
 import type { LayoutNode, LeafNode, SplitNode, SplitDirection, PanelId } from './layout-types';
 
-let paneCounter = 0;
+let paneCounter = Date.now();
 
 export function generatePaneId(): string {
   return `pane-${++paneCounter}`;
@@ -30,6 +30,15 @@ export function collectPanelIds(node: LayoutNode): Set<PanelId> {
   const left = collectPanelIds(node.children[0]);
   const right = collectPanelIds(node.children[1]);
   return new Set([...left, ...right]);
+}
+
+export function countLeaves(node: LayoutNode): number {
+  if (node.type === 'leaf') return 1;
+  return countLeaves(node.children[0]) + countLeaves(node.children[1]);
+}
+
+export function hasDuplicatePanels(node: LayoutNode): boolean {
+  return collectPanelIds(node).size < countLeaves(node);
 }
 
 export function getDepth(node: LayoutNode): number {
@@ -99,6 +108,11 @@ export function replacePanel(root: LayoutNode, paneId: string, newPanelId: Panel
       replacePanel(root.children[1], paneId, newPanelId),
     ],
   };
+}
+
+export function firstLeaf(node: LayoutNode): LeafNode {
+  if (node.type === 'leaf') return node;
+  return firstLeaf(node.children[0]);
 }
 
 export function findLeafByPanelId(node: LayoutNode, panelId: PanelId): LeafNode | null {

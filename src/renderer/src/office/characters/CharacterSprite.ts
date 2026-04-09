@@ -12,8 +12,8 @@ const DIRECTION_ROW: Record<Direction, number> = {
 
 const ANIM_FRAMES: Record<AnimState, number[]> = {
   walk: [0, 1, 2, 1],
-  type: [3, 4],
-  read: [5, 6],
+  type: [0, 1, 2, 1],
+  read: [0, 1, 2, 1],
   idle: [0],
 };
 
@@ -59,7 +59,7 @@ export class CharacterSprite {
 
     this.sprite.scale.x = direction === 'left' ? -1 : 1;
 
-    this.sprite.animationSpeed = anim === 'walk' ? 0.15 : 0.08;
+    this.sprite.animationSpeed = anim === 'walk' ? 0.15 : anim === 'idle' ? 0.08 : 0.06;
     this.sprite.play();
   }
 
