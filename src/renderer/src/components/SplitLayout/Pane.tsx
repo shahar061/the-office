@@ -18,6 +18,7 @@ import { ArtifactToolbox } from '../OfficeView/ArtifactToolbox';
 import { AudioControls } from '../OfficeView/AudioControls';
 import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
 import { PlanOverlay } from '../OfficeView/PlanOverlay';
+import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 
 const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   chat: { icon: '💬', label: 'Chat' },
@@ -134,6 +135,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
             <AudioControls />
             <ArtifactOverlay />
             <PlanOverlay />
+            <SpecProgressStrip />
           </div>
         )}
         {panelId === 'agents' && <AgentsScreen />}
