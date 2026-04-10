@@ -377,3 +377,73 @@ export function buildApprovedExecutionPrompt(
     approvedPlan,
   ].join('\n');
 }
+
+/**
+ * Continue a Workshop request after a persisted plan has been reviewed on
+ * restart. Skips triage entirely. `response.action === 'approve'` goes
+ * straight to execution; `'revise'` runs a fresh planning session (and the
+ * subsequent review loop).
+ */
+export async function continueWorkshopAfterReview(
+  request: Request,
+  response: RequestPlanResponse,
+  config: WorkshopConfigWithReview,
+): Promise<Request> {
+  if (!request.assignedAgent) {
+    request.status = 'failed';
+    request.error = 'Cannot resume: no assigned agent';
+    request.completedAt = Date.now();
+    config.onRequestUpdated(request);
+    return request;
+  }
+
+  const scanner = new ProjectScanner(config.projectDir);
+  const artifactStore = new ArtifactStore(config.projectDir);
+  const fileTree = scanner.getFileTree();
+  const imagineContext = artifactStore.hasImagineArtifacts()
+    ? artifactStore.getImagineContext()
+    : '';
+  const reasoning = 'Resumed after app restart';
+
+  if (response.action === 'approve' && request.plan) {
+    request.status = 'in_progress';
+    config.onRequestUpdated(request);
+    return runExecution(request, reasoning, fileTree, imagineContext, request.plan, config);
+  }
+
+  // revise — loop into a fresh planning session
+  let currentPlan = request.plan;
+  let feedback = response.feedback ?? '';
+  while (true) {
+    try {
+      currentPlan = await runPlanningSession(
+        request,
+        reasoning,
+        fileTree,
+        imagineContext,
+        currentPlan,
+        feedback,
+        config,
+      );
+    } catch (err: any) {
+      request.status = 'failed';
+      request.error = `Planning failed: ${err?.message || err}`;
+      request.completedAt = Date.now();
+      config.onRequestUpdated(request);
+      return request;
+    }
+
+    request.plan = currentPlan;
+    request.status = 'awaiting_review';
+    config.onRequestUpdated(request);
+
+    const nextReview = await config.waitForPlanReview(request.id, currentPlan);
+
+    if (nextReview.action === 'approve') {
+      request.status = 'in_progress';
+      config.onRequestUpdated(request);
+      return runExecution(request, reasoning, fileTree, imagineContext, currentPlan, config);
+    }
+    feedback = nextReview.feedback ?? '';
+  }
+}
