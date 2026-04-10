@@ -95,6 +95,7 @@ export interface ProjectState {
   mode?: 'greenfield' | 'workshop';
   scanStatus?: 'pending' | 'in_progress' | 'done' | 'skipped';
   gitInit?: 'yes' | 'no' | null;
+  gitIdentityId?: string | null;
 }
 
 export interface PhaseInfo {
@@ -338,11 +339,22 @@ export interface StatsState {
 
 // ── Settings ──
 
+// ── Git Identity ──
+
+export interface GitIdentity {
+  id: string;      // stable uuid
+  label: string;   // e.g. "Work", "Personal"
+  name: string;    // git author name
+  email: string;   // git author email
+}
+
 export interface AppSettings {
   defaultModelPreset: BuildConfig['modelPreset'];
   defaultPermissionMode: BuildConfig['permissionMode'];
   maxParallelTLs: number;
   windowBounds?: { x: number; y: number; width: number; height: number };
+  gitIdentities: GitIdentity[];
+  defaultGitIdentityId: string | null;
 }
 
 // ── Workshop Plan Review ──
@@ -438,6 +450,15 @@ export const IPC_CHANNELS = {
   // Settings
   GET_SETTINGS: 'office:get-settings',
   SAVE_SETTINGS: 'office:save-settings',
+  SETTINGS_UPDATED: 'office:settings-updated',
+  OPEN_SETTINGS: 'office:open-settings',
+  // Git identity
+  ADD_GIT_IDENTITY: 'office:add-git-identity',
+  UPDATE_GIT_IDENTITY: 'office:update-git-identity',
+  DELETE_GIT_IDENTITY: 'office:delete-git-identity',
+  SET_DEFAULT_GIT_IDENTITY: 'office:set-default-git-identity',
+  SET_PROJECT_GIT_IDENTITY: 'office:set-project-git-identity',
+  IMPORT_GITCONFIG_IDENTITY: 'office:import-gitconfig-identity',
   // Layouts
   GET_LAYOUTS: 'office:get-layouts',
   SAVE_LAYOUTS: 'office:save-layouts',
@@ -535,8 +556,20 @@ export interface OfficeAPI {
   onKanbanUpdate(callback: (state: KanbanState) => void): () => void;
   onStatsUpdate(callback: (stats: SessionStats) => void): () => void;
 
+  // Settings
   getSettings(): Promise<AppSettings>;
-  saveSettings(settings: AppSettings): Promise<void>;
+  saveSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+  onSettingsUpdated(callback: (settings: AppSettings) => void): () => void;
+  onOpenSettings(callback: () => void): () => void;
+
+  // Git identity
+  addGitIdentity(identity: Omit<GitIdentity, 'id'>): Promise<GitIdentity>;
+  updateGitIdentity(id: string, patch: Partial<Omit<GitIdentity, 'id'>>): Promise<GitIdentity | null>;
+  deleteGitIdentity(id: string): Promise<{ ok: boolean; affectedProjects: number }>;
+  setDefaultGitIdentity(id: string | null): Promise<void>;
+  setProjectGitIdentity(projectPath: string, id: string | null): Promise<void>;
+  importGitconfigIdentity(): Promise<{ name: string; email: string } | null>;
+
   getLayouts(): Promise<Record<string, unknown> | null>;
   saveLayouts(layouts: Record<string, unknown>): Promise<void>;
   openExternal(url: string): Promise<void>;
