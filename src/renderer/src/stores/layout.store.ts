@@ -30,6 +30,7 @@ interface LayoutStore {
   setFocusedPane(paneId: string | null): void;
   resetToDefault(phase: Phase): void;
   loadLayout(tree: LayoutNode): void;
+  ensurePanelVisible(panelId: PanelId): void;
 }
 
 export const useLayoutStore = create<LayoutStore>((set, get) => ({
@@ -105,6 +106,18 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     // Reject corrupted layouts with duplicate panels
     if (hasDuplicatePanels(tree)) return;
     set({ tree, focusedPaneId: null });
+  },
+
+  ensurePanelVisible(panelId) {
+    const state = get();
+    const existing = findLeafByPanelId(state.tree, panelId);
+    if (existing) {
+      set({ focusedPaneId: existing.id });
+      return;
+    }
+    // Not in layout — split the focused pane (or fall back to first leaf)
+    const targetPaneId = state.focusedPaneId ?? firstLeaf(state.tree).id;
+    state.splitPane(targetPaneId, 'horizontal', panelId, 'after');
   },
 }));
 
