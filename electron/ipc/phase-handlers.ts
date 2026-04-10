@@ -21,6 +21,7 @@ import type {
   RequestPlanResponse,
   RequestPlanReadyPayload,
   GitInitPromptPayload,
+  GitRecoveryNote,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -31,6 +32,8 @@ import { runBuild } from '../orchestrator/build';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
 import { GitManager } from '../project/git-manager';
+import { computeRequestDiff } from '../project/git-diff';
+import { acceptRequest, rejectRequest } from '../project/git-merge';
 import type { GitGateContext } from '../orchestrator/workshop-git-gate';
 import {
   activeAbort,
@@ -737,6 +740,91 @@ export function initPhaseHandlers(): void {
       setPendingGitInit(null);
       pending.resolve(answer);
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_REQUEST_DIFF, async (_event, requestId: string) => {
+    if (!currentProjectDir || !requestStore) {
+      return { ok: false, error: 'No project open' };
+    }
+    const request = requestStore.get(requestId);
+    if (!request || !request.branchName || !request.baseBranch || !request.commitSha) {
+      return { ok: false, error: 'Request has no diff available' };
+    }
+    try {
+      const gm = new GitManager(currentProjectDir);
+      const git = gm.getSimpleGitInstance();
+      const diff = await computeRequestDiff(git, request.baseBranch, request.branchName);
+      return { ok: true, diff };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCEPT_REQUEST, async (_event, requestId: string) => {
+    if (!currentProjectDir || !requestStore) {
+      return { ok: false, error: 'No project open' };
+    }
+    const request = requestStore.get(requestId);
+    if (!request) {
+      return { ok: false, error: 'Request not found' };
+    }
+    if (request.status !== 'done') {
+      return { ok: false, error: 'Only done requests can be accepted' };
+    }
+    if (!request.branchName || !request.baseBranch) {
+      return { ok: false, error: 'Request has no isolated branch' };
+    }
+    const gm = new GitManager(currentProjectDir);
+    const result = await acceptRequest(gm.getSimpleGitInstance(), {
+      branchName: request.branchName,
+      baseBranch: request.baseBranch,
+    });
+    if (!result.ok) {
+      if (result.conflict) {
+        const note: GitRecoveryNote = {
+          level: 'warning',
+          message: `Cannot merge ${request.branchName} — conflicts with ${request.baseBranch}. Resolve manually: \`git checkout ${request.baseBranch} && git merge ${request.branchName}\``,
+          requestId: request.id,
+        };
+        send(IPC_CHANNELS.GIT_RECOVERY_NOTE, note);
+        return { ok: false, error: result.message, conflict: true };
+      }
+      return { ok: false, error: result.message };
+    }
+    const updated = requestStore.update(request.id, {
+      mergedAt: result.mergedAt,
+      branchName: null,
+    });
+    if (updated) send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+    return { ok: true, mergedAt: result.mergedAt };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REJECT_REQUEST, async (_event, requestId: string) => {
+    if (!currentProjectDir || !requestStore) {
+      return { ok: false, error: 'No project open' };
+    }
+    const request = requestStore.get(requestId);
+    if (!request) {
+      return { ok: false, error: 'Request not found' };
+    }
+    if (!request.branchName || !request.baseBranch) {
+      return { ok: false, error: 'Request has no isolated branch' };
+    }
+    const gm = new GitManager(currentProjectDir);
+    const result = await rejectRequest(gm.getSimpleGitInstance(), {
+      branchName: request.branchName,
+      baseBranch: request.baseBranch,
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.message };
+    }
+    const updated = requestStore.update(request.id, {
+      status: 'cancelled',
+      error: 'Rejected via diff review',
+      branchName: null,
+    });
+    if (updated) send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+    return { ok: true };
   });
 
   ipcMain.handle(IPC_CHANNELS.UI_DESIGN_REVIEW_RESPONSE, async (_event, response: UIDesignReviewResponse) => {
