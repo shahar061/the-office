@@ -78,6 +78,7 @@ import {
   setPendingRequestPlanReview,
   pendingGitInit,
   setPendingGitInit,
+  settingsStore,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -233,11 +234,7 @@ async function handleStartWarroom(): Promise<void> {
           setPendingIntro({ resolve });
         });
       },
-      getSettings: async (): Promise<AppSettings> => ({
-        defaultModelPreset: 'default',
-        defaultPermissionMode: 'auto-safe',
-        maxParallelTLs: 4,
-      }),
+      getSettings: async (): Promise<AppSettings> => settingsStore.get(),
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
@@ -449,11 +446,7 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
         });
       },
       waitForIntro: () => Promise.resolve(), // not used in resume path
-      getSettings: async (): Promise<AppSettings> => ({
-        defaultModelPreset: 'default',
-        defaultPermissionMode: 'auto-safe',
-        maxParallelTLs: 4,
-      }),
+      getSettings: async (): Promise<AppSettings> => settingsStore.get(),
       resumeReviewResponse: reviewResponse,
     });
     statsCollector?.onPhaseComplete('warroom');
@@ -873,20 +866,6 @@ export function initPhaseHandlers(): void {
     const date = new Date().toISOString().slice(0, 10);
     const logPath = path.join(currentProjectDir, `session-${date}.log`);
     fs.appendFileSync(logPath, logText, 'utf-8');
-  });
-
-  // ── Settings ──
-
-  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async (): Promise<AppSettings> => {
-    return {
-      defaultModelPreset: 'default',
-      defaultPermissionMode: 'auto-safe',
-      maxParallelTLs: 4,
-    };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, _settings: AppSettings) => {
-    // Placeholder — will persist to disk in a future iteration
   });
 
   ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (_event, url: string) => {

@@ -20,6 +20,7 @@ import { ProjectManager } from '../project/project-manager';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
 import { StatsCollector } from '../stats/stats-collector';
+import { SettingsStore } from '../project/settings-store';
 
 // ── Constants ──
 
@@ -30,6 +31,7 @@ export const agentsDir = path.join(__dirname, '../../agents');
 
 export const authManager = new AuthManager(dataDir);
 export const projectManager = new ProjectManager(dataDir);
+export const settingsStore = new SettingsStore(dataDir, projectManager);
 
 // ── Mutable state ──
 
