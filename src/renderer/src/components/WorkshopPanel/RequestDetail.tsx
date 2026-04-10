@@ -1,5 +1,7 @@
 import { colors } from '../../theme';
 import type { Request } from '@shared/types';
+import { useLayoutStore } from '../../stores/layout.store';
+import { useDiffReviewStore } from '../../stores/diff-review.store';
 
 const styles = {
   root: {
@@ -80,6 +82,18 @@ const styles = {
     color: colors.textDim,
     fontSize: '10px',
   },
+  openDiffBtn: {
+    background: colors.accent,
+    border: 'none',
+    borderRadius: '4px',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '10px',
+    fontWeight: 600 as const,
+    padding: '4px 10px',
+    marginTop: '6px',
+    fontFamily: 'inherit',
+  },
 } as const;
 
 function formatTime(ts: number | null): string {
@@ -145,6 +159,17 @@ export function RequestDetail({ request }: RequestDetailProps) {
                 <span style={styles.gitLabel}>Commit:</span>
                 <span style={styles.gitValue}>{request.commitSha}</span>
               </div>
+            )}
+            {request.commitSha && (
+              <button
+                style={styles.openDiffBtn}
+                onClick={() => {
+                  useLayoutStore.getState().ensurePanelVisible('diff');
+                  useDiffReviewStore.getState().selectRequest(request.id);
+                }}
+              >
+                Open diff →
+              </button>
             )}
           </div>
         </div>

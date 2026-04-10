@@ -273,6 +273,7 @@ export interface Request {
   baseBranch: string | null;
   commitSha: string | null;
   branchIsolated: boolean;
+  mergedAt: number | null;
 }
 
 // ── Stats ──
@@ -369,6 +370,32 @@ export interface GitRecoveryNote {
   requestId?: string;
 }
 
+// ── Workshop Diff Review ──
+
+export interface DiffHunkLine {
+  type: 'add' | 'remove' | 'context' | 'meta';
+  content: string;
+  oldLine?: number;
+  newLine?: number;
+}
+
+export interface DiffFile {
+  path: string;
+  oldPath: string | null;
+  status: 'added' | 'removed' | 'modified' | 'renamed' | 'binary';
+  insertions: number;
+  deletions: number;
+  hunks: DiffHunkLine[];
+  truncated: boolean;
+}
+
+export interface DiffResult {
+  files: DiffFile[];
+  totalFilesChanged: number;
+  totalInsertions: number;
+  totalDeletions: number;
+}
+
 // ── IPC Channels ──
 
 export const IPC_CHANNELS = {
@@ -459,6 +486,10 @@ export const IPC_CHANNELS = {
   GIT_INIT_PROMPT: 'office:git-init-prompt',
   GIT_INIT_RESPONSE: 'office:git-init-response',
   GIT_RECOVERY_NOTE: 'office:git-recovery-note',
+  // Workshop diff review (sub-project 5)
+  GET_REQUEST_DIFF: 'office:get-request-diff',
+  ACCEPT_REQUEST: 'office:accept-request',
+  REJECT_REQUEST: 'office:reject-request',
   // Workshop onboarding (sub-project 2)
   CHECK_PROJECT_EXISTS: 'office:check-project-exists',
   OPEN_DIRECTORY_AS_WORKSHOP: 'office:open-directory-as-workshop',
@@ -548,6 +579,18 @@ export interface OfficeAPI {
   onGitInitPrompt(callback: (payload: GitInitPromptPayload) => void): () => void;
   respondGitInit(answer: 'yes' | 'no'): Promise<void>;
   onGitRecoveryNote(callback: (note: GitRecoveryNote) => void): () => void;
+  getRequestDiff(requestId: string): Promise<
+    | { ok: true; diff: DiffResult }
+    | { ok: false; error: string }
+  >;
+  acceptRequest(requestId: string): Promise<
+    | { ok: true; mergedAt: number }
+    | { ok: false; error: string; conflict?: boolean }
+  >;
+  rejectRequest(requestId: string): Promise<
+    | { ok: true }
+    | { ok: false; error: string }
+  >;
 
   checkProjectExists(projectPath: string): Promise<{ exists: boolean; fileCount: number }>;
   openDirectoryAsWorkshop(projectPath: string): Promise<{ success: boolean; error?: string }>;

@@ -36,6 +36,7 @@ export class RequestStore {
           baseBranch: r.baseBranch ?? null,
           commitSha: r.commitSha ?? null,
           branchIsolated: r.branchIsolated ?? false,
+          mergedAt: r.mergedAt ?? null,
         })) as Request[];
         // Compute nextId as highest existing number + 1
         for (const r of this.requests) {
@@ -103,6 +104,7 @@ export class RequestStore {
       baseBranch: null,
       commitSha: null,
       branchIsolated: false,
+      mergedAt: null,
     };
     this.requests.push(request);
     this.save();

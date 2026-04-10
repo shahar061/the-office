@@ -21,6 +21,7 @@ import { PlanOverlay } from '../OfficeView/PlanOverlay';
 import { UIDesignReviewOverlay } from '../OfficeView/UIDesignReviewOverlay';
 import { RequestPlanReviewOverlay } from '../WorkshopPanel/RequestPlanReviewOverlay';
 import { GitInitModal } from '../WorkshopPanel/GitInitModal';
+import { DiffPanel } from '../DiffPanel/DiffPanel';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
@@ -35,6 +36,7 @@ const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   about: { icon: 'ℹ️', label: 'About' },
   complete: { icon: '🎉', label: 'Complete' },
   workshop: { icon: '🔧', label: 'Workshop' },
+  diff: { icon: '📝', label: 'Diff' },
 };
 
 interface PaneProps {
@@ -159,6 +161,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
             <GitInitModal />
           </div>
         )}
+        {panelId === 'diff' && <DiffPanel />}
       </div>
 
       {/* Drop zone overlay (only during drag) */}

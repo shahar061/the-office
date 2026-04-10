@@ -109,6 +109,9 @@ contextBridge.exposeInMainWorld('office', {
     ipcRenderer.invoke(IPC_CHANNELS.GIT_INIT_RESPONSE, answer),
   onGitRecoveryNote: (cb: (note: GitRecoveryNote) => void) =>
     onEvent(IPC_CHANNELS.GIT_RECOVERY_NOTE, cb),
+  getRequestDiff: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.GET_REQUEST_DIFF, requestId),
+  acceptRequest: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACCEPT_REQUEST, requestId),
+  rejectRequest: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.REJECT_REQUEST, requestId),
 
   // War Table
   onWarTableState: (cb: (s: WarTableVisualState) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_STATE, cb),
