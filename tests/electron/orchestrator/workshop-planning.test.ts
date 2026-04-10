@@ -14,6 +14,11 @@ const makeRequest = (partial: Partial<Request> = {}): Request => ({
   result: null,
   error: null,
   plan: null,
+  branchName: null,
+  baseBranch: null,
+  commitSha: null,
+  branchIsolated: false,
+  mergedAt: null,
   ...partial,
 });
 

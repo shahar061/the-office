@@ -217,4 +217,36 @@ describe('RequestStore', () => {
     expect(r?.commitSha).toBeNull();
     expect(r?.branchIsolated).toBe(false);
   });
+
+  it('creates a request with mergedAt = null by default', () => {
+    const store = new RequestStore(tmpDir);
+    const r = store.create('a request');
+    expect(r.mergedAt).toBeNull();
+  });
+
+  it('backfills missing mergedAt on load from disk', () => {
+    const filePath = path.join(tmpDir, '.the-office', 'requests.json');
+    const seeded = [{
+      id: 'req-001',
+      title: 'Old',
+      description: 'x',
+      status: 'done',
+      createdAt: 1,
+      startedAt: 2,
+      completedAt: 3,
+      assignedAgent: 'backend-engineer',
+      result: 'ok',
+      error: null,
+      plan: null,
+      branchName: 'the-office/req-001-old',
+      baseBranch: 'main',
+      commitSha: 'abc1234',
+      branchIsolated: true,
+    }];
+    fs.writeFileSync(filePath, JSON.stringify(seeded), 'utf-8');
+
+    const store = new RequestStore(tmpDir);
+    const r = store.get('req-001');
+    expect(r?.mergedAt).toBeNull();
+  });
 });
