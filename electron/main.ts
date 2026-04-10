@@ -18,6 +18,7 @@ import {
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers } from './ipc/phase-handlers';
+import { initSettingsHandlers } from './ipc/settings-handlers';
 
 // ── Suppress noisy Chromium/macOS warnings from stderr ──
 // These are harmless but spam the console (~30 lines per menu interaction):
@@ -120,6 +121,7 @@ app.whenReady().then(async () => {
   initAuthHandlers();
   initProjectHandlers();
   initPhaseHandlers();
+  initSettingsHandlers();
   // Detect CLI auth on startup and notify renderer
   await authManager.detectCliAuth();
   send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
