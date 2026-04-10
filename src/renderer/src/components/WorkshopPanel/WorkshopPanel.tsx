@@ -6,6 +6,8 @@ import { RequestComposer } from './RequestComposer';
 import { RequestList } from './RequestList';
 import { ScanMenu } from './ScanMenu';
 import { GitRecoveryBanners } from './GitRecoveryBanners';
+import { GitIdentityChip } from './GitIdentityChip';
+import { FirstRunIdentityBanner } from './FirstRunIdentityBanner';
 
 const styles = {
   root: {
@@ -51,6 +53,8 @@ export function WorkshopPanel() {
       <div style={styles.header}>
         <ScanMenu />
       </div>
+      <GitIdentityChip />
+      <FirstRunIdentityBanner />
       <GitRecoveryBanners />
       <RequestComposer />
       <RequestList />
