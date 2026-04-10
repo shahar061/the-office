@@ -24,6 +24,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { id: 'agents', icon: '👥', label: 'Agents' },
   { id: 'kanban', icon: '📋', label: 'Kanban' },
   { id: 'stats', icon: '📊', label: 'Stats' },
+  { id: 'complete', icon: '🎉', label: 'Complete' },
 ];
 
 const UTILITY_ITEMS: NavItem[] = [
@@ -190,6 +191,7 @@ export function IconRail() {
   const kanbanFailed = useKanbanStore((s) => s.kanban.failed);
   const kanbanTasks = useKanbanStore((s) => s.kanban.tasks);
   const showKanban = completedPhases.includes('warroom');
+  const showComplete = completedPhases.includes('build');
   const kanbanHasActive = kanbanTasks.some(t => t.status === 'active' || t.status === 'review');
   const rateLimitWarning = useStatsStore((s) => {
     const rl = s.stats?.rateLimit;
@@ -199,9 +201,11 @@ export function IconRail() {
     return null;
   });
 
-  const visiblePrimary = PRIMARY_ITEMS.filter(item =>
-    item.id === 'kanban' ? showKanban : true
-  );
+  const visiblePrimary = PRIMARY_ITEMS.filter(item => {
+    if (item.id === 'kanban') return showKanban;
+    if (item.id === 'complete') return showComplete;
+    return true;
+  });
 
   const handleClick = useCallback((panelId: PanelId) => {
     // If panel is already in workspace, focus it
