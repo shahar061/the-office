@@ -1,4 +1,6 @@
 import type { SimpleGit } from 'simple-git';
+import type { GitIdentity } from '../../shared/types';
+import { buildGitEnv } from './git-identity-apply';
 
 export type AcceptResult =
   | { ok: true; mergedAt: number }
@@ -13,6 +15,7 @@ export type AcceptResult =
 export async function acceptRequest(
   git: SimpleGit,
   request: { branchName: string; baseBranch: string },
+  identity?: GitIdentity | null,
 ): Promise<AcceptResult> {
   // Capture the branch we're on BEFORE touching anything (for rollback)
   let originalBranch: string;
@@ -35,11 +38,13 @@ export async function acceptRequest(
   // Attempt the merge (no --ff-only, no --no-ff — let git decide)
   // simple-git's git.raw() does NOT throw on conflict — it returns the output string.
   // We must check both for a throw (unexpected errors) and for CONFLICT in the output.
+  const env = buildGitEnv(identity ?? null);
+  const gitForMerge = Object.keys(env).length > 0 ? git.env(env) : git;
   let mergeOutput = '';
   let mergeError = false;
   let mergeMessage = '';
   try {
-    mergeOutput = await git.raw(['merge', request.branchName]);
+    mergeOutput = await gitForMerge.raw(['merge', request.branchName]);
   } catch (err: any) {
     mergeError = true;
     mergeMessage = err?.message || String(err);

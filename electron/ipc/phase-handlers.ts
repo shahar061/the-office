@@ -771,11 +771,17 @@ export function initPhaseHandlers(): void {
     if (!request.branchName || !request.baseBranch) {
       return { ok: false, error: 'Request has no isolated branch' };
     }
+    const projectState = projectManager.getProjectState(currentProjectDir);
+    const identity = settingsStore.resolveIdentityForProject(projectState);
     const gm = new GitManager(currentProjectDir);
-    const result = await acceptRequest(gm.getSimpleGitInstance(), {
-      branchName: request.branchName,
-      baseBranch: request.baseBranch,
-    });
+    const result = await acceptRequest(
+      gm.getSimpleGitInstance(),
+      {
+        branchName: request.branchName,
+        baseBranch: request.baseBranch,
+      },
+      identity,
+    );
     if (!result.ok) {
       if (result.conflict) {
         const note: GitRecoveryNote = {
