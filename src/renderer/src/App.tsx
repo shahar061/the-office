@@ -50,6 +50,9 @@ export default function App() {
       window.office.onRequestUpdated((request) => {
         useRequestStore.getState().addOrUpdate(request);
       }),
+      window.office.onProjectStateChanged((state) => {
+        useProjectStore.getState().setProjectState(state);
+      }),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
     return () => unsubs.forEach((fn) => fn());
