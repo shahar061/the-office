@@ -5,6 +5,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { RequestComposer } from './RequestComposer';
 import { RequestList } from './RequestList';
 import { ScanMenu } from './ScanMenu';
+import { GitRecoveryBanners } from './GitRecoveryBanners';
 
 const styles = {
   root: {
@@ -50,6 +51,7 @@ export function WorkshopPanel() {
       <div style={styles.header}>
         <ScanMenu />
       </div>
+      <GitRecoveryBanners />
       <RequestComposer />
       <RequestList />
     </div>

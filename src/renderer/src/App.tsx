@@ -11,6 +11,8 @@ import { useStatsStore } from './stores/stats.store';
 import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
 import { useRequestStore } from './stores/request.store';
 import { useRequestPlanReviewStore } from './stores/request-plan-review.store';
+import { useGitInitModalStore } from './stores/git-init-modal.store';
+import { useGitBannerStore } from './stores/git-banner.store';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
@@ -57,6 +59,12 @@ export default function App() {
           title: payload.title,
           plan: payload.plan,
         });
+      }),
+      window.office.onGitInitPrompt((payload) => {
+        useGitInitModalStore.getState().openPrompt(payload.projectPath);
+      }),
+      window.office.onGitRecoveryNote((note) => {
+        useGitBannerStore.getState().addBanner(note);
       }),
       window.office.onProjectStateChanged((state) => {
         useProjectStore.getState().setProjectState(state);
