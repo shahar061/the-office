@@ -182,4 +182,39 @@ describe('RequestStore', () => {
     expect(store.get('req-001')?.status).toBe('failed');
     expect(store.get('req-002')?.status).toBe('failed');
   });
+
+  it('creates a request with branchIsolated=false and null branch fields', () => {
+    const store = new RequestStore(tmpDir);
+    const r = store.create('a request');
+    expect(r.branchName).toBeNull();
+    expect(r.baseBranch).toBeNull();
+    expect(r.commitSha).toBeNull();
+    expect(r.branchIsolated).toBe(false);
+  });
+
+  it('backfills missing branch fields on load from disk', () => {
+    const filePath = path.join(tmpDir, '.the-office', 'requests.json');
+    // Seed an old-format request missing all the new fields
+    const seeded = [{
+      id: 'req-001',
+      title: 'Old request',
+      description: 'x',
+      status: 'done',
+      createdAt: 1,
+      startedAt: 2,
+      completedAt: 3,
+      assignedAgent: 'backend-engineer',
+      result: 'ok',
+      error: null,
+      plan: null,
+    }];
+    fs.writeFileSync(filePath, JSON.stringify(seeded), 'utf-8');
+
+    const store = new RequestStore(tmpDir);
+    const r = store.get('req-001');
+    expect(r?.branchName).toBeNull();
+    expect(r?.baseBranch).toBeNull();
+    expect(r?.commitSha).toBeNull();
+    expect(r?.branchIsolated).toBe(false);
+  });
 });

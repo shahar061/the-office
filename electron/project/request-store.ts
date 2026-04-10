@@ -32,6 +32,10 @@ export class RequestStore {
         this.requests = parsed.map((r: Partial<Request>) => ({
           ...r,
           plan: r.plan ?? null,
+          branchName: r.branchName ?? null,
+          baseBranch: r.baseBranch ?? null,
+          commitSha: r.commitSha ?? null,
+          branchIsolated: r.branchIsolated ?? false,
         })) as Request[];
         // Compute nextId as highest existing number + 1
         for (const r of this.requests) {
@@ -95,6 +99,10 @@ export class RequestStore {
       result: null,
       error: null,
       plan: null,
+      branchName: null,
+      baseBranch: null,
+      commitSha: null,
+      branchIsolated: false,
     };
     this.requests.push(request);
     this.save();
