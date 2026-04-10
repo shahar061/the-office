@@ -36,13 +36,13 @@ const PANELS: IntroPanel[] = [
 
 const styles = {
   overlay: {
-    position: 'fixed' as const,
+    position: 'absolute' as const,
     inset: 0,
     background: 'rgba(0,0,0,0.7)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100,
+    zIndex: 20,
   },
   panel: {
     background: colors.surface,
@@ -51,6 +51,8 @@ const styles = {
     padding: '32px',
     maxWidth: '480px',
     width: '90%',
+    maxHeight: '90%',
+    overflowY: 'auto' as const,
     textAlign: 'center' as const,
   },
   icon: {
