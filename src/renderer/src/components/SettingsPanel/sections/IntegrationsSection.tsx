@@ -1,5 +1,21 @@
 import React from 'react';
+import { GitIdentitySubsection } from './GitIdentitySubsection';
+import { colors } from '../../../theme';
+
+const styles = {
+  root: {
+    padding: '24px',
+    color: colors.text,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '24px',
+  },
+} as const;
 
 export function IntegrationsSection() {
-  return <div>Integrations section — implemented in Task 17</div>;
+  return (
+    <div style={styles.root}>
+      <GitIdentitySubsection />
+    </div>
+  );
 }
