@@ -185,7 +185,7 @@ export function UIDesignReviewOverlay() {
   }
 
   function handleApprove() {
-    (window.office as any).respondUIDesignReview({ approved: true });
+    window.office.respondUIDesignReview({ approved: true });
     closeReview();
   }
 
@@ -195,7 +195,7 @@ export function UIDesignReviewOverlay() {
       handleApprove();
       return;
     }
-    (window.office as any).respondUIDesignReview({ approved: false, feedback: trimmed });
+    window.office.respondUIDesignReview({ approved: false, feedback: trimmed });
     closeReview();
   }
 

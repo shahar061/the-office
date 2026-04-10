@@ -5,6 +5,7 @@ import { useKanbanStore } from '@/stores/kanban.store';
 import { useOfficeStore } from '@/stores/office.store';
 import { useArtifactStore } from '@/stores/artifact.store';
 import { useWarTableStore } from './stores/war-table.store';
+import { useUIDesignReviewStore } from './stores/ui-design-review.store';
 import { useLogStore } from './stores/log.store';
 import { useStatsStore } from './stores/stats.store';
 import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
@@ -58,6 +59,9 @@ export default function App() {
       }),
       window.office.onWarTableReviewReady((payload) => {
         useWarTableStore.getState().setReviewContent(payload.content, payload.artifact);
+      }),
+      window.office.onUIDesignReviewReady((payload) => {
+        useUIDesignReviewStore.getState().openReview(payload);
       }),
       window.office.onWarTableChoreography((payload) => {
         window.dispatchEvent(new CustomEvent('war-table-choreography', { detail: payload }));
