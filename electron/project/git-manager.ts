@@ -41,11 +41,22 @@ export class GitManager {
   /**
    * Create an empty initial commit. Used after `init()` to ensure the repo
    * has a HEAD and a named branch. Safe to call on an empty repo.
+   * If identity is provided, sets local user.name/email to that before committing.
    */
-  async createInitialEmptyCommit(): Promise<void> {
-    await this.git.addConfig('user.email', 'the-office@local', false, 'local');
-    await this.git.addConfig('user.name', 'The Office', false, 'local');
-    await this.git.raw(['commit', '--allow-empty', '-m', 'Initial commit (by The Office)']);
+  async createInitialEmptyCommit(identity?: { name: string; email: string }): Promise<void> {
+    const name = identity?.name ?? 'The Office';
+    const email = identity?.email ?? 'the-office@local';
+    await this.git.addConfig('user.email', email, false, 'local');
+    await this.git.addConfig('user.name', name, false, 'local');
+    await this.git
+      .env({
+        ...process.env,
+        GIT_AUTHOR_NAME: name,
+        GIT_AUTHOR_EMAIL: email,
+        GIT_COMMITTER_NAME: name,
+        GIT_COMMITTER_EMAIL: email,
+      })
+      .raw(['commit', '--allow-empty', '-m', 'Initial commit (by The Office)']);
   }
 
   async currentBranch(): Promise<string | null> {
@@ -129,10 +140,14 @@ export class GitManager {
     }
   }
 
-  async commitAll(message: string): Promise<string> {
+  async commitAll(message: string, envOverride?: Record<string, string>): Promise<string> {
     if (!(await this.isDirty())) return '';
     await this.git.add('.');
-    const result = await this.git.commit(message);
+    const gitForCommit =
+      envOverride && Object.keys(envOverride).length > 0
+        ? this.git.env(envOverride)
+        : this.git;
+    const result = await gitForCommit.commit(message);
     return result.commit || '';
   }
 

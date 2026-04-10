@@ -231,4 +231,32 @@ describe('GitManager — operations', () => {
     // Should not be detached
     expect(await gm.isDetached()).toBe(false);
   });
+
+  it('createInitialEmptyCommit uses provided identity when given', async () => {
+    const gm = new GitManager(tmpDir);
+    await gm.init();
+    await gm.createInitialEmptyCommit({ name: 'Jane Doe', email: 'jane@acme.com' });
+    const { simpleGit } = await import('simple-git');
+    const g = simpleGit(tmpDir);
+    const log = await g.log();
+    expect(log.latest?.author_name).toBe('Jane Doe');
+    expect(log.latest?.author_email).toBe('jane@acme.com');
+  });
+
+  it('commitAll applies envOverride to the commit author', async () => {
+    const gm = await setupRepo();
+    fs.writeFileSync(path.join(tmpDir, 'feature.ts'), 'export const x = 1;\n');
+    const sha = await gm.commitAll('test commit', {
+      GIT_AUTHOR_NAME: 'Override Name',
+      GIT_AUTHOR_EMAIL: 'override@example.com',
+      GIT_COMMITTER_NAME: 'Override Name',
+      GIT_COMMITTER_EMAIL: 'override@example.com',
+    });
+    expect(sha).toBeTruthy();
+    const { simpleGit } = await import('simple-git');
+    const g = simpleGit(tmpDir);
+    const log = await g.log();
+    expect(log.latest?.author_name).toBe('Override Name');
+    expect(log.latest?.author_email).toBe('override@example.com');
+  });
 });
