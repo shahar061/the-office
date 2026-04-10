@@ -9,7 +9,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useStatsStore } from '../../stores/stats.store';
 import { useChatStore } from '../../stores/chat.store';
-import { collectPanelIds, findLeafByPanelId } from '../SplitLayout/layout-utils';
+import { collectPanelIds, findLeafByPanelId, firstLeaf } from '../SplitLayout/layout-utils';
 import { colors } from '../../theme';
 
 interface NavItem {
@@ -210,10 +210,10 @@ export function IconRail() {
       setFocusedPane(existing.id);
       return;
     }
-    // Otherwise, replace the focused pane (or first leaf)
-    if (focusedPaneId) {
-      replacePanel(focusedPaneId, panelId);
-    }
+    // Otherwise, replace the focused pane — or fall back to the first leaf
+    // so clicking an icon always does something even when nothing is focused.
+    const targetPaneId = focusedPaneId ?? firstLeaf(tree).id;
+    replacePanel(targetPaneId, panelId);
   }, [tree, focusedPaneId, replacePanel, setFocusedPane]);
 
   const handleDragStart = useCallback((e: React.DragEvent, panelId: PanelId) => {

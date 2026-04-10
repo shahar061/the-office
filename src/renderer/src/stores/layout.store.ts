@@ -38,10 +38,26 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
 
   splitPane(paneId, direction, newPanelId, position) {
     const { tree } = get();
-    if (collectPanelIds(tree).has(newPanelId)) return;
-    if (getDepth(tree) >= MAX_DEPTH) return;
     if (!findLeaf(tree, paneId)) return;
 
+    // If the panel is already open elsewhere, this is a MOVE (drag a pane header
+    // to another pane's edge). Remove it from its source before splitting.
+    const existingLeaf = findLeafByPanelId(tree, newPanelId);
+    if (existingLeaf) {
+      // No-op if dropping on the same pane (can't split a pane with itself)
+      if (existingLeaf.id === paneId) return;
+      const removed = removeLeaf(tree, existingLeaf.id);
+      if (removed === null) return;
+      // After removal, the target pane may have been promoted/reparented but its
+      // id is stable — findLeaf still works.
+      if (!findLeaf(removed, paneId)) return;
+      if (getDepth(removed) >= MAX_DEPTH) return;
+      const updated = insertSplit(removed, paneId, direction, newPanelId, position);
+      set({ tree: updated });
+      return;
+    }
+
+    if (getDepth(tree) >= MAX_DEPTH) return;
     const updated = insertSplit(tree, paneId, direction, newPanelId, position);
     set({ tree: updated });
   },

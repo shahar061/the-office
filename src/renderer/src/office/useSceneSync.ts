@@ -204,8 +204,24 @@ export function useSceneSync(scene: OfficeScene | null) {
     // PC seats available for TL clones (spawn points in the Tiled map)
     const PC_SEATS = ['pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5', 'pc-6'];
     const occupiedSeats = new Set<string>();
-    // Maps cloneId → { seat, characterId }
-    const cloneMap = new Map<string, { seat: string; characterId: string }>();
+    // Maps cloneId → state. We track arrival-at-desk and writing separately so
+    // the monitor glow only turns on when BOTH are true (clone is seated AND writing).
+    const cloneMap = new Map<string, {
+      seat: string;
+      characterId: string;
+      hasArrived: boolean;
+      isWriting: boolean;
+    }>();
+
+    function tryGlowMonitor(cloneId: string) {
+      const info = cloneMap.get(cloneId);
+      if (!info) return;
+      if (info.hasArrived && info.isWriting) {
+        scene!.setMonitorGlow(info.seat, true);
+        const clone = scene!.getCharacter(info.characterId);
+        if (clone) clone.setWorking('type');
+      }
+    }
 
     function getNextSeat(): string | undefined {
       return PC_SEATS.find(s => !occupiedSeats.has(s));
@@ -297,7 +313,8 @@ export function useSceneSync(scene: OfficeScene | null) {
           if (!seat) break;
           occupiedSeats.add(seat);
           const characterId = `tl-clone-${cloneId}`;
-          cloneMap.set(cloneId, { seat, characterId });
+          const spawnedCloneId = cloneId;
+          cloneMap.set(cloneId, { seat, characterId, hasArrived: false, isWriting: false });
 
           // Track in progress store
           if (phaseId) {
@@ -309,7 +326,13 @@ export function useSceneSync(scene: OfficeScene | null) {
             const entrance = scene!.getEntrancePosition();
             clone.repositionTo(entrance.x, entrance.y);
             clone.show(scene!.getMapRenderer().getCharacterContainer());
-            clone.moveTo(clone.getDeskTile());
+            // Walk to desk, then mark as arrived and re-check if we should glow
+            clone.walkToAndThen(clone.getDeskTile(), () => {
+              const info = cloneMap.get(spawnedCloneId);
+              if (!info) return;
+              info.hasArrived = true;
+              tryGlowMonitor(spawnedCloneId);
+            });
           }
           break;
         }
@@ -319,13 +342,10 @@ export function useSceneSync(scene: OfficeScene | null) {
           const writingInfo = cloneMap.get(cloneId);
           if (!writingInfo) break;
 
-          // Settle-in delay before typing starts
-          setTimeout(() => {
-            const clone = scene!.getCharacter(writingInfo.characterId);
-            if (clone) clone.setWorking('type');
-            // Monitor glow on
-            scene!.setMonitorGlow(writingInfo.seat, true);
-          }, 500);
+          // Mark as writing. The glow + typing animation will fire now if the clone
+          // has already arrived at the desk, otherwise it waits for the arrival callback.
+          writingInfo.isWriting = true;
+          tryGlowMonitor(cloneId);
 
           // Update progress store
           if (writingPhaseId) {

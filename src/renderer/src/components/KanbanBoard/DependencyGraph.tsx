@@ -41,6 +41,118 @@ const styles = {
     fontFamily: 'inherit',
     zIndex: 2,
   },
+  infoButton: {
+    position: 'absolute' as const,
+    top: '8px',
+    right: '108px',
+    width: '28px',
+    height: '28px',
+    padding: 0,
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '50%',
+    color: colors.textMuted,
+    fontSize: '13px',
+    fontWeight: 700,
+    fontStyle: 'italic' as const,
+    fontFamily: 'serif',
+    cursor: 'pointer',
+    zIndex: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBackdrop: {
+    position: 'absolute' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+    padding: '16px',
+  },
+  modalPanel: {
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '12px',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+    width: '90%',
+    maxWidth: '520px',
+    maxHeight: '90%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 18px',
+    borderBottom: `1px solid ${colors.border}`,
+    flexShrink: 0,
+  },
+  modalTitle: {
+    fontSize: '14px',
+    fontWeight: 700,
+    color: colors.text,
+  },
+  modalClose: {
+    background: 'none',
+    border: 'none',
+    color: colors.textMuted,
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '0 4px',
+    fontFamily: 'inherit',
+    lineHeight: 1,
+  },
+  modalBody: {
+    padding: '16px 18px',
+    overflowY: 'auto' as const,
+    flex: 1,
+  },
+  section: {
+    marginBottom: '18px',
+  },
+  sectionTitle: {
+    fontSize: '12px',
+    fontWeight: 700,
+    color: colors.text,
+    marginBottom: '8px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+  },
+  sectionText: {
+    fontSize: '12px',
+    color: colors.textMuted,
+    lineHeight: '1.5',
+    marginBottom: '10px',
+  },
+  legendRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '6px',
+    fontSize: '11px',
+    color: colors.textLight,
+  },
+  legendLabel: {
+    fontSize: '11px',
+    color: colors.textMuted,
+    flex: 1,
+  },
+  kbd: {
+    display: 'inline-block',
+    padding: '2px 6px',
+    background: colors.bgDark,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '3px',
+    fontFamily: 'monospace',
+    fontSize: '10px',
+    color: colors.text,
+    marginRight: '6px',
+  },
 } as const;
 
 export function DependencyGraph() {
@@ -55,6 +167,17 @@ export function DependencyGraph() {
   const lastTaskSetRef = useRef<string>('');
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+
+  // Close info modal on Escape
+  useEffect(() => {
+    if (!showInfo) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowInfo(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showInfo]);
 
   const highlightedIds = useMemo(() => {
     if (!hoveredId) return null;
@@ -145,6 +268,14 @@ export function DependencyGraph() {
           animation: graph-node-pulse 1.5s ease-in-out infinite;
         }
       `}</style>
+      <button
+        style={styles.infoButton}
+        onClick={() => setShowInfo(true)}
+        title="How to read this graph"
+        aria-label="Graph info"
+      >
+        i
+      </button>
       <button style={styles.fitButton} onClick={fitToScreen}>
         Fit to screen
       </button>
@@ -242,6 +373,158 @@ export function DependencyGraph() {
           })}
         </g>
       </svg>
+      {showInfo && <GraphInfoModal onClose={() => setShowInfo(false)} />}
+    </div>
+  );
+}
+
+function GraphInfoModal({ onClose }: { onClose: () => void }) {
+  // Small helper: an inline SVG mini-node matching the real GraphNode style
+  const MiniNode = ({ status, label, agentColor = '#3b82f6', className }: {
+    status: KanbanTask['status'];
+    label: string;
+    agentColor?: string;
+    className?: string;
+  }) => (
+    <svg width={140} height={44} style={{ flexShrink: 0 }}>
+      <g className={className}>
+        <rect
+          x={1}
+          y={1}
+          width={138}
+          height={42}
+          rx={6}
+          ry={6}
+          fill={STATUS_FILL[status]}
+          stroke="#2a2a3a"
+          strokeWidth={1}
+        />
+        <circle cx={11} cy={11} r={5} fill={agentColor} />
+        <text x={23} y={15} fill="#94a3b8" fontSize="9" fontFamily="monospace">
+          task-1
+        </text>
+        <text x={11} y={32} fill="#e2e8f0" fontSize="11" fontFamily="system-ui, sans-serif">
+          {label}
+        </text>
+      </g>
+    </svg>
+  );
+
+  return (
+    <div style={styles.modalBackdrop} onClick={onClose}>
+      <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <span style={styles.modalTitle}>How to read this graph</span>
+          <button style={styles.modalClose} onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div style={styles.modalBody}>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>What am I looking at?</div>
+            <div style={styles.sectionText}>
+              Each box is a build task. Tasks are grouped into columns by phase and flow left to right.
+              Arrows show dependencies — a task can't start until all tasks pointing to it are done.
+            </div>
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>Task status (color)</div>
+            <div style={styles.sectionText}>
+              The fill color tells you what state the task is in.
+            </div>
+            <div style={styles.legendRow}>
+              <MiniNode status="queued" label="Waiting to start" />
+              <div style={styles.legendLabel}>Queued — waiting on dependencies</div>
+            </div>
+            <div style={styles.legendRow}>
+              <MiniNode status="active" label="Running now" className="graph-node-active" />
+              <div style={styles.legendLabel}>Active — agent is working (pulses)</div>
+            </div>
+            <div style={styles.legendRow}>
+              <MiniNode status="review" label="Under review" />
+              <div style={styles.legendLabel}>In Review — self-review step</div>
+            </div>
+            <div style={styles.legendRow}>
+              <MiniNode status="done" label="Finished" />
+              <div style={styles.legendLabel}>Done — completed successfully</div>
+            </div>
+            <div style={styles.legendRow}>
+              <MiniNode status="failed" label="Failed" />
+              <div style={styles.legendLabel}>Failed — task errored out</div>
+            </div>
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>Agent badge (colored dot)</div>
+            <div style={styles.sectionText}>
+              The small colored dot in the top-left corner identifies which agent owns the task.
+              Each agent role (backend, frontend, etc.) has its own color.
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {Object.entries(AGENT_COLORS).slice(0, 8).map(([role, color]) => (
+                <div key={role} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: colors.textMuted }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color }} />
+                  <span>{role.replace('-', ' ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>Dependencies (arrows)</div>
+            <div style={styles.sectionText}>
+              Arrows go from the task that must finish first (source) to the task that depends on it (target).
+              If A → B, then B cannot start until A is done.
+            </div>
+            <svg width={320} height={60}>
+              <defs>
+                <marker id="info-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+                </marker>
+              </defs>
+              <rect x={10} y={14} width={120} height={32} rx={6} ry={6} fill={STATUS_FILL.done} stroke="#2a2a3a" />
+              <text x={70} y={34} textAnchor="middle" fill="#e2e8f0" fontSize="10" fontFamily="system-ui, sans-serif">Task A (done)</text>
+              <rect x={190} y={14} width={120} height={32} rx={6} ry={6} fill={STATUS_FILL.active} stroke="#2a2a3a" />
+              <text x={250} y={34} textAnchor="middle" fill="#e2e8f0" fontSize="10" fontFamily="system-ui, sans-serif">Task B (active)</text>
+              <path
+                d="M 130 30 C 160 30, 160 30, 190 30"
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                markerEnd="url(#info-arrow)"
+              />
+            </svg>
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>Hover to trace a chain</div>
+            <div style={styles.sectionText}>
+              Hover any task to highlight its full dependency chain — every task it depends on (upstream)
+              and every task that depends on it (downstream). Everything else dims. Perfect for answering
+              "why is this task stuck?"
+            </div>
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>Navigation</div>
+            <div style={styles.sectionText}>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={styles.kbd}>scroll</span>
+                zoom in / out around the cursor
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={styles.kbd}>click + drag</span>
+                pan the view
+              </div>
+              <div>
+                <span style={styles.kbd}>Fit to screen</span>
+                recenter and fit everything
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
