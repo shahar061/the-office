@@ -74,6 +74,10 @@ contextBridge.exposeInMainWorld('office', {
   // Utilities
   openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
   openFileInBrowser: (relativePath: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE_IN_BROWSER, relativePath),
+  readRunMd: () => ipcRenderer.invoke(IPC_CHANNELS.READ_RUN_MD),
+  getProjectFileCount: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROJECT_FILE_COUNT),
+  openProjectFolder: () => ipcRenderer.invoke(IPC_CHANNELS.OPEN_PROJECT_FOLDER),
+  copyToClipboard: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.COPY_TO_CLIPBOARD, text),
 
   // Artifacts
   onArtifactAvailable: (cb: (payload: any) => void) => onEvent(IPC_CHANNELS.ARTIFACT_AVAILABLE, cb),

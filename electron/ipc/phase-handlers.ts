@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron';
+import { ipcMain, shell, clipboard } from 'electron';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -714,6 +714,62 @@ export function initPhaseHandlers(): void {
       return { success: false, error: result };
     }
     return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.READ_RUN_MD, async () => {
+    if (!currentProjectDir) return null;
+    const runMdPath = path.join(currentProjectDir, 'docs', 'office', 'RUN.md');
+    if (!fs.existsSync(runMdPath)) return null;
+    try {
+      return fs.readFileSync(runMdPath, 'utf-8');
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_PROJECT_FILE_COUNT, async () => {
+    if (!currentProjectDir) return 0;
+    const EXCLUDE = new Set(['node_modules', '.git', '.the-office', 'dist', 'build', '.next', '.venv', '__pycache__']);
+    let count = 0;
+    function walk(dir: string): void {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (EXCLUDE.has(entry.name)) continue;
+        if (entry.name.startsWith('.') && entry.name !== '.env.example') continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (entry.isFile()) {
+          // Skip docs/office files from the count — they're our artifacts, not the app
+          if (full.includes(path.join('docs', 'office'))) continue;
+          count++;
+        }
+      }
+    }
+    try {
+      walk(currentProjectDir);
+    } catch {
+      return 0;
+    }
+    return count;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT_FOLDER, async () => {
+    if (!currentProjectDir) {
+      return { success: false, error: 'No project open' };
+    }
+    const result = await shell.openPath(currentProjectDir);
+    if (result) return { success: false, error: result };
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.COPY_TO_CLIPBOARD, async (_event, text: string) => {
+    clipboard.writeText(text);
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_STATS_STATE, async (): Promise<StatsState | null> => {
