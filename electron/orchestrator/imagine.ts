@@ -118,6 +118,41 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     },
   }, artifactStore, config);
 
+  // 3.5. UI/UX Expert — Design
+  await runAct({
+    name: 'UI/UX Design',
+    artifact: { key: 'ui-designs', filename: '05-ui-designs/index.md', agentRole: 'ui-ux-expert' },
+    run: () => {
+      const visionBrief = artifactStore.readArtifact('01-vision-brief.md');
+      const prd = artifactStore.readArtifact('02-prd.md');
+      const marketAnalysis = artifactStore.readArtifact('03-market-analysis.md');
+      return runAgentSession({
+        agentName: 'ui-ux-expert',
+        agentsDir,
+        prompt: [
+          'You are the UI/UX Expert leading the UI Design act.',
+          'Produce 3-5 HTML mockups of the product\'s key screens based on the documents below.',
+          'Each mockup must be self-contained (inline CSS, no external dependencies).',
+          'Write the mockups to docs/office/05-ui-designs/NN-slug.html and create docs/office/05-ui-designs/index.md with captions and explanations.',
+          '',
+          '## Vision Brief',
+          visionBrief,
+          '',
+          '## PRD',
+          prd,
+          '',
+          '## Market Analysis',
+          marketAnalysis,
+        ].join('\n'),
+        cwd: projectDir,
+        env,
+        expectedOutput: 'docs/office/05-ui-designs/index.md',
+        onEvent,
+        onWaiting,
+      });
+    },
+  }, artifactStore, config);
+
   // 4. Chief Architect — Architecture
   await runAct({
     name: 'Architecture',
