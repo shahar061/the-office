@@ -11,6 +11,10 @@ export class GitManager {
     this.git = simpleGit(projectDir);
   }
 
+  getSimpleGitInstance(): SimpleGit {
+    return this.git;
+  }
+
   async isGitAvailable(): Promise<boolean> {
     try {
       await this.git.raw(['--version']);

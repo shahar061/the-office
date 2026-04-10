@@ -96,6 +96,15 @@ describe('GitManager — preconditions', () => {
     await g.checkout(log.latest!.hash);
     expect(await gm.isDetached()).toBe(true);
   });
+
+  it('getSimpleGitInstance returns a usable simple-git instance', async () => {
+    const gm = new GitManager(tmpDir);
+    const git = gm.getSimpleGitInstance();
+    expect(git).toBeTruthy();
+    await gm.init();
+    const status = await git.status();
+    expect(status).toBeTruthy();
+  });
 });
 
 describe('GitManager — operations', () => {
