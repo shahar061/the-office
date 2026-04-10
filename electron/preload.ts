@@ -7,6 +7,7 @@ import type {
   WarTableCard, WarTableVisualState, WarTableReviewPayload, WarTableReviewResponse,
   WarTableChoreographyPayload, RestartPhasePayload,
   UIDesignReviewPayload, UIDesignReviewResponse,
+  Request,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -86,6 +87,11 @@ contextBridge.exposeInMainWorld('office', {
 
   // Agents
   getAgentDefinitions: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AGENT_DEFINITIONS),
+
+  // Workshop
+  listRequests: () => ipcRenderer.invoke(IPC_CHANNELS.LIST_REQUESTS),
+  createRequest: (description: string) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_REQUEST, description),
+  onRequestUpdated: (cb: (request: Request) => void) => onEvent(IPC_CHANNELS.REQUEST_UPDATED, cb),
 
   // War Table
   onWarTableState: (cb: (s: WarTableVisualState) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_STATE, cb),
