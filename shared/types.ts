@@ -94,6 +94,7 @@ export interface ProjectState {
   buildIntroSeen: boolean;
   mode?: 'greenfield' | 'workshop';
   scanStatus?: 'pending' | 'in_progress' | 'done' | 'skipped';
+  gitInit?: 'yes' | 'no' | null;
 }
 
 export interface PhaseInfo {
@@ -268,6 +269,10 @@ export interface Request {
   result: string | null;
   error: string | null;
   plan: string | null;
+  branchName: string | null;
+  baseBranch: string | null;
+  commitSha: string | null;
+  branchIsolated: boolean;
 }
 
 // ── Stats ──
@@ -350,6 +355,18 @@ export interface RequestPlanReadyPayload {
 export interface RequestPlanResponse {
   action: 'approve' | 'revise';
   feedback?: string;
+}
+
+// ── Workshop Git Integration ──
+
+export interface GitInitPromptPayload {
+  projectPath: string;
+}
+
+export interface GitRecoveryNote {
+  level: 'info' | 'warning';
+  message: string;
+  requestId?: string;
 }
 
 // ── IPC Channels ──
@@ -438,6 +455,10 @@ export const IPC_CHANNELS = {
   // Workshop mini-plan review (sub-project 3)
   REQUEST_PLAN_READY: 'office:request-plan-ready',
   REQUEST_PLAN_RESPONSE: 'office:request-plan-response',
+  // Workshop git integration (sub-project 4)
+  GIT_INIT_PROMPT: 'office:git-init-prompt',
+  GIT_INIT_RESPONSE: 'office:git-init-response',
+  GIT_RECOVERY_NOTE: 'office:git-recovery-note',
   // Workshop onboarding (sub-project 2)
   CHECK_PROJECT_EXISTS: 'office:check-project-exists',
   OPEN_DIRECTORY_AS_WORKSHOP: 'office:open-directory-as-workshop',
@@ -524,6 +545,9 @@ export interface OfficeAPI {
   onRequestUpdated(callback: (request: Request) => void): () => void;
   onRequestPlanReady(callback: (payload: RequestPlanReadyPayload) => void): () => void;
   respondRequestPlan(response: RequestPlanResponse): Promise<void>;
+  onGitInitPrompt(callback: (payload: GitInitPromptPayload) => void): () => void;
+  respondGitInit(answer: 'yes' | 'no'): Promise<void>;
+  onGitRecoveryNote(callback: (note: GitRecoveryNote) => void): () => void;
 
   checkProjectExists(projectPath: string): Promise<{ exists: boolean; fileCount: number }>;
   openDirectoryAsWorkshop(projectPath: string): Promise<{ success: boolean; error?: string }>;
