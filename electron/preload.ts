@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('office', {
 
   // Utilities
   openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
+  openFileInBrowser: (relativePath: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE_IN_BROWSER, relativePath),
 
   // Artifacts
   onArtifactAvailable: (cb: (payload: any) => void) => onEvent(IPC_CHANNELS.ARTIFACT_AVAILABLE, cb),

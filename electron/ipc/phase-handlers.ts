@@ -680,6 +680,26 @@ export function initPhaseHandlers(): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.OPEN_FILE_IN_BROWSER, async (_event, relativePath: string) => {
+    if (!currentProjectDir) {
+      return { success: false, error: 'No project open' };
+    }
+    // Defense against path traversal: resolve and verify the result is inside projectDir
+    const absPath = path.resolve(currentProjectDir, relativePath);
+    const projectRoot = path.resolve(currentProjectDir);
+    if (absPath !== projectRoot && !absPath.startsWith(projectRoot + path.sep)) {
+      return { success: false, error: 'Path escapes project directory' };
+    }
+    if (!fs.existsSync(absPath)) {
+      return { success: false, error: 'File not found' };
+    }
+    const result = await shell.openPath(absPath);
+    if (result) {
+      return { success: false, error: result };
+    }
+    return { success: true };
+  });
+
   ipcMain.handle(IPC_CHANNELS.GET_STATS_STATE, async (): Promise<StatsState | null> => {
     return statsCollector?.getState() ?? null;
   });

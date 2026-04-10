@@ -439,6 +439,7 @@ export interface OfficeAPI {
   getLayouts(): Promise<Record<string, unknown> | null>;
   saveLayouts(layouts: Record<string, unknown>): Promise<void>;
   openExternal(url: string): Promise<void>;
+  openFileInBrowser(relativePath: string): Promise<{ success: boolean; error?: string }>;
   onArtifactAvailable(callback: (payload: ArtifactAvailablePayload) => void): () => void;
   readArtifact(filename: string): Promise<{ content: string } | { error: string }>;
   getArtifactStatus(): Promise<Record<string, boolean>>;
