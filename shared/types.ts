@@ -186,6 +186,22 @@ export interface WarTableReviewResponse {
   feedback?: string;
 }
 
+export interface UIDesignMockup {
+  filename: string;    // e.g., "01-landing.html"
+  caption: string;     // e.g., "Landing Page"
+  explanation: string; // the paragraph explaining design choices
+}
+
+export interface UIDesignReviewPayload {
+  designDirection: string;       // the "Design Direction" paragraph from index.md
+  mockups: UIDesignMockup[];
+}
+
+export interface UIDesignReviewResponse {
+  approved: boolean;
+  feedback?: string;
+}
+
 export interface WarTableChoreographyPayload {
   step: 'intro-walk' | 'pm-reading' | 'pm-writing' | 'pm-done'
       | 'tl-reading' | 'tl-writing' | 'tl-coordinator-done'
@@ -374,6 +390,11 @@ export const IPC_CHANNELS = {
   // Stats
   STATS_STATE: 'office:stats-state',
   GET_STATS_STATE: 'office:get-stats-state',
+  // UI Design Review
+  UI_DESIGN_REVIEW_READY: 'office:ui-design-review-ready',
+  UI_DESIGN_REVIEW_RESPONSE: 'office:ui-design-review-response',
+  // File Open
+  OPEN_FILE_IN_BROWSER: 'office:open-file-in-browser',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
