@@ -54,4 +54,71 @@ export class GitManager {
     const branch = await this.currentBranch();
     return branch === null;
   }
+
+  async stashPushAll(label: string): Promise<{ created: boolean }> {
+    if (!(await this.isDirty())) {
+      return { created: false };
+    }
+    await this.git.raw(['stash', 'push', '-u', '-m', label]);
+    return { created: true };
+  }
+
+  async stashPopIfOwned(
+    labelPrefix: string,
+  ): Promise<{ ok: true; popped: boolean } | { ok: false; conflict: true; reason: string }> {
+    let list = '';
+    try {
+      list = await this.git.raw(['stash', 'list']);
+    } catch {
+      return { ok: true, popped: false };
+    }
+    const firstLine = list.split('\n')[0] ?? '';
+    if (!firstLine.trim()) {
+      return { ok: true, popped: false };
+    }
+    // Format: stash@{0}: On branch-name: <label>
+    // We only pop if the message (everything after the second ':') starts with labelPrefix
+    const idx = firstLine.indexOf(': ');
+    if (idx === -1) return { ok: true, popped: false };
+    const afterFirstColon = firstLine.slice(idx + 2);
+    const idx2 = afterFirstColon.indexOf(': ');
+    const message = idx2 === -1 ? afterFirstColon : afterFirstColon.slice(idx2 + 2);
+    if (!message.startsWith(labelPrefix)) {
+      return { ok: true, popped: false };
+    }
+    try {
+      await this.git.raw(['stash', 'pop']);
+      return { ok: true, popped: true };
+    } catch (err: any) {
+      return { ok: false, conflict: true, reason: err?.message || String(err) };
+    }
+  }
+
+  async checkoutNewBranch(name: string): Promise<void> {
+    await this.git.raw(['checkout', '-b', name]);
+  }
+
+  async checkoutExistingBranch(name: string): Promise<void> {
+    await this.git.raw(['checkout', name]);
+  }
+
+  async branchExists(name: string): Promise<boolean> {
+    try {
+      const result = await this.git.raw(['rev-parse', '--verify', '--quiet', `refs/heads/${name}`]);
+      return result.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async commitAll(message: string): Promise<string> {
+    if (!(await this.isDirty())) return '';
+    await this.git.add('.');
+    const result = await this.git.commit(message);
+    return result.commit || '';
+  }
+
+  async hasUncommittedChanges(): Promise<boolean> {
+    return this.isDirty();
+  }
 }
