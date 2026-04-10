@@ -32,6 +32,14 @@ const BUILD_DEFAULT: LayoutNode = split('s1', 'horizontal', 0.25, [
   ]),
 ]);
 
+const COMPLETE_DEFAULT: LayoutNode = split('s1', 'horizontal', 0.25, [
+  split('s2', 'vertical', 0.5, [
+    leaf('pane-1', 'complete'),
+    leaf('pane-2', 'chat'),
+  ]),
+  leaf('pane-3', 'office'),
+]);
+
 const IDLE_DEFAULT: LayoutNode = leaf('pane-1', 'office');
 
 export const DEFAULT_LAYOUTS: Record<string, LayoutNode> = {
@@ -39,7 +47,7 @@ export const DEFAULT_LAYOUTS: Record<string, LayoutNode> = {
   imagine: IMAGINE_DEFAULT,
   warroom: WARROOM_DEFAULT,
   build: BUILD_DEFAULT,
-  complete: BUILD_DEFAULT,
+  complete: COMPLETE_DEFAULT,
 };
 
 export function getDefaultLayout(phase: Phase): LayoutNode {

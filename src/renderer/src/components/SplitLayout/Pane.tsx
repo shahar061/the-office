@@ -20,6 +20,7 @@ import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
 import { PlanOverlay } from '../OfficeView/PlanOverlay';
 import { UIDesignReviewOverlay } from '../OfficeView/UIDesignReviewOverlay';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
+import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 
 const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   chat: { icon: '💬', label: 'Chat' },
@@ -29,6 +30,7 @@ const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   stats: { icon: '📊', label: 'Stats' },
   logs: { icon: '📋', label: 'Logs' },
   about: { icon: 'ℹ️', label: 'About' },
+  complete: { icon: '🎉', label: 'Complete' },
 };
 
 interface PaneProps {
@@ -145,6 +147,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
         {panelId === 'stats' && <StatsPanel />}
         {panelId === 'logs' && <LogViewer />}
         {panelId === 'about' && <AboutPanel />}
+        {panelId === 'complete' && <CompletionPanel />}
       </div>
 
       {/* Drop zone overlay (only during drag) */}
