@@ -3,6 +3,7 @@ import path from 'path';
 import type { Phase } from '../../shared/types';
 
 const OFFICE_DIR = 'docs/office';
+const UI_DESIGNS_DIR = 'docs/office/05-ui-designs';
 const IMAGINE_ARTIFACTS = ['01-vision-brief.md', '04-system-design.md'];
 const WARROOM_ARTIFACTS = ['tasks.yaml'];
 const ALL_IMAGINE_DOCS = ['01-vision-brief.md', '02-prd.md', '03-market-analysis.md', '04-system-design.md'];
@@ -35,6 +36,14 @@ export class ArtifactStore {
       if (fs.existsSync(filePath)) {
         parts.push(`## ${file}\n\n${fs.readFileSync(filePath, 'utf-8')}`);
       }
+    }
+    // Include UI designs if present — reference HTML files, not inline them
+    const uiIndexPath = path.join(this.projectDir, UI_DESIGNS_DIR, 'index.md');
+    if (fs.existsSync(uiIndexPath)) {
+      const uiIndex = fs.readFileSync(uiIndexPath, 'utf-8');
+      parts.push(
+        `## UI Designs (reference docs/office/05-ui-designs/*.html for mockups)\n\n${uiIndex}`
+      );
     }
     return parts.join('\n\n---\n\n');
   }
@@ -72,6 +81,40 @@ export class ArtifactStore {
     return fs.readFileSync(filePath, 'utf-8');
   }
 
+  /**
+   * Read docs/office/05-ui-designs/index.md and parse the mockup entries.
+   * Returns an empty result if the index doesn't exist.
+   */
+  listUIDesigns(): { designDirection: string; mockups: Array<{ filename: string; caption: string; explanation: string }> } {
+    const indexPath = path.join(this.projectDir, UI_DESIGNS_DIR, 'index.md');
+    if (!fs.existsSync(indexPath)) {
+      return { designDirection: '', mockups: [] };
+    }
+    const content = fs.readFileSync(indexPath, 'utf-8');
+
+    // Parse "Design Direction" paragraph — everything between "## Design Direction" and the next "##"
+    const directionMatch = content.match(/##\s+Design Direction\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+    const designDirection = directionMatch ? directionMatch[1].trim() : '';
+
+    // Parse mockup entries — each is "### N. Caption\nFile: ./path\n\nExplanation..."
+    const mockups: Array<{ filename: string; caption: string; explanation: string }> = [];
+    const mockupRegex = /###\s+\d+\.\s+(.+?)\n+File:\s+\.\/(.+?)\n+([\s\S]*?)(?=\n###\s+\d+\.|$)/g;
+    let match: RegExpExecArray | null;
+    while ((match = mockupRegex.exec(content)) !== null) {
+      mockups.push({
+        caption: match[1].trim(),
+        filename: match[2].trim(),
+        explanation: match[3].trim(),
+      });
+    }
+
+    return { designDirection, mockups };
+  }
+
+  hasUIDesigns(): boolean {
+    return fs.existsSync(path.join(this.projectDir, UI_DESIGNS_DIR, 'index.md'));
+  }
+
   /** Parse plan.md into milestone titles (best-effort heading extraction). */
   parsePlanMilestones(): { id: string; title: string }[] {
     const filePath = path.join(this.officeDir, 'plan.md');
@@ -102,6 +145,14 @@ export class ArtifactStore {
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
+      }
+    }
+
+    // Clear UI designs directory if imagine or earlier is being cleared
+    if (phasesToClear.includes('imagine')) {
+      const uiDir = path.join(this.projectDir, UI_DESIGNS_DIR);
+      if (fs.existsSync(uiDir)) {
+        fs.rmSync(uiDir, { recursive: true, force: true });
       }
     }
 
