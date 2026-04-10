@@ -6,6 +6,45 @@ import { runAgentSession } from './run-agent-session';
 import { runDependencyGraph, type DependencyTask } from './dependency-graph';
 import yaml from 'js-yaml';
 
+const RUN_MD_PROMPT = [
+  'The build has just completed. The project has been built and the code is on disk.',
+  '',
+  'Your job: read the project files and write a concise RUN.md at',
+  'docs/office/RUN.md explaining how to run this app.',
+  '',
+  'Use the Bash and Read tools to:',
+  '1. List the project root to see what was created (ls, glob for package.json,',
+  '   pyproject.toml, Cargo.toml, etc.)',
+  '2. Read the relevant config file(s) to determine the run command',
+  '3. Identify any prerequisites (Node version, Python version, system packages)',
+  '4. Check for environment variables that need to be set (look for .env.example,',
+  '   README.md, or config files)',
+  '',
+  'Then write docs/office/RUN.md in exactly this format:',
+  '',
+  '# How to Run',
+  '',
+  '## Prerequisites',
+  '- [List each prerequisite on its own line]',
+  '',
+  '## Install',
+  '[The install command in a code block]',
+  '',
+  '## Run',
+  '[The run command in a code block — this is what the "Run" button will copy',
+  'to the clipboard, so make it a single copy-pasteable command]',
+  '',
+  '## Notes',
+  '[Anything the user needs to know: default port, required env vars,',
+  'how to access the app, caveats]',
+  '',
+  'Be concise. The file should fit on one screen. If you cannot determine',
+  'the run command for any reason, write "## Run\\n\\n(could not determine',
+  'automatically — see the project\'s README)".',
+  '',
+  'Return: {"status": "complete", "document": "RUN.md"}',
+].join('\n');
+
 export interface BuildTask extends DependencyTask {
   description: string;
   assignedAgent: string;
@@ -172,6 +211,30 @@ export async function runBuild(
       failedTaskId: result.failed.taskId,
     });
     config.onSystemMessage(`Build failed: task "${result.failed.taskId}" — ${result.failed.error}`);
+  }
+
+  // Post-build: generate RUN.md via devops agent (non-fatal if it fails)
+  if (!result.failed) {
+    config.onSystemMessage('Generating RUN.md...');
+    try {
+      await runAgentSession({
+        agentName: 'devops',
+        agentsDir: config.agentsDir,
+        prompt: RUN_MD_PROMPT,
+        cwd: config.projectDir,
+        env: config.authEnv || {},
+        excludeAskUser: true,
+        expectedOutput: 'docs/office/RUN.md',
+        onEvent: config.onEvent,
+        onWaiting: async () => ({}),
+        onToolPermission: (toolName, input) =>
+          config.permissionHandler.handleToolRequest(toolName, input, resolveRole('devops')),
+      });
+      config.onSystemMessage('RUN.md generated.');
+    } catch (err: any) {
+      console.warn('[Build] Failed to generate RUN.md:', err?.message || err);
+      config.onSystemMessage('Could not generate RUN.md automatically (non-fatal).');
+    }
   }
 
   return { allTasks, taskStatuses, taskErrors };
