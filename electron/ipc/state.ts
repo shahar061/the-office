@@ -14,6 +14,7 @@ import type {
 } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
+import { RequestStore } from '../project/request-store';
 import { AuthManager } from '../auth/auth-manager';
 import { ProjectManager } from '../project/project-manager';
 import { PhaseMachine } from '../orchestrator/phase-machine';
@@ -36,6 +37,7 @@ export let mainWindow: BrowserWindow | null = null;
 export let currentProjectDir: string | null = null;
 export let artifactStore: ArtifactStore | null = null;
 export let chatHistoryStore: ChatHistoryStore | null = null;
+export let requestStore: RequestStore | null = null;
 export let statsCollector: StatsCollector | null = null;
 export let phaseMachine: PhaseMachine | null = null;
 export let permissionHandler: PermissionHandler | null = null;
@@ -113,6 +115,10 @@ export function setArtifactStore(store: ArtifactStore | null): void {
 
 export function setChatHistoryStore(store: ChatHistoryStore | null): void {
   chatHistoryStore = store;
+}
+
+export function setRequestStore(store: RequestStore | null): void {
+  requestStore = store;
 }
 
 export function setStatsCollector(sc: StatsCollector | null): void {
@@ -350,6 +356,9 @@ export function resetSessionState(): void {
   // Reset stats collector
   if (statsCollector) statsCollector.flush();
   statsCollector = null;
+
+  // Clear request store
+  requestStore = null;
 
   // Reset phase/chat tracking
   phaseMachine = null;
