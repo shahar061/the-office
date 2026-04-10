@@ -80,6 +80,58 @@ export function useSceneSync(scene: OfficeScene | null) {
     return unsub;
   }, [scene]);
 
+  // One-shot gather choreography when the phase enters 'complete'
+  useEffect(() => {
+    if (!scene) return;
+
+    let lastPhase: string | null = null;
+
+    function triggerGather() {
+      const warTable = scene!.getWarTable();
+      if (!warTable) return;
+      const tableTile = warTable.getTableTile();
+
+      // Collect all currently visible characters
+      const allCharacters = scene!.getAllCharacters();
+      const visibleEntries: Array<[string, import('./characters/Character').Character]> = [];
+      for (const [id, ch] of allCharacters) {
+        if (ch.isVisible) visibleEntries.push([id, ch]);
+      }
+
+      // Distribute them in a ring of offsets around the table
+      const offsets: Array<{ dx: number; dy: number }> = [
+        { dx: -3, dy: 1 }, { dx: -3, dy: 2 }, { dx: -3, dy: 3 },
+        { dx: 3, dy: 1 },  { dx: 3, dy: 2 },  { dx: 3, dy: 3 },
+        { dx: -1, dy: 4 }, { dx: 1, dy: 4 },
+        { dx: -2, dy: -1 }, { dx: 2, dy: -1 },
+      ];
+
+      visibleEntries.forEach(([, character], index) => {
+        const offset = offsets[index % offsets.length];
+        character.walkToAndThen(
+          { x: tableTile.x + offset.dx, y: tableTile.y + offset.dy },
+          () => character.setIdle(),
+        );
+      });
+
+      // Focus the camera on the war table
+      const camera = scene!.getCamera();
+      camera.focusOnPhase('warroom');
+    }
+
+    const unsub = useProjectStore.subscribe((state) => {
+      const phase = state.currentPhase?.phase ?? null;
+      if (phase === 'complete' && lastPhase !== 'complete') {
+        lastPhase = phase;
+        triggerGather();
+      } else if (phase !== 'complete') {
+        lastPhase = phase;
+      }
+    });
+
+    return unsub;
+  }, [scene]);
+
   // Sync agent lifecycle → character show/hide
   useEffect(() => {
     if (!scene) return;
