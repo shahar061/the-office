@@ -52,7 +52,7 @@ export const AGENT_CONFIGS: Record<AgentRole, AgentConfig> = {
   },
   'ui-ux-expert': {
     role: 'ui-ux-expert', displayName: 'UI/UX Expert', color: AGENT_COLORS['ui-ux-expert'],
-    group: 'engineering', spriteVariant: 'amelia', idleZone: 'open-work-area',
+    group: 'leadership', spriteVariant: 'amelia', idleZone: 'boardroom',
   },
   'data-engineer': {
     role: 'data-engineer', displayName: 'Data Engineer', color: AGENT_COLORS['data-engineer'],
