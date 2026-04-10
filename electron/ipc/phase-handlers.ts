@@ -11,6 +11,7 @@ import type {
   PhaseInfo,
   PermissionRequest,
   RestartPhasePayload,
+  Request,
   WarTableCard,
   WarTableVisualState,
   WarTableChoreographyPayload,
@@ -24,6 +25,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
+import { runWorkshopRequest } from '../orchestrator/workshop';
 import {
   activeAbort,
   authManager,
@@ -62,6 +64,7 @@ import {
   clearWaitingState,
   persistPendingReview,
   clearPendingReview,
+  requestStore,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -774,6 +777,51 @@ export function initPhaseHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_STATS_STATE, async (): Promise<StatsState | null> => {
     return statsCollector?.getState() ?? null;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LIST_REQUESTS, async () => {
+    if (!requestStore) return [];
+    return requestStore.list();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_REQUEST, async (_event, description: string) => {
+    if (!currentProjectDir) return { success: false, error: 'No project open' };
+    if (!requestStore) return { success: false, error: 'Request store not initialized' };
+
+    // Reject if a request is already running
+    const running = requestStore.list().find(
+      r => r.status === 'queued' || r.status === 'in_progress',
+    );
+    if (running) {
+      return { success: false, error: 'Another request is already running' };
+    }
+
+    // Create the request immediately with empty title
+    const request = requestStore.create(description);
+    send(IPC_CHANNELS.REQUEST_UPDATED, request);
+
+    // Build a per-request permission handler
+    const ph = new PermissionHandler(
+      'auto-all',
+      (req) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    );
+
+    // Run in background (don't await — the IPC returns immediately)
+    runWorkshopRequest(request, {
+      projectDir: currentProjectDir,
+      agentsDir,
+      env: authManager.getAuthEnv() || {},
+      permissionHandler: ph,
+      onEvent: onAgentEvent,
+      onRequestUpdated: (updated: Request) => {
+        requestStore?.update(updated.id, updated);
+        send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+      },
+    }).catch((err) => {
+      console.error('[Workshop] Request failed:', err);
+    });
+
+    return { success: true, request };
   });
 
   // Push stats to renderer periodically
