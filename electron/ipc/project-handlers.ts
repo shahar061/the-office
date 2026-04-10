@@ -4,6 +4,7 @@ import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
 import type { Phase, GitRecoveryNote } from '../../shared/types';
 import { GitManager } from '../project/git-manager';
+import { writeRepoIdentity } from '../project/git-identity-apply';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
@@ -30,6 +31,7 @@ import {
   loadPendingReview,
   setPendingReview,
   dataDir,
+  settingsStore,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -105,6 +107,20 @@ export function initProjectHandlers(): void {
             console.error('[Git recovery] stash pop check failed:', err);
           }
         }
+      }
+
+      // Sub-project 6: write-through git identity to .git/config (best-effort)
+      try {
+        const currentState = projectManager.getProjectState(projectPath);
+        const resolved = settingsStore.resolveIdentityForProject(currentState);
+        if (resolved) {
+          const gm = new GitManager(projectPath);
+          if (await gm.isGitRepo()) {
+            await writeRepoIdentity(gm.getSimpleGitInstance(), resolved);
+          }
+        }
+      } catch (err) {
+        console.warn('[OPEN_PROJECT] identity write-through failed:', err);
       }
 
       // Sub-project 3: resume any awaiting_review requests with a persisted plan
