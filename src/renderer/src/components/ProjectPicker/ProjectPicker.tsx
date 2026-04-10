@@ -5,6 +5,7 @@ import type { ProjectState, ProjectInfo } from '@shared/types';
 import { ApiKeyPanel } from './ApiKeyPanel';
 import { RecentProjects } from './RecentProjects';
 import { NewProjectForm } from './NewProjectForm';
+import { ExistingCodebaseModal } from './ExistingCodebaseModal';
 
 // ── Styles ──
 
@@ -150,6 +151,11 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
   const [openingPath, setOpeningPath] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
 
+  // Existing-codebase modal state
+  const [codebaseModalState, setCodebaseModalState] = useState<
+    { path: string; fileCount: number } | null
+  >(null);
+
   // API key panel
   const [showApiKeyPanel, setShowApiKeyPanel] = useState(false);
 
@@ -198,10 +204,61 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
   const handlePickAndOpen = useCallback(async () => {
     setOpenError(null);
     const dir = await window.office.pickDirectory();
-    if (dir) {
+    if (!dir) return;
+
+    // Check if this is already an Office project
+    const checkResult = await window.office.checkProjectExists(dir);
+    if (checkResult.exists) {
+      // Existing Office project — open normally
       await doOpenProject(dir);
+    } else {
+      // New directory — show the "start fresh vs workshop" modal
+      setCodebaseModalState({ path: dir, fileCount: checkResult.fileCount });
     }
   }, [doOpenProject]);
+
+  const handleWorkshopChoice = useCallback(async () => {
+    if (!codebaseModalState) return;
+    const path = codebaseModalState.path;
+    setCodebaseModalState(null);
+    setOpeningPath(path);
+    setOpenError(null);
+    try {
+      const result = await window.office.openDirectoryAsWorkshop(path);
+      if (result.success) {
+        const state = await window.office.getProjectState();
+        onProjectOpened(state);
+      } else {
+        setOpenError(result.error ?? 'Failed to open directory as workshop');
+      }
+    } catch (e: unknown) {
+      setOpenError(e instanceof Error ? e.message : 'Unexpected error');
+    } finally {
+      setOpeningPath(null);
+    }
+  }, [codebaseModalState, onProjectOpened]);
+
+  const handleStartFreshChoice = useCallback(async () => {
+    if (!codebaseModalState) return;
+    const path = codebaseModalState.path;
+    setCodebaseModalState(null);
+    setOpeningPath(path);
+    setOpenError(null);
+    try {
+      const name = path.split('/').pop() || 'Untitled';
+      const result = await window.office.createProject(name, path);
+      if (result.success) {
+        const state = await window.office.getProjectState();
+        onProjectOpened(state);
+      } else {
+        setOpenError(result.error ?? 'Failed to create project');
+      }
+    } catch (e: unknown) {
+      setOpenError(e instanceof Error ? e.message : 'Unexpected error');
+    } finally {
+      setOpeningPath(null);
+    }
+  }, [codebaseModalState, onProjectOpened]);
 
   const busy = openingPath !== null;
 
@@ -345,6 +402,17 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
 
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Existing codebase modal */}
+      {codebaseModalState && (
+        <ExistingCodebaseModal
+          path={codebaseModalState.path}
+          fileCount={codebaseModalState.fileCount}
+          onWorkshop={handleWorkshopChoice}
+          onStartFresh={handleStartFreshChoice}
+          onCancel={() => setCodebaseModalState(null)}
+        />
+      )}
     </div>
   );
 }
