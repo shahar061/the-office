@@ -54,6 +54,18 @@ export function DependencyGraph() {
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const lastTaskSetRef = useRef<string>('');
 
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const highlightedIds = useMemo(() => {
+    if (!hoveredId) return null;
+    const up = getUpstreamChain(tasks, hoveredId);
+    const down = getDownstreamChain(tasks, hoveredId);
+    const set = new Set<string>(up);
+    for (const d of down) set.add(d);
+    set.add(hoveredId);
+    return set;
+  }, [hoveredId, tasks]);
+
   const fitToScreen = useCallback(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -176,22 +188,49 @@ export function DependencyGraph() {
             const y2 = to.y + to.height / 2;
             const dx = Math.abs(x2 - x1) * 0.5;
             const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+            let stroke = '#444';
+            let strokeWidth = 1;
+            let opacity = 1;
+            if (highlightedIds) {
+              const isHighlighted = highlightedIds.has(edge.from) && highlightedIds.has(edge.to);
+              if (isHighlighted) {
+                stroke = '#3b82f6';
+                strokeWidth = 2;
+              } else {
+                opacity = 0.15;
+              }
+            }
+
             return (
               <path
                 key={i}
                 d={path}
                 fill="none"
-                stroke="#444"
-                strokeWidth={1}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                opacity={opacity}
                 markerEnd="url(#arrow)"
+                style={{ transition: 'opacity 150ms ease, stroke 150ms ease' }}
               />
             );
           })}
 
           {/* Nodes */}
-          {layout.nodes.map((node) => (
-            <GraphNode key={node.id} node={node} />
-          ))}
+          {layout.nodes.map((node) => {
+            const isDimmed = highlightedIds !== null && !highlightedIds.has(node.id);
+            const isHighlighted = highlightedIds !== null && highlightedIds.has(node.id);
+            return (
+              <GraphNode
+                key={node.id}
+                node={node}
+                dimmed={isDimmed}
+                highlighted={isHighlighted}
+                onHoverStart={() => setHoveredId(node.id)}
+                onHoverEnd={() => setHoveredId(null)}
+              />
+            );
+          })}
         </g>
       </svg>
     </div>
@@ -200,9 +239,13 @@ export function DependencyGraph() {
 
 interface GraphNodeProps {
   node: LayoutNode;
+  dimmed?: boolean;
+  highlighted?: boolean;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
 }
 
-function GraphNode({ node }: GraphNodeProps) {
+function GraphNode({ node, dimmed, highlighted, onHoverStart, onHoverEnd }: GraphNodeProps) {
   const { task } = node;
   const fill = STATUS_FILL[task.status];
   const agentColor = AGENT_COLORS[task.assignedAgent] ?? '#666';
@@ -212,16 +255,27 @@ function GraphNode({ node }: GraphNodeProps) {
     ? task.description.slice(0, maxChars - 1) + '…'
     : task.description;
 
+  const opacity = dimmed ? 0.25 : 1;
+  const strokeColor = highlighted ? '#3b82f6' : '#2a2a3a';
+  const strokeWidth = highlighted ? 2 : 1;
+
   return (
-    <g transform={`translate(${node.x}, ${node.y})`}>
+    <g
+      transform={`translate(${node.x}, ${node.y})`}
+      opacity={opacity}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      style={{ cursor: 'pointer', transition: 'opacity 150ms ease' }}
+    >
       <rect
         width={node.width}
         height={node.height}
         rx={6}
         ry={6}
         fill={fill}
-        stroke="#2a2a3a"
-        strokeWidth={1}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        style={{ transition: 'stroke 150ms ease' }}
       />
       <circle cx={10} cy={10} r={5} fill={agentColor} />
       <text
