@@ -92,6 +92,7 @@ export interface ProjectState {
   interrupted: boolean;
   introSeen: boolean;
   buildIntroSeen: boolean;
+  mode?: 'greenfield' | 'workshop';
 }
 
 export interface PhaseInfo {
@@ -252,6 +253,21 @@ export interface KanbanState {
   failedTaskId?: string;
 }
 
+// ── Workshop Requests ──
+
+export interface Request {
+  id: string;
+  title: string;
+  description: string;
+  status: 'queued' | 'in_progress' | 'done' | 'failed' | 'cancelled';
+  createdAt: number;
+  startedAt: number | null;
+  completedAt: number | null;
+  assignedAgent: AgentRole | null;
+  result: string | null;
+  error: string | null;
+}
+
 // ── Stats ──
 
 export interface SessionStats {
@@ -400,6 +416,10 @@ export const IPC_CHANNELS = {
   GET_PROJECT_FILE_COUNT: 'office:get-project-file-count',
   OPEN_PROJECT_FOLDER: 'office:open-project-folder',
   COPY_TO_CLIPBOARD: 'office:copy-to-clipboard',
+  // Workshop mode
+  LIST_REQUESTS: 'office:list-requests',
+  CREATE_REQUEST: 'office:create-request',
+  REQUEST_UPDATED: 'office:request-updated',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -473,6 +493,11 @@ export interface OfficeAPI {
   getProjectFileCount(): Promise<number>;
   openProjectFolder(): Promise<{ success: boolean; error?: string }>;
   copyToClipboard(text: string): Promise<void>;
+
+  // Workshop
+  listRequests(): Promise<Request[]>;
+  createRequest(description: string): Promise<{ success: boolean; request?: Request; error?: string }>;
+  onRequestUpdated(callback: (request: Request) => void): () => void;
 }
 
 declare global {
