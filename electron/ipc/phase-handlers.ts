@@ -26,6 +26,7 @@ import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
 import { runWorkshopRequest } from '../orchestrator/workshop';
+import { runOnboardingScan } from '../orchestrator/onboarding';
 import {
   activeAbort,
   authManager,
@@ -822,6 +823,54 @@ export function initPhaseHandlers(): void {
     });
 
     return { success: true, request };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RUN_ONBOARDING_SCAN, async () => {
+    if (!currentProjectDir) return { success: false, error: 'No project open' };
+
+    const currentState = projectManager.getProjectState(currentProjectDir);
+    if (currentState.scanStatus === 'in_progress') {
+      return { success: false, error: 'Scan already in progress' };
+    }
+
+    const ph = new PermissionHandler(
+      'auto-all',
+      (req) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    );
+
+    // Run in background (don't await — IPC returns immediately)
+    runOnboardingScan({
+      projectDir: currentProjectDir,
+      agentsDir,
+      env: authManager.getAuthEnv() || {},
+      permissionHandler: ph,
+      onEvent: onAgentEvent,
+      onStatusChange: (status) => {
+        if (!currentProjectDir) return;
+
+        // Respect user intent: if current is 'skipped' and new status is 'done',
+        // don't overwrite (the scan finished in background after the user skipped)
+        const current = projectManager.getProjectState(currentProjectDir);
+        if (current.scanStatus === 'skipped' && status === 'done') {
+          return;
+        }
+
+        projectManager.updateProjectState(currentProjectDir, { scanStatus: status });
+        const updated = projectManager.getProjectState(currentProjectDir);
+        send(IPC_CHANNELS.PROJECT_STATE_CHANGED, updated);
+      },
+    }).catch((err) => {
+      console.error('[Onboarding] Scan failed:', err);
+    });
+
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SKIP_ONBOARDING_SCAN, async () => {
+    if (!currentProjectDir) return;
+    projectManager.updateProjectState(currentProjectDir, { scanStatus: 'skipped' });
+    const updated = projectManager.getProjectState(currentProjectDir);
+    send(IPC_CHANNELS.PROJECT_STATE_CHANGED, updated);
   });
 
   // Push stats to renderer periodically
