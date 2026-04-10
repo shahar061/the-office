@@ -78,6 +78,7 @@ export class ProjectManager {
         introSeen: data.introSeen ?? true,
         buildIntroSeen: data.buildIntroSeen ?? false,
         mode: data.mode ?? 'greenfield',
+        scanStatus: data.scanStatus,
       };
     } catch {
       return {
@@ -119,7 +120,7 @@ export class ProjectManager {
     fs.writeFileSync(this.recentProjectsPath, JSON.stringify(projects, null, 2), 'utf-8');
   }
 
-  private addToRecentProjects(name: string, projectPath: string, lastPhase: Phase | null): void {
+  addToRecentProjects(name: string, projectPath: string, lastPhase: Phase | null): void {
     const projects = this.readRecentProjects();
     const index = projects.findIndex(p => p.path === projectPath);
     const entry: ProjectInfo = {
