@@ -26,6 +26,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { id: 'stats', icon: '📊', label: 'Stats' },
   { id: 'complete', icon: '🎉', label: 'Complete' },
   { id: 'workshop', icon: '🔧', label: 'Workshop' },
+  { id: 'diff', icon: '📝', label: 'Diff' },
 ];
 
 const UTILITY_ITEMS: NavItem[] = [
@@ -208,6 +209,7 @@ export function IconRail() {
     if (item.id === 'kanban') return showKanban;
     if (item.id === 'complete') return showComplete;
     if (item.id === 'workshop') return showWorkshop;
+    if (item.id === 'diff') return showWorkshop;
     return true;
   });
 
