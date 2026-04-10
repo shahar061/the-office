@@ -136,6 +136,15 @@ export function DependencyGraph() {
 
   return (
     <div style={styles.root}>
+      <style>{`
+        @keyframes graph-node-pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+        .graph-node-active rect {
+          animation: graph-node-pulse 1.5s ease-in-out infinite;
+        }
+      `}</style>
       <button style={styles.fitButton} onClick={fitToScreen}>
         Fit to screen
       </button>
@@ -265,6 +274,7 @@ function GraphNode({ node, dimmed, highlighted, onHoverStart, onHoverEnd }: Grap
       opacity={opacity}
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
+      className={task.status === 'active' ? 'graph-node-active' : undefined}
       style={{ cursor: 'pointer', transition: 'opacity 150ms ease' }}
     >
       <rect
