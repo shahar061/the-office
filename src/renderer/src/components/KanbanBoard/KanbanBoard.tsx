@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
 import { KanbanColumn } from './KanbanColumn';
 import { BuildFailureModal } from './BuildFailureModal';
 import { BuildIntro } from './BuildIntro';
+import { DependencyGraph } from './DependencyGraph';
 import type { BuildConfig } from '@shared/types';
 
 const COLUMNS = [
@@ -20,6 +22,7 @@ const styles = {
     height: '100%',
     background: colors.bg,
     overflow: 'hidden',
+    position: 'relative' as const,
   },
   progressBar: {
     height: '4px',
@@ -49,6 +52,25 @@ const styles = {
     fontSize: '12px',
     color: colors.textMuted,
   },
+  viewToggle: {
+    display: 'flex',
+    gap: '2px',
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '4px',
+    padding: '2px',
+  },
+  viewToggleButton: (active: boolean) => ({
+    padding: '4px 10px',
+    border: 'none',
+    borderRadius: '3px',
+    fontSize: '11px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    background: active ? colors.accent : 'transparent',
+    color: active ? '#fff' : colors.textMuted,
+    fontFamily: 'inherit',
+  }),
   board: {
     flex: 1,
     display: 'flex',
@@ -86,6 +108,7 @@ export function KanbanBoard() {
   const failedTask = useKanbanStore((s) => s.failedTask());
   const projectState = useProjectStore((s) => s.projectState);
   const phaseInfo = useProjectStore((s) => s.currentPhase);
+  const [viewMode, setViewMode] = useState<'board' | 'graph'>('board');
 
   const hasTasks = kanban.tasks.length > 0;
   const buildStarting = phaseInfo?.phase === 'build' && phaseInfo?.status === 'starting';
@@ -142,22 +165,42 @@ export function KanbanBoard() {
       {/* Header */}
       <div style={styles.header}>
         <span style={styles.headerTitle}>Build</span>
-        <span style={styles.headerStats}>{doneCount} / {kanban.tasks.length} tasks</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={styles.headerStats}>{doneCount} / {kanban.tasks.length} tasks</span>
+          <div style={styles.viewToggle}>
+            <button
+              style={styles.viewToggleButton(viewMode === 'board')}
+              onClick={() => setViewMode('board')}
+            >
+              Board
+            </button>
+            <button
+              style={styles.viewToggleButton(viewMode === 'graph')}
+              onClick={() => setViewMode('graph')}
+            >
+              Graph
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Columns */}
-      <div style={styles.board}>
-        {COLUMNS.map(col => (
-          <KanbanColumn
-            key={col.status}
-            title={col.title}
-            tasks={kanban.tasks.filter(t =>
-              t.status === col.status || (t.status === 'failed' && col.status === 'active')
-            )}
-            accentColor={col.accent}
-          />
-        ))}
-      </div>
+      {/* Main content — board or graph */}
+      {viewMode === 'board' ? (
+        <div style={styles.board}>
+          {COLUMNS.map(col => (
+            <KanbanColumn
+              key={col.status}
+              title={col.title}
+              tasks={kanban.tasks.filter(t =>
+                t.status === col.status || (t.status === 'failed' && col.status === 'active')
+              )}
+              accentColor={col.accent}
+            />
+          ))}
+        </div>
+      ) : (
+        <DependencyGraph />
+      )}
 
       {/* Failure modal */}
       {kanban.failed && failedTask && (
