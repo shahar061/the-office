@@ -147,7 +147,7 @@ function buildTriagePrompt(
   ].join('\n');
 }
 
-function buildEngineerPrompt(
+export function buildEngineerPrompt(
   request: Request,
   reasoning: string,
   fileTree: string,
@@ -176,5 +176,86 @@ function buildEngineerPrompt(
     '',
     "Follow the project's existing conventions. Don't introduce new frameworks",
     'or dependencies unless the request explicitly asks for them.',
+  ].join('\n');
+}
+
+export function buildPlanningPrompt(
+  request: Request,
+  reasoning: string,
+  fileTree: string,
+  imagineContext: string,
+): string {
+  return [
+    `You are the ${request.assignedAgent} planning a Workshop-mode request on an existing project.`,
+    '',
+    '## The request',
+    `Title: ${request.title}`,
+    `Description: ${request.description}`,
+    '',
+    '## Why you were picked',
+    reasoning,
+    '',
+    '## Project context',
+    fileTree || '(empty project)',
+    '',
+    imagineContext ? imagineContext : '',
+    '',
+    '## Your job',
+    'Write a minimal plan for how you will implement this request. Use this',
+    'exact template and keep the total under 30 lines:',
+    '',
+    '## Summary',
+    '(1–2 sentences — what you will do)',
+    '',
+    '## Files',
+    '- path/to/file.ts — what changes',
+    '- path/to/other.tsx — what changes',
+    '',
+    '## Approach',
+    '- Step 1',
+    '- Step 2',
+    '- Step 3',
+    '',
+    'Do NOT write any code. Do NOT modify files. You may read files to',
+    'understand the codebase, but your only output is the plan markdown.',
+    'Respond with the plan markdown and nothing else.',
+  ].join('\n');
+}
+
+export function buildRevisionPrompt(
+  request: Request,
+  reasoning: string,
+  fileTree: string,
+  imagineContext: string,
+  previousPlan: string,
+  feedback: string,
+): string {
+  return [
+    buildPlanningPrompt(request, reasoning, fileTree, imagineContext),
+    '',
+    '## Previous plan (rejected)',
+    previousPlan,
+    '',
+    '## User feedback',
+    feedback || '(no specific feedback — rewrite from scratch)',
+    '',
+    'Write a revised plan that addresses the feedback. Use the same template.',
+  ].join('\n');
+}
+
+export function buildApprovedExecutionPrompt(
+  request: Request,
+  reasoning: string,
+  fileTree: string,
+  imagineContext: string,
+  approvedPlan: string,
+): string {
+  return [
+    buildEngineerPrompt(request, reasoning, fileTree, imagineContext),
+    '',
+    '## Approved plan',
+    'The user has reviewed and approved this plan. Follow it:',
+    '',
+    approvedPlan,
   ].join('\n');
 }
