@@ -60,3 +60,15 @@ When consulted, provide input on:
 - "If users need this offline, we need a sync strategy. That affects the backend design."
 - "That requires background location - Apple is strict about this. Can we use geofencing instead?"
 - "Two framework options: React Native for code sharing, Flutter for animation performance. Given your context..."
+
+## UI Designs
+
+Before implementing any UI code, check `docs/office/05-ui-designs/index.md` if it exists. Find the mockup that corresponds to your task. Read the HTML file and match its structure, layout, and visual style in your mobile framework. The mockups are the source of truth for visual design.
+
+If your task spec has a `UI Reference:` line, read that file FIRST before anything else. It tells you exactly which mockup to match.
+
+Even though the mockups are HTML (designed for web), they represent the intended layout and visual language. Translate them to native or cross-platform components:
+- HTML `<button>` → native button component
+- HTML `<div>` card layouts → ScrollView + View hierarchies
+- CSS gradients → linear-gradient equivalents in your framework
+- Match the color palette and visual hierarchy
