@@ -128,4 +128,58 @@ describe('RequestStore', () => {
     expect(r2.status).toBe('failed');
     expect(r2.error).toBe('Interrupted by app restart');
   });
+
+  it('creates a request with plan = null by default', () => {
+    const store = new RequestStore(tmpDir);
+    const r = store.create('a request');
+    expect(r.plan).toBeNull();
+  });
+
+  it('update() can set plan to a string', () => {
+    const store = new RequestStore(tmpDir);
+    const r = store.create('a request');
+    const updated = store.update(r.id, { plan: '## Summary\nDo the thing' });
+    expect(updated?.plan).toBe('## Summary\nDo the thing');
+  });
+
+  it('preserves awaiting_review status on recovery', () => {
+    // Seed a persisted request file with an awaiting_review request
+    const filePath = path.join(tmpDir, '.the-office', 'requests.json');
+    const seeded = [{
+      id: 'req-001',
+      title: 'Test',
+      description: 'Test',
+      status: 'awaiting_review',
+      createdAt: 1000,
+      startedAt: 1100,
+      completedAt: null,
+      assignedAgent: 'backend-engineer',
+      result: null,
+      error: null,
+      plan: '## Summary\nstored plan',
+    }];
+    fs.writeFileSync(filePath, JSON.stringify(seeded), 'utf-8');
+
+    const store = new RequestStore(tmpDir);
+    const r = store.get('req-001');
+    expect(r?.status).toBe('awaiting_review');
+    expect(r?.plan).toBe('## Summary\nstored plan');
+  });
+
+  it('still marks in_progress and queued as failed on recovery', () => {
+    const filePath = path.join(tmpDir, '.the-office', 'requests.json');
+    const seeded = [
+      { id: 'req-001', title: '', description: 'x', status: 'in_progress',
+        createdAt: 1, startedAt: 2, completedAt: null, assignedAgent: null,
+        result: null, error: null, plan: null },
+      { id: 'req-002', title: '', description: 'y', status: 'queued',
+        createdAt: 1, startedAt: null, completedAt: null, assignedAgent: null,
+        result: null, error: null, plan: null },
+    ];
+    fs.writeFileSync(filePath, JSON.stringify(seeded), 'utf-8');
+
+    const store = new RequestStore(tmpDir);
+    expect(store.get('req-001')?.status).toBe('failed');
+    expect(store.get('req-002')?.status).toBe('failed');
+  });
 });
