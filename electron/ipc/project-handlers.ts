@@ -6,6 +6,7 @@ import type { Phase } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
+import { ProjectScanner } from '../project/project-scanner';
 import { resumePhase, resumeWarroomAfterReview } from './phase-handlers';
 import {
   mainWindow,
@@ -50,8 +51,17 @@ export function initProjectHandlers(): void {
 
       // Auto-enter workshop mode for already-completed projects
       const openedState = projectManager.getProjectState(projectPath);
+
+      // Crash recovery: reset in_progress scans so they retry
+      if (openedState.scanStatus === 'in_progress') {
+        projectManager.updateProjectState(projectPath, { scanStatus: 'pending' });
+      }
+
       if (openedState.completedPhases?.includes('build') && openedState.mode !== 'workshop') {
-        projectManager.updateProjectState(projectPath, { mode: 'workshop' });
+        projectManager.updateProjectState(projectPath, {
+          mode: 'workshop',
+          scanStatus: 'done', // rely on imagine artifacts instead of a scan
+        });
       }
 
       // Restore persisted waiting question (survives app restart)
@@ -131,6 +141,76 @@ export function initProjectHandlers(): void {
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CHECK_PROJECT_EXISTS, async (_event, projectPath: string) => {
+    try {
+      if (!fs.existsSync(projectPath)) {
+        return { exists: false, fileCount: 0 };
+      }
+      const configPath = path.join(projectPath, '.the-office', 'config.json');
+      if (fs.existsSync(configPath)) {
+        return { exists: true, fileCount: 0 };
+      }
+      // Count non-trivial files so the "start fresh" modal can decide
+      // whether to show its second confirmation
+      const scanner = new ProjectScanner(projectPath);
+      const tree = scanner.getFileTree(500);
+      const TRIVIAL = new Set(['.DS_Store', '.gitignore', 'LICENSE', 'README.md']);
+      const lines = tree.split('\n').filter(l => l && !l.startsWith('...'));
+      const significantFiles = lines.filter(l => {
+        const base = path.basename(l);
+        return !TRIVIAL.has(base);
+      });
+      return { exists: false, fileCount: significantFiles.length };
+    } catch (err) {
+      console.error('[CHECK_PROJECT_EXISTS] Error:', err);
+      return { exists: false, fileCount: 0 };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.OPEN_DIRECTORY_AS_WORKSHOP, async (_event, projectPath: string) => {
+    try {
+      if (!fs.existsSync(projectPath)) {
+        return { success: false, error: 'Directory does not exist' };
+      }
+
+      // Create minimal .the-office/config.json in Workshop mode
+      const officeDir = path.join(projectPath, '.the-office');
+      if (!fs.existsSync(officeDir)) {
+        fs.mkdirSync(officeDir, { recursive: true });
+      }
+      const configPath = path.join(officeDir, 'config.json');
+      const initialState = {
+        name: path.basename(projectPath),
+        path: projectPath,
+        currentPhase: 'idle' as const,
+        completedPhases: [],
+        interrupted: false,
+        introSeen: true,
+        buildIntroSeen: false,
+        mode: 'workshop' as const,
+        scanStatus: 'pending' as const,
+      };
+      fs.writeFileSync(configPath, JSON.stringify(initialState, null, 2), 'utf-8');
+
+      // Add to recent projects
+      projectManager.addToRecentProjects(initialState.name, projectPath, null);
+
+      // Proceed with the normal open flow (reuse the OPEN_PROJECT setup logic)
+      resetSessionState();
+      projectManager.openProject(projectPath);
+      setCurrentProjectDir(projectPath);
+      setArtifactStore(new ArtifactStore(projectPath));
+      setRequestStore(new RequestStore(projectPath));
+      chatHistoryStore?.flush();
+      setChatHistoryStore(new ChatHistoryStore(projectPath));
+
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to open directory';
+      return { success: false, error: message };
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_PROJECT_STATE, async () => {
