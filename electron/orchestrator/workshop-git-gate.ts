@@ -35,7 +35,6 @@ export async function enterGitGate(
 
   // 2. Is it a git repo? If not, handle init choice.
   let isRepo = await ctx.git.isGitRepo();
-  let freshlyInitialized = false;
   if (!isRepo) {
     let choice = ctx.gitInitChoice;
     if (choice === null) {
@@ -44,24 +43,24 @@ export async function enterGitGate(
     if (choice === 'no') {
       return { isolated: false, reason: 'git init declined by user' };
     }
-    // Initialize
+    // Initialize and create an empty initial commit so HEAD exists
     try {
       await ctx.git.init();
+      await ctx.git.createInitialEmptyCommit();
       isRepo = true;
-      freshlyInitialized = true;
     } catch (err: any) {
       return { isolated: false, reason: `git init failed: ${err?.message || err}` };
     }
   }
 
-  // 3. Detached HEAD? (skip for freshly-initialized repos — they have no HEAD yet)
-  if (!freshlyInitialized && await ctx.git.isDetached()) {
+  // 3. Detached HEAD?
+  if (await ctx.git.isDetached()) {
     return { isolated: false, reason: 'detached HEAD — check out a branch before submitting requests' };
   }
 
-  // 4. Capture base branch (freshly-initialized repos have no branch yet, use empty string sentinel)
-  const baseBranch = freshlyInitialized ? '' : await ctx.git.currentBranch();
-  if (!freshlyInitialized && !baseBranch) {
+  // 4. Capture base branch
+  const baseBranch = await ctx.git.currentBranch();
+  if (!baseBranch) {
     return { isolated: false, reason: 'could not determine current branch' };
   }
 

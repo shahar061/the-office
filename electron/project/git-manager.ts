@@ -34,6 +34,16 @@ export class GitManager {
     await this.git.init();
   }
 
+  /**
+   * Create an empty initial commit. Used after `init()` to ensure the repo
+   * has a HEAD and a named branch. Safe to call on an empty repo.
+   */
+  async createInitialEmptyCommit(): Promise<void> {
+    await this.git.addConfig('user.email', 'the-office@local', false, 'local');
+    await this.git.addConfig('user.name', 'The Office', false, 'local');
+    await this.git.raw(['commit', '--allow-empty', '-m', 'Initial commit (by The Office)']);
+  }
+
   async currentBranch(): Promise<string | null> {
     try {
       const result = await this.git.raw(['rev-parse', '--abbrev-ref', 'HEAD']);

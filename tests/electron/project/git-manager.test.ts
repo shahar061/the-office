@@ -211,4 +211,15 @@ describe('GitManager — operations', () => {
     fs.writeFileSync(path.join(tmpDir, 'file.txt'), 'data');
     expect(await gm.hasUncommittedChanges()).toBe(true);
   });
+
+  it('createInitialEmptyCommit creates a HEAD with a real branch on a fresh repo', async () => {
+    const gm = new GitManager(tmpDir);
+    await gm.init();
+    await gm.createInitialEmptyCommit();
+    const branch = await gm.currentBranch();
+    expect(branch).toBeTruthy();
+    expect(typeof branch).toBe('string');
+    // Should not be detached
+    expect(await gm.isDetached()).toBe(false);
+  });
 });
