@@ -1,4 +1,4 @@
-export type PanelId = 'chat' | 'office' | 'agents' | 'kanban' | 'stats' | 'logs' | 'about';
+export type PanelId = 'chat' | 'office' | 'agents' | 'kanban' | 'stats' | 'logs' | 'about' | 'complete';
 
 export type SplitDirection = 'horizontal' | 'vertical';
 

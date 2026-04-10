@@ -395,6 +395,11 @@ export const IPC_CHANNELS = {
   UI_DESIGN_REVIEW_RESPONSE: 'office:ui-design-review-response',
   // File Open
   OPEN_FILE_IN_BROWSER: 'office:open-file-in-browser',
+  // Completion phase
+  READ_RUN_MD: 'office:read-run-md',
+  GET_PROJECT_FILE_COUNT: 'office:get-project-file-count',
+  OPEN_PROJECT_FOLDER: 'office:open-project-folder',
+  COPY_TO_CLIPBOARD: 'office:copy-to-clipboard',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -463,6 +468,11 @@ export interface OfficeAPI {
   // Stats
   onStatsState(callback: (state: StatsState) => void): () => void;
   getStatsState(): Promise<StatsState>;
+
+  readRunMd(): Promise<string | null>;
+  getProjectFileCount(): Promise<number>;
+  openProjectFolder(): Promise<{ success: boolean; error?: string }>;
+  copyToClipboard(text: string): Promise<void>;
 }
 
 declare global {
