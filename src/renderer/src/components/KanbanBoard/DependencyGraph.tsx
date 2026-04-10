@@ -46,10 +46,96 @@ const styles = {
 export function DependencyGraph() {
   const tasks = useKanbanStore((s) => s.kanban.tasks);
   const layout = useMemo(() => computeLayout(tasks), [tasks]);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const lastTaskSetRef = useRef<string>('');
+
+  const fitToScreen = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const { minX, minY, maxX, maxY } = layout.bounds;
+    const graphW = maxX - minX;
+    const graphH = maxY - minY;
+    if (graphW === 0 || graphH === 0) {
+      setPan({ x: 0, y: 0 });
+      setZoom(1);
+      return;
+    }
+    const padding = 24;
+    const scaleX = (rect.width - padding * 2) / graphW;
+    const scaleY = (rect.height - padding * 2) / graphH;
+    const newZoom = Math.min(scaleX, scaleY, 1);
+    const newPanX = padding + (rect.width - padding * 2 - graphW * newZoom) / 2 - minX * newZoom;
+    const newPanY = padding + (rect.height - padding * 2 - graphH * newZoom) / 2 - minY * newZoom;
+    setPan({ x: newPanX, y: newPanY });
+    setZoom(newZoom);
+  }, [layout.bounds]);
+
+  useEffect(() => {
+    const taskKey = tasks.map(t => t.id).sort().join(',');
+    if (taskKey !== lastTaskSetRef.current) {
+      lastTaskSetRef.current = taskKey;
+      requestAnimationFrame(() => fitToScreen());
+    }
+  }, [tasks, fitToScreen]);
+
+  const handleWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    const delta = -e.deltaY * 0.001;
+    const newZoom = Math.max(0.25, Math.min(3, zoom * (1 + delta)));
+    const scaleRatio = newZoom / zoom;
+    const newPanX = cursorX - (cursorX - pan.x) * scaleRatio;
+    const newPanY = cursorY - (cursorY - pan.y) * scaleRatio;
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  }, [pan, zoom]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if ((e.target as Element).tagName === 'svg' || (e.target as Element).tagName === 'g') {
+      setIsPanning(true);
+      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    }
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.current.x;
+    const dy = e.clientY - panStart.current.y;
+    setPan({
+      x: panStart.current.panX + dx,
+      y: panStart.current.panY + dy,
+    });
+  }, [isPanning]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
 
   return (
     <div style={styles.root}>
-      <svg style={styles.svg}>
+      <button style={styles.fitButton} onClick={fitToScreen}>
+        Fit to screen
+      </button>
+      <svg
+        ref={svgRef}
+        style={{ ...styles.svg, cursor: isPanning ? 'grabbing' : 'grab' }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
         <defs>
           <marker
             id="arrow"
@@ -63,7 +149,7 @@ export function DependencyGraph() {
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#444" />
           </marker>
         </defs>
-        <g>
+        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {/* Phase headers */}
           {layout.phases.map((phase) => (
             <text
