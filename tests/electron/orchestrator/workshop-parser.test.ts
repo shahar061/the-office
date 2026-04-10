@@ -92,4 +92,52 @@ That should do it.`;
       expect(result.assignedAgent).toBe(role);
     }
   });
+
+  it('parses mode=plan from the triage JSON', () => {
+    const raw = `{
+  "title": "Add auth",
+  "assignedAgent": "backend-engineer",
+  "reasoning": "complex",
+  "mode": "plan"
+}`;
+    const result = parseTriageOutput(raw, 'fallback');
+    expect(result.mode).toBe('plan');
+  });
+
+  it('parses mode=direct from the triage JSON', () => {
+    const raw = `{
+  "title": "Rename var",
+  "assignedAgent": "backend-engineer",
+  "reasoning": "trivial",
+  "mode": "direct"
+}`;
+    const result = parseTriageOutput(raw, 'fallback');
+    expect(result.mode).toBe('direct');
+  });
+
+  it('defaults mode to direct when missing', () => {
+    const raw = `{
+  "title": "x",
+  "assignedAgent": "backend-engineer",
+  "reasoning": "y"
+}`;
+    const result = parseTriageOutput(raw, 'fallback');
+    expect(result.mode).toBe('direct');
+  });
+
+  it('defaults mode to direct when invalid', () => {
+    const raw = `{
+  "title": "x",
+  "assignedAgent": "backend-engineer",
+  "reasoning": "y",
+  "mode": "wizard"
+}`;
+    const result = parseTriageOutput(raw, 'fallback');
+    expect(result.mode).toBe('direct');
+  });
+
+  it('fallback result has mode=direct', () => {
+    const result = parseTriageOutput('not json', 'fallback');
+    expect(result.mode).toBe('direct');
+  });
 });
