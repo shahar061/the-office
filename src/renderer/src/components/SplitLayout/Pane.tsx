@@ -19,6 +19,7 @@ import { AudioControls } from '../OfficeView/AudioControls';
 import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
 import { PlanOverlay } from '../OfficeView/PlanOverlay';
 import { UIDesignReviewOverlay } from '../OfficeView/UIDesignReviewOverlay';
+import { RequestPlanReviewOverlay } from '../WorkshopPanel/RequestPlanReviewOverlay';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
@@ -141,6 +142,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
             <ArtifactOverlay />
             <PlanOverlay />
             <UIDesignReviewOverlay />
+            <RequestPlanReviewOverlay />
             <SpecProgressStrip />
           </div>
         )}

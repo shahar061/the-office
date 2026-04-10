@@ -10,6 +10,7 @@ import { useLogStore } from './stores/log.store';
 import { useStatsStore } from './stores/stats.store';
 import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
 import { useRequestStore } from './stores/request.store';
+import { useRequestPlanReviewStore } from './stores/request-plan-review.store';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
@@ -49,6 +50,13 @@ export default function App() {
       window.office.onStatsState(setStats),
       window.office.onRequestUpdated((request) => {
         useRequestStore.getState().addOrUpdate(request);
+      }),
+      window.office.onRequestPlanReady((payload) => {
+        useRequestPlanReviewStore.getState().openReview({
+          requestId: payload.requestId,
+          title: payload.title,
+          plan: payload.plan,
+        });
       }),
       window.office.onProjectStateChanged((state) => {
         useProjectStore.getState().setProjectState(state);
