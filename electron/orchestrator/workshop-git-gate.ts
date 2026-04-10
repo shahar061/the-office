@@ -96,3 +96,57 @@ export async function enterGitGate(
     stashLabel: stashResult.created ? stashLabel : undefined,
   };
 }
+
+export async function exitGitGate(
+  request: Request,
+  ctx: GitGateContext,
+  outcome: 'success' | 'failure',
+  stashLabel: string,
+): Promise<ExitResult> {
+  let commitSha: string | null = null;
+  let restoreWarning: string | null = null;
+
+  // 1. Commit on the branch
+  try {
+    if (outcome === 'success') {
+      const message = `${request.id}: ${request.title}`;
+      const sha = await ctx.git.commitAll(message);
+      commitSha = sha || null;
+    } else {
+      // Failure: if dirty, preserve partial work under a FAILED commit
+      if (await ctx.git.hasUncommittedChanges()) {
+        const message = `${request.id}: FAILED — partial work`;
+        const sha = await ctx.git.commitAll(message);
+        commitSha = sha || null;
+      }
+    }
+  } catch (err: any) {
+    restoreWarning = `Commit step failed: ${err?.message || err}`;
+  }
+
+  // 2. Checkout base branch (if we know it and we're not already there)
+  if (request.baseBranch) {
+    try {
+      const current = await ctx.git.currentBranch();
+      if (current !== request.baseBranch) {
+        await ctx.git.checkoutExistingBranch(request.baseBranch);
+      }
+    } catch (err: any) {
+      restoreWarning =
+        (restoreWarning ? restoreWarning + '\n' : '') +
+        `Could not checkout ${request.baseBranch}: ${err?.message || err}`;
+    }
+  }
+
+  // 3. Pop stash if we created one
+  if (stashLabel) {
+    const popResult = await ctx.git.stashPopIfOwned('the-office:');
+    if (!popResult.ok) {
+      restoreWarning =
+        (restoreWarning ? restoreWarning + '\n' : '') +
+        'Your stashed work could not be restored automatically. Run `git stash pop` manually to recover it.';
+    }
+  }
+
+  return { commitSha, restoreWarning };
+}

@@ -97,7 +97,11 @@ export class GitManager {
       return { ok: true, popped: false };
     }
     try {
-      await this.git.raw(['stash', 'pop']);
+      const output = await this.git.raw(['stash', 'pop']);
+      // simple-git does not throw on stash pop conflicts; detect via output
+      if (output.includes('CONFLICT') || output.includes('could not restore')) {
+        return { ok: false, conflict: true, reason: output.trim() };
+      }
       return { ok: true, popped: true };
     } catch (err: any) {
       return { ok: false, conflict: true, reason: err?.message || String(err) };

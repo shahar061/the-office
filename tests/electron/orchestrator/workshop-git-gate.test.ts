@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { simpleGit } from 'simple-git';
 import { GitManager } from '../../../electron/project/git-manager';
-import { enterGitGate, type GitGateContext } from '../../../electron/orchestrator/workshop-git-gate';
+import { enterGitGate, exitGitGate, type GitGateContext } from '../../../electron/orchestrator/workshop-git-gate';
 import type { Request } from '../../../shared/types';
 
 function makeRequest(partial: Partial<Request> = {}): Request {
@@ -146,5 +146,171 @@ describe('enterGitGate', () => {
     );
     expect(result.isolated).toBe(true);
     expect(result.branchName).toBe('the-office/req-001-add-dark-mode-2');
+  });
+});
+
+describe('exitGitGate', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-gate-exit-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function ctx(): GitGateContext {
+    return {
+      git: new GitManager(tmpDir),
+      projectDir: tmpDir,
+      gitInitChoice: 'yes',
+      promptGitInit: async () => 'yes',
+    };
+  }
+
+  it('on success with dirty branch: commits, returns to base, pops stash', async () => {
+    await setupRepo(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, 'scratch.txt'), 'user wip');
+
+    const enterResult = await enterGitGate(
+      makeRequest({ id: 'req-001', title: 'Do Thing' }),
+      ctx(),
+    );
+    expect(enterResult.isolated).toBe(true);
+    expect(enterResult.stashCreated).toBe(true);
+
+    // Simulate engineer making changes on the branch
+    fs.writeFileSync(path.join(tmpDir, 'feature.ts'), 'export const x = 1;');
+
+    const request = makeRequest({
+      id: 'req-001',
+      title: 'Do Thing',
+      branchName: enterResult.branchName!,
+      baseBranch: enterResult.baseBranch!,
+      branchIsolated: true,
+    });
+
+    const exitResult = await exitGitGate(request, ctx(), 'success', enterResult.stashLabel!);
+
+    expect(exitResult.commitSha).toBeTruthy();
+    expect(exitResult.restoreWarning).toBeNull();
+
+    // Should be back on main with the scratch file restored
+    const g = simpleGit(tmpDir);
+    const status = await g.status();
+    expect(status.current).toBe('main');
+    expect(fs.existsSync(path.join(tmpDir, 'scratch.txt'))).toBe(true);
+    // The feature file should NOT be on main (it's on the branch)
+    expect(fs.existsSync(path.join(tmpDir, 'feature.ts'))).toBe(false);
+
+    // And the branch should have a commit with the expected message
+    const log = await g.log(['the-office/req-001-do-thing']);
+    expect(log.latest?.message).toContain('req-001: Do Thing');
+  });
+
+  it('on failure with dirty branch: commits as FAILED, returns to base', async () => {
+    await setupRepo(tmpDir);
+
+    const enterResult = await enterGitGate(
+      makeRequest({ id: 'req-002', title: 'Fail Case' }),
+      ctx(),
+    );
+
+    // Leave the working tree dirty on the branch
+    fs.writeFileSync(path.join(tmpDir, 'partial.ts'), 'incomplete');
+
+    const request = makeRequest({
+      id: 'req-002',
+      title: 'Fail Case',
+      branchName: enterResult.branchName!,
+      baseBranch: enterResult.baseBranch!,
+      branchIsolated: true,
+    });
+
+    const exitResult = await exitGitGate(request, ctx(), 'failure', enterResult.stashLabel ?? '');
+
+    expect(exitResult.commitSha).toBeTruthy();
+
+    const g = simpleGit(tmpDir);
+    const status = await g.status();
+    expect(status.current).toBe('main');
+
+    const log = await g.log(['the-office/req-002-fail-case']);
+    expect(log.latest?.message).toContain('FAILED');
+  });
+
+  it('on success with clean branch: no commit but still returns to base', async () => {
+    await setupRepo(tmpDir);
+
+    const enterResult = await enterGitGate(
+      makeRequest({ id: 'req-003', title: 'No Changes' }),
+      ctx(),
+    );
+
+    // No file changes made
+
+    const request = makeRequest({
+      id: 'req-003',
+      title: 'No Changes',
+      branchName: enterResult.branchName!,
+      baseBranch: enterResult.baseBranch!,
+      branchIsolated: true,
+    });
+
+    const exitResult = await exitGitGate(request, ctx(), 'success', enterResult.stashLabel ?? '');
+
+    expect(exitResult.commitSha).toBe(null);
+
+    const g = simpleGit(tmpDir);
+    const status = await g.status();
+    expect(status.current).toBe('main');
+  });
+
+  it('stash pop conflict sets restoreWarning and leaves stash', async () => {
+    await setupRepo(tmpDir);
+
+    // Commit scratch.txt to main so it is tracked
+    const g = simpleGit(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, 'scratch.txt'), 'base-version\n');
+    await g.add('.');
+    await g.commit('add scratch.txt');
+
+    // Modify scratch.txt — this is a tracked-file modification that we stash
+    fs.writeFileSync(path.join(tmpDir, 'scratch.txt'), 'version-A\n');
+
+    const enterResult = await enterGitGate(
+      makeRequest({ id: 'req-004', title: 'Conflict' }),
+      ctx(),
+    );
+    expect(enterResult.stashCreated).toBe(true);
+
+    // On main, commit a conflicting change to scratch.txt so that
+    // when we pop the stash the patch no longer applies cleanly
+    await g.checkout('main');
+    fs.writeFileSync(path.join(tmpDir, 'scratch.txt'), 'conflict-version\n');
+    await g.add('.');
+    await g.commit('conflict change on main');
+    await g.checkout(enterResult.branchName!);
+
+    // Feature work on the branch (unrelated file)
+    fs.writeFileSync(path.join(tmpDir, 'feature.ts'), 'export const x = 1;');
+
+    const request = makeRequest({
+      id: 'req-004',
+      title: 'Conflict',
+      branchName: enterResult.branchName!,
+      baseBranch: enterResult.baseBranch!,
+      branchIsolated: true,
+    });
+
+    const exitResult = await exitGitGate(request, ctx(), 'success', enterResult.stashLabel!);
+
+    expect(exitResult.restoreWarning).toBeTruthy();
+    expect(exitResult.restoreWarning).toMatch(/stash/i);
+
+    // Stash should still be present
+    const stashList = await g.raw(['stash', 'list']);
+    expect(stashList).toContain('the-office:');
   });
 });
