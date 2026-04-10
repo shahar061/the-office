@@ -491,6 +491,10 @@ export function resumeAwaitingReview(request: Request): void {
       const payload: GitInitPromptPayload = { projectPath: projectDir };
       send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
     }),
+    resolveIdentity: () => {
+      const state = projectManager.getProjectState(projectDir);
+      return settingsStore.resolveIdentityForProject(state);
+    },
   };
 
   // Re-register the pending-review slot for the INITIAL wait
@@ -1001,6 +1005,11 @@ export function initPhaseHandlers(): void {
         const payload: GitInitPromptPayload = { projectPath: currentProjectDir! };
         send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
       }),
+      resolveIdentity: () => {
+        if (!currentProjectDir) return null;
+        const state = projectManager.getProjectState(currentProjectDir);
+        return settingsStore.resolveIdentityForProject(state);
+      },
     };
 
     // Run in background (don't await — the IPC returns immediately)
