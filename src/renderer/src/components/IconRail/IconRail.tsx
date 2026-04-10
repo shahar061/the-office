@@ -9,6 +9,7 @@ import { useProjectStore } from '../../stores/project.store';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useStatsStore } from '../../stores/stats.store';
 import { useChatStore } from '../../stores/chat.store';
+import { useSettingsStore } from '../../stores/settings.store';
 import { collectPanelIds, findLeafByPanelId, firstLeaf } from '../SplitLayout/layout-utils';
 import { colors } from '../../theme';
 
@@ -32,6 +33,16 @@ const PRIMARY_ITEMS: NavItem[] = [
 const UTILITY_ITEMS: NavItem[] = [
   { id: 'logs', icon: '📋', label: 'Logs' },
   { id: 'about', icon: 'ℹ️', label: 'About' },
+];
+
+interface ActionItem {
+  id: 'settings';
+  icon: string;
+  label: string;
+}
+
+const UTILITY_ACTIONS: ActionItem[] = [
+  { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
 const styles = {
@@ -276,6 +287,16 @@ export function IconRail() {
           onClick={() => handleClick(item.id)}
           onDragStart={(e) => handleDragStart(e, item.id)}
         />
+      ))}
+      {UTILITY_ACTIONS.map((action) => (
+        <button
+          key={action.id}
+          onClick={() => useSettingsStore.getState().open()}
+          title={action.label}
+          style={styles.iconButton(false)}
+        >
+          {action.icon}
+        </button>
       ))}
     </div>
   );

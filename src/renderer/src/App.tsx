@@ -13,6 +13,8 @@ import { useRequestStore } from './stores/request.store';
 import { useRequestPlanReviewStore } from './stores/request-plan-review.store';
 import { useGitInitModalStore } from './stores/git-init-modal.store';
 import { useGitBannerStore } from './stores/git-banner.store';
+import { useSettingsStore } from './stores/settings.store';
+import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
@@ -33,6 +35,10 @@ export default function App() {
   const setStats = useStatsStore((s) => s.setStats);
 
   useWorkshopKanbanSync();
+
+  useEffect(() => {
+    useSettingsStore.getState().hydrate();
+  }, []);
 
   useEffect(() => {
     const unsubs = [
@@ -68,6 +74,12 @@ export default function App() {
       }),
       window.office.onProjectStateChanged((state) => {
         useProjectStore.getState().setProjectState(state);
+      }),
+      window.office.onSettingsUpdated((settings) => {
+        useSettingsStore.getState().setFromEvent(settings);
+      }),
+      window.office.onOpenSettings(() => {
+        useSettingsStore.getState().open();
       }),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
@@ -153,6 +165,7 @@ export default function App() {
           <OfficeView />
         )}
       </React.Suspense>
+      <SettingsPanel />
     </div>
   );
 }
