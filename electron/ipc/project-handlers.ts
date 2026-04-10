@@ -5,6 +5,7 @@ import { IPC_CHANNELS } from '../../shared/types';
 import type { Phase } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
+import { RequestStore } from '../project/request-store';
 import { resumePhase, resumeWarroomAfterReview } from './phase-handlers';
 import {
   mainWindow,
@@ -16,6 +17,7 @@ import {
   setCurrentProjectDir,
   setArtifactStore,
   setChatHistoryStore,
+  setRequestStore,
   setCurrentChatPhase,
   setCurrentChatAgentRole,
   setCurrentChatRunNumber,
@@ -41,9 +43,16 @@ export function initProjectHandlers(): void {
       projectManager.openProject(projectPath);
       setCurrentProjectDir(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
+      setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();
       const newChatStore = new ChatHistoryStore(projectPath);
       setChatHistoryStore(newChatStore);
+
+      // Auto-enter workshop mode for already-completed projects
+      const openedState = projectManager.getProjectState(projectPath);
+      if (openedState.completedPhases?.includes('build') && openedState.mode !== 'workshop') {
+        projectManager.updateProjectState(projectPath, { mode: 'workshop' });
+      }
 
       // Restore persisted waiting question (survives app restart)
       if (saved && saved.questions?.length) {
@@ -105,6 +114,7 @@ export function initProjectHandlers(): void {
       projectManager.createProject(name, projectPath);
       setCurrentProjectDir(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
+      setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();
       setChatHistoryStore(new ChatHistoryStore(projectPath));
       return { success: true };
