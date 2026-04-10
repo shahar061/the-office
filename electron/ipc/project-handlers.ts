@@ -2,7 +2,8 @@ import { ipcMain, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
-import type { Phase } from '../../shared/types';
+import type { Phase, GitRecoveryNote } from '../../shared/types';
+import { GitManager } from '../project/git-manager';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
@@ -49,6 +50,62 @@ export function initProjectHandlers(): void {
       chatHistoryStore?.flush();
       const newChatStore = new ChatHistoryStore(projectPath);
       setChatHistoryStore(newChatStore);
+
+      // Sub-project 4: sweep for orphan git state from crashed requests
+      if (requestStore) {
+        const git = new GitManager(projectPath);
+        const failedIsolated = requestStore.list().filter(
+          (r) => r.status === 'failed' && r.branchIsolated && r.branchName && r.baseBranch,
+        );
+
+        if (failedIsolated.length > 0 && (await git.isGitRepo())) {
+          const currentBranch = await git.currentBranch();
+          const dirty = await git.isDirty();
+
+          // 1. Safe branch switch if we're on an orphan with a clean tree
+          for (const req of failedIsolated) {
+            if (currentBranch === req.branchName) {
+              if (dirty) {
+                const note: GitRecoveryNote = {
+                  level: 'warning',
+                  message: `You're on a leftover request branch '${req.branchName}' with uncommitted changes. Resolve manually.`,
+                  requestId: req.id,
+                };
+                send(IPC_CHANNELS.GIT_RECOVERY_NOTE, note);
+              } else {
+                try {
+                  await git.checkoutExistingBranch(req.baseBranch!);
+                  const note: GitRecoveryNote = {
+                    level: 'info',
+                    message: `Returned to '${req.baseBranch}' after a previous session ended on '${req.branchName}'.`,
+                    requestId: req.id,
+                  };
+                  send(IPC_CHANNELS.GIT_RECOVERY_NOTE, note);
+                } catch (err: any) {
+                  console.error('[Git recovery] checkout failed:', err);
+                }
+              }
+              break; // only handle whichever orphan we're currently on
+            }
+          }
+
+          // 2. Pop owned stash if it's on top
+          try {
+            const popResult = await git.stashPopIfOwned('the-office:');
+            if (!popResult.ok) {
+              // Conflict — leave stash, surface warning
+              const note: GitRecoveryNote = {
+                level: 'warning',
+                message:
+                  'A stash from a previous request could not be restored automatically. Run `git stash pop` manually to recover your work.',
+              };
+              send(IPC_CHANNELS.GIT_RECOVERY_NOTE, note);
+            }
+          } catch (err) {
+            console.error('[Git recovery] stash pop check failed:', err);
+          }
+        }
+      }
 
       // Sub-project 3: resume any awaiting_review requests with a persisted plan
       if (requestStore) {

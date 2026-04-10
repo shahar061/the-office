@@ -92,6 +92,16 @@ export function setPendingRequestPlanReview(pr: PendingRequestPlanReview | null)
   pendingRequestPlanReview = pr;
 }
 
+// Pending git init prompt response (sub-project 4)
+export interface PendingGitInit {
+  resolve: (answer: 'yes' | 'no') => void;
+}
+export let pendingGitInit: PendingGitInit | null = null;
+
+export function setPendingGitInit(p: PendingGitInit | null): void {
+  pendingGitInit = p;
+}
+
 // Pending warroom intro completion
 export interface PendingIntro {
   resolve: () => void;
@@ -364,6 +374,7 @@ export function resetSessionState(): void {
   pendingIntro = null;
   pendingBuildIntro = null;
   pendingRequestPlanReview = null;
+  pendingGitInit = null;
 
   // Reset stats collector
   if (statsCollector) statsCollector.flush();

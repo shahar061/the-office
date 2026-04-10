@@ -19,17 +19,20 @@ export class PermissionHandler {
   private sendRequest: (req: PermissionRequest) => void;
   private timeoutMs: number;
   private pending = new Map<string, PendingRequest>();
+  private denyPatterns: RegExp[];
 
   public lastRequestId: string | undefined;
 
   constructor(
     mode: BuildConfig['permissionMode'],
     sendRequest: (req: PermissionRequest) => void,
-    timeoutMs = 5 * 60 * 1000,
+    timeoutMs: number = 5 * 60 * 1000,
+    denyPatterns: RegExp[] = [],
   ) {
     this.mode = mode;
     this.sendRequest = sendRequest;
     this.timeoutMs = timeoutMs;
+    this.denyPatterns = denyPatterns;
   }
 
   setMode(mode: BuildConfig['permissionMode']): void {
@@ -41,6 +44,20 @@ export class PermissionHandler {
     input: Record<string, unknown>,
     agentRole: AgentRole,
   ): Promise<PermissionResult> {
+    // Deny-list check (Bash commands only)
+    if (toolName === 'Bash' && this.denyPatterns.length > 0) {
+      const cmd = String(input.command ?? '');
+      for (const pattern of this.denyPatterns) {
+        if (pattern.test(cmd)) {
+          return {
+            behavior: 'deny',
+            message:
+              'Git write operations are managed by The Office — do not run git commands directly. You may use `git status`, `git diff`, `git log`, and `git show` for inspection.',
+          };
+        }
+      }
+    }
+
     if (this.mode === 'auto-all') {
       return { behavior: 'allow' };
     }

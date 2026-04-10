@@ -9,6 +9,7 @@ import type {
   UIDesignReviewPayload, UIDesignReviewResponse,
   Request,
   RequestPlanReadyPayload, RequestPlanResponse,
+  GitInitPromptPayload, GitRecoveryNote,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -102,6 +103,12 @@ contextBridge.exposeInMainWorld('office', {
     onEvent(IPC_CHANNELS.REQUEST_PLAN_READY, cb),
   respondRequestPlan: (response: RequestPlanResponse) =>
     ipcRenderer.invoke(IPC_CHANNELS.REQUEST_PLAN_RESPONSE, response),
+  onGitInitPrompt: (cb: (payload: GitInitPromptPayload) => void) =>
+    onEvent(IPC_CHANNELS.GIT_INIT_PROMPT, cb),
+  respondGitInit: (answer: 'yes' | 'no') =>
+    ipcRenderer.invoke(IPC_CHANNELS.GIT_INIT_RESPONSE, answer),
+  onGitRecoveryNote: (cb: (note: GitRecoveryNote) => void) =>
+    onEvent(IPC_CHANNELS.GIT_RECOVERY_NOTE, cb),
 
   // War Table
   onWarTableState: (cb: (s: WarTableVisualState) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_STATE, cb),

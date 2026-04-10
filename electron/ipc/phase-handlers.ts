@@ -20,6 +20,7 @@ import type {
   UIDesignReviewResponse,
   RequestPlanResponse,
   RequestPlanReadyPayload,
+  GitInitPromptPayload,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -29,6 +30,8 @@ import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
+import { GitManager } from '../project/git-manager';
+import type { GitGateContext } from '../orchestrator/workshop-git-gate';
 import {
   activeAbort,
   authManager,
@@ -70,12 +73,18 @@ import {
   requestStore,
   pendingRequestPlanReview,
   setPendingRequestPlanReview,
+  pendingGitInit,
+  setPendingGitInit,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
 import type { BuildState } from '../orchestrator/build';
 
 let lastBuildState: BuildState | null = null;
+
+const WORKSHOP_GIT_DENY = [
+  /^git\s+(commit|checkout|reset|branch|merge|rebase|stash|push|pull|rm|clean)\b/,
+];
 
 function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
   const sessionPath = path.join(projectDir, 'docs', 'office', 'session.yaml');
@@ -467,7 +476,26 @@ export function resumeAwaitingReview(request: Request): void {
   const ph = new PermissionHandler(
     'auto-all',
     (req) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+    5 * 60 * 1000,
+    WORKSHOP_GIT_DENY,
   );
+
+  const resumeProjectState = projectManager.getProjectState(projectDir);
+  const resumeGitContext: GitGateContext = {
+    git: new GitManager(projectDir),
+    projectDir,
+    gitInitChoice: resumeProjectState.gitInit ?? null,
+    promptGitInit: () => new Promise<'yes' | 'no'>((resolve) => {
+      setPendingGitInit({
+        resolve: (answer) => {
+          projectManager.updateProjectState(projectDir, { gitInit: answer });
+          resolve(answer);
+        },
+      });
+      const payload: GitInitPromptPayload = { projectPath: projectDir };
+      send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
+    }),
+  };
 
   // Re-register the pending-review slot for the INITIAL wait
   const reviewPromise = new Promise<RequestPlanResponse>((resolve) => {
@@ -506,6 +534,7 @@ export function resumeAwaitingReview(request: Request): void {
             plan,
           });
         }),
+      gitContext: resumeGitContext,
     }).catch((err) => {
       console.error('[Workshop] Resumed request failed:', err);
     });
@@ -702,6 +731,14 @@ export function initPhaseHandlers(): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.GIT_INIT_RESPONSE, async (_event, answer: 'yes' | 'no') => {
+    if (pendingGitInit) {
+      const pending = pendingGitInit;
+      setPendingGitInit(null);
+      pending.resolve(answer);
+    }
+  });
+
   ipcMain.handle(IPC_CHANNELS.UI_DESIGN_REVIEW_RESPONSE, async (_event, response: UIDesignReviewResponse) => {
     if (pendingUIReview) {
       pendingUIReview.resolve(response);
@@ -875,7 +912,29 @@ export function initPhaseHandlers(): void {
     const ph = new PermissionHandler(
       'auto-all',
       (req) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+      5 * 60 * 1000,
+      WORKSHOP_GIT_DENY,
     );
+
+    const projectStateForGit = projectManager.getProjectState(currentProjectDir);
+    const gitContext: GitGateContext = {
+      git: new GitManager(currentProjectDir),
+      projectDir: currentProjectDir,
+      gitInitChoice: projectStateForGit.gitInit ?? null,
+      promptGitInit: () => new Promise<'yes' | 'no'>((resolve) => {
+        setPendingGitInit({
+          resolve: (answer) => {
+            // Persist the answer so we never prompt again
+            if (currentProjectDir) {
+              projectManager.updateProjectState(currentProjectDir, { gitInit: answer });
+            }
+            resolve(answer);
+          },
+        });
+        const payload: GitInitPromptPayload = { projectPath: currentProjectDir! };
+        send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
+      }),
+    };
 
     // Run in background (don't await — the IPC returns immediately)
     runWorkshopRequest(request, {
@@ -898,6 +957,7 @@ export function initPhaseHandlers(): void {
           };
           send(IPC_CHANNELS.REQUEST_PLAN_READY, payload);
         }),
+      gitContext,
     }).catch((err) => {
       console.error('[Workshop] Request failed:', err);
     });

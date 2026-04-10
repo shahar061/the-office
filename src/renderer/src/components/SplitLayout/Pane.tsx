@@ -20,6 +20,7 @@ import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
 import { PlanOverlay } from '../OfficeView/PlanOverlay';
 import { UIDesignReviewOverlay } from '../OfficeView/UIDesignReviewOverlay';
 import { RequestPlanReviewOverlay } from '../WorkshopPanel/RequestPlanReviewOverlay';
+import { GitInitModal } from '../WorkshopPanel/GitInitModal';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
@@ -152,7 +153,12 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
         {panelId === 'logs' && <LogViewer />}
         {panelId === 'about' && <AboutPanel />}
         {panelId === 'complete' && <CompletionPanel />}
-        {panelId === 'workshop' && <WorkshopPanel />}
+        {panelId === 'workshop' && (
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <WorkshopPanel />
+            <GitInitModal />
+          </div>
+        )}
       </div>
 
       {/* Drop zone overlay (only during drag) */}

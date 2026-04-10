@@ -5,6 +5,7 @@ import { parseTriageOutput } from './workshop-parser';
 import { resolveRole } from '../sdk/sdk-bridge';
 import type { PermissionHandler } from '../sdk/permission-handler';
 import type { AgentEvent, Request, RequestPlanResponse } from '../../shared/types';
+import { enterGitGate, exitGitGate, type GitGateContext } from './workshop-git-gate';
 
 export interface WorkshopConfig {
   projectDir: string;
@@ -24,6 +25,7 @@ export type WaitForPlanReview = (
 
 export interface WorkshopConfigWithReview extends WorkshopConfig {
   waitForPlanReview: WaitForPlanReview;
+  gitContext: GitGateContext;
 }
 
 /**
@@ -83,47 +85,71 @@ export async function runWorkshopRequest(
   request.startedAt = Date.now();
   config.onRequestUpdated(request);
 
-  // ── Step 2: Branch on mode ──
-  if (triage.mode === 'direct') {
-    return runExecution(request, triage.reasoning, fileTree, imagineContext, null, config);
+  // ── NEW: Enter git gate ──
+  const gate = await enterGitGate(request, config.gitContext);
+  request.branchIsolated = gate.isolated;
+  if (gate.isolated) {
+    request.branchName = gate.branchName!;
+    request.baseBranch = gate.baseBranch!;
   }
+  config.onRequestUpdated(request);
+  const stashLabel = gate.stashLabel ?? '';
 
-  // ── Step 3: Planning + revision loop ──
-  let currentPlan: string | null = null;
-  let feedback = '';
-  while (true) {
-    try {
-      currentPlan = await runPlanningSession(
-        request,
-        triage.reasoning,
-        fileTree,
-        imagineContext,
-        currentPlan,
-        feedback,
-        config,
-      );
-    } catch (err: any) {
-      request.status = 'failed';
-      request.error = `Planning failed: ${err?.message || err}`;
-      request.completedAt = Date.now();
-      config.onRequestUpdated(request);
-      return request;
+  try {
+    // ── Step 2: Branch on mode ──
+    if (triage.mode === 'direct') {
+      return await runExecution(request, triage.reasoning, fileTree, imagineContext, null, config);
     }
 
-    request.plan = currentPlan;
-    request.status = 'awaiting_review';
-    config.onRequestUpdated(request);
+    // ── Step 3: Planning + revision loop ──
+    let currentPlan: string | null = null;
+    let feedback = '';
+    while (true) {
+      try {
+        currentPlan = await runPlanningSession(
+          request,
+          triage.reasoning,
+          fileTree,
+          imagineContext,
+          currentPlan,
+          feedback,
+          config,
+        );
+      } catch (err: any) {
+        request.status = 'failed';
+        request.error = `Planning failed: ${err?.message || err}`;
+        request.completedAt = Date.now();
+        config.onRequestUpdated(request);
+        return request;
+      }
 
-    const review = await config.waitForPlanReview(request.id, currentPlan);
-
-    if (review.action === 'approve') {
-      request.status = 'in_progress';
+      request.plan = currentPlan;
+      request.status = 'awaiting_review';
       config.onRequestUpdated(request);
-      return runExecution(request, triage.reasoning, fileTree, imagineContext, currentPlan, config);
-    }
 
-    // revise → loop with feedback
-    feedback = review.feedback ?? '';
+      const review = await config.waitForPlanReview(request.id, currentPlan);
+
+      if (review.action === 'approve') {
+        request.status = 'in_progress';
+        config.onRequestUpdated(request);
+        return await runExecution(request, triage.reasoning, fileTree, imagineContext, currentPlan, config);
+      }
+
+      feedback = review.feedback ?? '';
+    }
+  } finally {
+    // ── NEW: Exit git gate — always runs ──
+    if (gate.isolated) {
+      const outcome = (request.status as string) === 'done' ? 'success' : 'failure';
+      const exit = await exitGitGate(request, config.gitContext, outcome, stashLabel);
+      request.commitSha = exit.commitSha;
+      if (exit.restoreWarning) {
+        request.error = request.error
+          ? `${request.error}\n${exit.restoreWarning}`
+          : exit.restoreWarning;
+      }
+      config.onRequestUpdated(request);
+    }
   }
 }
 
