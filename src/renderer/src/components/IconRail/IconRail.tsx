@@ -25,6 +25,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { id: 'kanban', icon: '📋', label: 'Kanban' },
   { id: 'stats', icon: '📊', label: 'Stats' },
   { id: 'complete', icon: '🎉', label: 'Complete' },
+  { id: 'workshop', icon: '🔧', label: 'Workshop' },
 ];
 
 const UTILITY_ITEMS: NavItem[] = [
@@ -192,6 +193,8 @@ export function IconRail() {
   const kanbanTasks = useKanbanStore((s) => s.kanban.tasks);
   const showKanban = completedPhases.includes('warroom');
   const showComplete = completedPhases.includes('build');
+  const mode = useProjectStore((s) => s.projectState?.mode);
+  const showWorkshop = mode === 'workshop';
   const kanbanHasActive = kanbanTasks.some(t => t.status === 'active' || t.status === 'review');
   const rateLimitWarning = useStatsStore((s) => {
     const rl = s.stats?.rateLimit;
@@ -204,6 +207,7 @@ export function IconRail() {
   const visiblePrimary = PRIMARY_ITEMS.filter(item => {
     if (item.id === 'kanban') return showKanban;
     if (item.id === 'complete') return showComplete;
+    if (item.id === 'workshop') return showWorkshop;
     return true;
   });
 

@@ -9,6 +9,8 @@ import { useUIDesignReviewStore } from './stores/ui-design-review.store';
 import { useLogStore } from './stores/log.store';
 import { useStatsStore } from './stores/stats.store';
 import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
+import { useRequestStore } from './stores/request.store';
+import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
 const ProjectPicker = React.lazy(() => import('@/components/ProjectPicker/ProjectPicker'));
@@ -27,6 +29,8 @@ export default function App() {
   const hydrateArtifacts = useArtifactStore((s) => s.hydrateFromStatus);
   const setStats = useStatsStore((s) => s.setStats);
 
+  useWorkshopKanbanSync();
+
   useEffect(() => {
     const unsubs = [
       window.office.onAuthStatusChange(setAuthStatus),
@@ -43,6 +47,9 @@ export default function App() {
         setWaiting(payload);
       }),
       window.office.onStatsState(setStats),
+      window.office.onRequestUpdated((request) => {
+        useRequestStore.getState().addOrUpdate(request);
+      }),
     ];
     window.office.getAuthStatus().then(setAuthStatus);
     return () => unsubs.forEach((fn) => fn());
@@ -82,16 +89,27 @@ export default function App() {
   useEffect(() => {
     if (!projectState) return;
     const phase = projectState.currentPhase;
-    setCurrentLayoutPhase(phase);
+    const mode = projectState.mode ?? 'greenfield';
+    const layoutKey = mode === 'workshop' ? 'workshop' : phase;
+    setCurrentLayoutPhase(layoutKey);
 
     window.office.getLayouts().then((saved: Record<string, unknown> | null) => {
-      if (saved && saved[phase]) {
-        useLayoutStore.getState().loadLayout(saved[phase] as any);
+      if (saved && saved[layoutKey]) {
+        useLayoutStore.getState().loadLayout(saved[layoutKey] as any);
       } else {
-        useLayoutStore.getState().resetToDefault(phase as any);
+        useLayoutStore.getState().resetToDefault(layoutKey as any);
       }
     });
-  }, [projectState?.path, projectState?.currentPhase]);
+  }, [projectState?.path, projectState?.currentPhase, projectState?.mode]);
+
+  // Load/reset requests when project changes
+  useEffect(() => {
+    if (!projectState) {
+      useRequestStore.getState().reset();
+      return;
+    }
+    useRequestStore.getState().load();
+  }, [projectState?.path]);
 
   const view = projectState ? 'office' : 'picker';
 
