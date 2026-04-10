@@ -25,6 +25,10 @@ export class ArtifactStore {
     return IMAGINE_ARTIFACTS.every(f => fs.existsSync(path.join(this.officeDir, f)));
   }
 
+  hasOnboardingScan(): boolean {
+    return fs.existsSync(path.join(this.officeDir, 'PROJECT_CONTEXT.md'));
+  }
+
   hasWarroomArtifacts(): boolean {
     return WARROOM_ARTIFACTS.every(f => fs.existsSync(path.join(this.officeDir, f)));
   }
@@ -44,6 +48,15 @@ export class ArtifactStore {
       parts.push(
         `## UI Designs (reference docs/office/05-ui-designs/*.html for mockups)\n\n${uiIndex}`
       );
+    }
+    // Workshop onboarding scan files
+    const projectContextPath = path.join(this.officeDir, 'PROJECT_CONTEXT.md');
+    if (fs.existsSync(projectContextPath)) {
+      parts.push(`## Project Context\n\n${fs.readFileSync(projectContextPath, 'utf-8')}`);
+    }
+    const conventionsPath = path.join(this.officeDir, 'CONVENTIONS.md');
+    if (fs.existsSync(conventionsPath)) {
+      parts.push(`## Conventions\n\n${fs.readFileSync(conventionsPath, 'utf-8')}`);
     }
     return parts.join('\n\n---\n\n');
   }
