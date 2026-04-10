@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseUnifiedDiff, applyTruncation } from '../../../electron/project/git-diff';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { beforeEach, afterEach } from 'vitest';
+import { simpleGit } from 'simple-git';
+import { parseUnifiedDiff, applyTruncation, computeRequestDiff } from '../../../electron/project/git-diff';
 
 describe('parseUnifiedDiff', () => {
   it('returns empty array for empty input', () => {
@@ -202,5 +207,101 @@ describe('applyTruncation', () => {
     expect(result[0].hunks.length).toBe(1);
     expect(result[1].truncated).toBe(true);
     expect(result[1].hunks).toEqual([]);
+  });
+});
+
+describe('computeRequestDiff', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-diff-compute-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function setupRepo(): Promise<ReturnType<typeof simpleGit>> {
+    const g = simpleGit(tmpDir);
+    await g.init();
+    await g.addConfig('user.email', 'test@example.com');
+    await g.addConfig('user.name', 'Test');
+    await g.raw(['checkout', '-b', 'main']);
+    fs.writeFileSync(path.join(tmpDir, 'README.md'), '# test\n');
+    await g.add('.');
+    await g.commit('initial');
+    return g;
+  }
+
+  it('computes diff for a two-file modification', async () => {
+    const g = await setupRepo();
+    await g.raw(['checkout', '-b', 'feature']);
+    fs.writeFileSync(path.join(tmpDir, 'a.ts'), 'export const a = 1;\n');
+    fs.writeFileSync(path.join(tmpDir, 'b.ts'), 'export const b = 2;\n');
+    await g.add('.');
+    await g.commit('add two files');
+
+    const result = await computeRequestDiff(g, 'main', 'feature');
+    expect(result.totalFilesChanged).toBe(2);
+    expect(result.totalInsertions).toBeGreaterThan(0);
+    expect(result.files).toHaveLength(2);
+    expect(result.files.map((f) => f.path).sort()).toEqual(['a.ts', 'b.ts']);
+    expect(result.files[0].status).toBe('added');
+  });
+
+  it('detects a rename', async () => {
+    const g = await setupRepo();
+    fs.writeFileSync(path.join(tmpDir, 'original.ts'), 'export const x = 1;\n');
+    await g.add('.');
+    await g.commit('add original');
+
+    await g.raw(['checkout', '-b', 'feature']);
+    await g.mv('original.ts', 'renamed.ts');
+    await g.commit('rename');
+
+    const result = await computeRequestDiff(g, 'main', 'feature');
+    const renamed = result.files.find((f) => f.status === 'renamed');
+    expect(renamed).toBeTruthy();
+    expect(renamed?.path).toBe('renamed.ts');
+    expect(renamed?.oldPath).toBe('original.ts');
+  });
+
+  it('detects a binary file', async () => {
+    const g = await setupRepo();
+    await g.raw(['checkout', '-b', 'feature']);
+    // Non-text bytes — git will treat as binary
+    fs.writeFileSync(path.join(tmpDir, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02, 0x03]));
+    await g.add('.');
+    await g.commit('add binary');
+
+    const result = await computeRequestDiff(g, 'main', 'feature');
+    const binary = result.files.find((f) => f.path === 'logo.png');
+    expect(binary).toBeTruthy();
+    expect(binary?.status).toBe('binary');
+    expect(binary?.hunks).toHaveLength(0);
+  });
+
+  it('truncates files over 500 changed lines', async () => {
+    const g = await setupRepo();
+    await g.raw(['checkout', '-b', 'feature']);
+    const big = Array.from({ length: 600 }, (_, i) => `line ${i}`).join('\n') + '\n';
+    fs.writeFileSync(path.join(tmpDir, 'big.txt'), big);
+    await g.add('.');
+    await g.commit('add big file');
+
+    const result = await computeRequestDiff(g, 'main', 'feature');
+    const bigFile = result.files.find((f) => f.path === 'big.txt');
+    expect(bigFile?.truncated).toBe(true);
+    expect(bigFile?.hunks).toEqual([]);
+  });
+
+  it('returns empty result for identical branches', async () => {
+    const g = await setupRepo();
+    await g.raw(['checkout', '-b', 'feature']);
+    // No changes
+
+    const result = await computeRequestDiff(g, 'main', 'feature');
+    expect(result.totalFilesChanged).toBe(0);
+    expect(result.files).toHaveLength(0);
   });
 });

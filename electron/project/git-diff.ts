@@ -1,4 +1,5 @@
-import type { DiffFile, DiffHunkLine } from '../../shared/types';
+import type { SimpleGit } from 'simple-git';
+import type { DiffFile, DiffHunkLine, DiffResult } from '../../shared/types';
 
 /**
  * Parse a unified diff text (output of `git diff`) into structured DiffFile[].
@@ -127,4 +128,88 @@ export function applyTruncation(files: DiffFile[], maxLines: number): DiffFile[]
     }
     return f;
   });
+}
+
+/**
+ * Compute the diff between baseBranch and branchName using triple-dot notation.
+ * Returns a structured DiffResult with per-file hunks, stats, and truncation
+ * applied (per-file cap of 500 changed lines).
+ */
+export async function computeRequestDiff(
+  git: SimpleGit,
+  baseBranch: string,
+  branchName: string,
+): Promise<DiffResult> {
+  const range = `${baseBranch}...${branchName}`;
+
+  // 1. Stats + binary detection via numstat
+  const numstatOutput = await git.raw(['diff', '--numstat', range]);
+  const stats = parseNumstat(numstatOutput);
+
+  // 2. Full text diff
+  const textOutput = await git.raw(['diff', range]);
+
+  // 3. Parse the text
+  const parsedFiles = parseUnifiedDiff(textOutput);
+
+  // 4. Merge stats into parsed files
+  const merged = parsedFiles.map((f) => {
+    const stat = stats.get(f.path) ?? stats.get(f.oldPath ?? '');
+    if (stat) {
+      if (stat.isBinary) {
+        return { ...f, status: 'binary' as const, insertions: 0, deletions: 0, hunks: [] };
+      }
+      return { ...f, insertions: stat.insertions, deletions: stat.deletions };
+    }
+    return f;
+  });
+
+  // 5. Apply truncation
+  const capped = applyTruncation(merged, 500);
+
+  // 6. Compute totals
+  const totals = capped.reduce(
+    (acc, f) => ({
+      files: acc.files + 1,
+      insertions: acc.insertions + f.insertions,
+      deletions: acc.deletions + f.deletions,
+    }),
+    { files: 0, insertions: 0, deletions: 0 },
+  );
+
+  return {
+    files: capped,
+    totalFilesChanged: totals.files,
+    totalInsertions: totals.insertions,
+    totalDeletions: totals.deletions,
+  };
+}
+
+interface NumstatEntry {
+  insertions: number;
+  deletions: number;
+  isBinary: boolean;
+}
+
+function parseNumstat(output: string): Map<string, NumstatEntry> {
+  const map = new Map<string, NumstatEntry>();
+  for (const line of output.split('\n')) {
+    if (!line.trim()) continue;
+    // Format: "<insertions>\t<deletions>\t<path>"
+    // Binary: "-\t-\t<path>"
+    const parts = line.split('\t');
+    if (parts.length < 3) continue;
+    const [insStr, delStr, ...rest] = parts;
+    const path = rest.join('\t');
+    if (insStr === '-' && delStr === '-') {
+      map.set(path, { insertions: 0, deletions: 0, isBinary: true });
+    } else {
+      map.set(path, {
+        insertions: parseInt(insStr, 10) || 0,
+        deletions: parseInt(delStr, 10) || 0,
+        isBinary: false,
+      });
+    }
+  }
+  return map;
 }
