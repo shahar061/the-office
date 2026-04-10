@@ -12,6 +12,7 @@ const DEFAULT_STATE: Omit<ProjectState, 'name' | 'path'> = {
   interrupted: false,
   introSeen: false,
   buildIntroSeen: false,
+  mode: 'greenfield',
 };
 
 export class ProjectManager {
@@ -42,6 +43,7 @@ export class ProjectManager {
       interrupted: false,
       introSeen: false,
       buildIntroSeen: false,
+      mode: 'greenfield',
     };
     fs.writeFileSync(configPath, JSON.stringify(initialState, null, 2), 'utf-8');
 
@@ -75,6 +77,7 @@ export class ProjectManager {
         interrupted: data.interrupted ?? false,
         introSeen: data.introSeen ?? true,
         buildIntroSeen: data.buildIntroSeen ?? false,
+        mode: data.mode ?? 'greenfield',
       };
     } catch {
       return {
