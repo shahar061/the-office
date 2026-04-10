@@ -4,7 +4,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { parseTriageOutput } from './workshop-parser';
 import { resolveRole } from '../sdk/sdk-bridge';
 import type { PermissionHandler } from '../sdk/permission-handler';
-import type { AgentEvent, Request } from '../../shared/types';
+import type { AgentEvent, Request, RequestPlanResponse } from '../../shared/types';
 
 export interface WorkshopConfig {
   projectDir: string;
@@ -15,17 +15,30 @@ export interface WorkshopConfig {
   onRequestUpdated: (request: Request) => void;
 }
 
+/** Callback wired by the IPC handler. The orchestrator calls this when a plan
+ * is ready and awaits the user's response. */
+export type WaitForPlanReview = (
+  requestId: string,
+  plan: string,
+) => Promise<RequestPlanResponse>;
+
+export interface WorkshopConfigWithReview extends WorkshopConfig {
+  waitForPlanReview: WaitForPlanReview;
+}
+
 /**
  * Run a Workshop-mode request end-to-end:
  * 1. Triage via Team Lead (fast model, JSON output)
- * 2. Execute via assigned engineer (default model)
+ * 2. Branch on triage.mode:
+ *    - "direct": straight to execute
+ *    - "plan": planning loop → review gate → on approve, execute with plan
  *
  * Mutates the request object and calls onRequestUpdated at each status change.
  * Returns the final request state.
  */
 export async function runWorkshopRequest(
   request: Request,
-  config: WorkshopConfig,
+  config: WorkshopConfigWithReview,
 ): Promise<Request> {
   const scanner = new ProjectScanner(config.projectDir);
   const artifactStore = new ArtifactStore(config.projectDir);
@@ -35,7 +48,6 @@ export async function runWorkshopRequest(
     : '';
 
   // ── Step 1: Triage via Team Lead ──
-
   let triageOutput = '';
   try {
     await runAgentSession({
@@ -71,14 +83,111 @@ export async function runWorkshopRequest(
   request.startedAt = Date.now();
   config.onRequestUpdated(request);
 
-  // ── Step 2: Execute via engineer ──
+  // ── Step 2: Branch on mode ──
+  if (triage.mode === 'direct') {
+    return runExecution(request, triage.reasoning, fileTree, imagineContext, null, config);
+  }
+
+  // ── Step 3: Planning + revision loop ──
+  let currentPlan: string | null = null;
+  let feedback = '';
+  while (true) {
+    try {
+      currentPlan = await runPlanningSession(
+        request,
+        triage.reasoning,
+        fileTree,
+        imagineContext,
+        currentPlan,
+        feedback,
+        config,
+      );
+    } catch (err: any) {
+      request.status = 'failed';
+      request.error = `Planning failed: ${err?.message || err}`;
+      request.completedAt = Date.now();
+      config.onRequestUpdated(request);
+      return request;
+    }
+
+    request.plan = currentPlan;
+    request.status = 'awaiting_review';
+    config.onRequestUpdated(request);
+
+    const review = await config.waitForPlanReview(request.id, currentPlan);
+
+    if (review.action === 'approve') {
+      request.status = 'in_progress';
+      config.onRequestUpdated(request);
+      return runExecution(request, triage.reasoning, fileTree, imagineContext, currentPlan, config);
+    }
+
+    // revise → loop with feedback
+    feedback = review.feedback ?? '';
+  }
+}
+
+async function runPlanningSession(
+  request: Request,
+  reasoning: string,
+  fileTree: string,
+  imagineContext: string,
+  previousPlan: string | null,
+  feedback: string,
+  config: WorkshopConfig,
+): Promise<string> {
+  const prompt = previousPlan
+    ? buildRevisionPrompt(request, reasoning, fileTree, imagineContext, previousPlan, feedback)
+    : buildPlanningPrompt(request, reasoning, fileTree, imagineContext);
+
+  let lastMessage = '';
+  await runAgentSession({
+    agentName: request.assignedAgent!,
+    agentsDir: config.agentsDir,
+    prompt,
+    cwd: config.projectDir,
+    env: config.env,
+    excludeAskUser: true,
+    onEvent: (event) => {
+      config.onEvent(event);
+      if (event.type === 'agent:message' && event.message) {
+        lastMessage = event.message;
+      }
+    },
+    onWaiting: async () => ({}),
+    onToolPermission: (toolName, input) =>
+      config.permissionHandler.handleToolRequest(
+        toolName,
+        input,
+        resolveRole(request.assignedAgent!),
+      ),
+  });
+
+  const trimmed = lastMessage.trim();
+  if (!trimmed) {
+    throw new Error('Planning session returned an empty plan');
+  }
+  return trimmed;
+}
+
+async function runExecution(
+  request: Request,
+  reasoning: string,
+  fileTree: string,
+  imagineContext: string,
+  approvedPlan: string | null,
+  config: WorkshopConfig,
+): Promise<Request> {
+  const prompt = approvedPlan
+    ? buildApprovedExecutionPrompt(request, reasoning, fileTree, imagineContext, approvedPlan)
+    : buildEngineerPrompt(request, reasoning, fileTree, imagineContext);
 
   let lastEngineerMessage = '';
   try {
     await runAgentSession({
-      agentName: triage.assignedAgent,
+      agentName: request.assignedAgent!,
       agentsDir: config.agentsDir,
-      prompt: buildEngineerPrompt(request, triage.reasoning, fileTree, imagineContext),
+      prompt,
       cwd: config.projectDir,
       env: config.env,
       excludeAskUser: true,
@@ -93,7 +202,7 @@ export async function runWorkshopRequest(
         config.permissionHandler.handleToolRequest(
           toolName,
           input,
-          resolveRole(triage.assignedAgent),
+          resolveRole(request.assignedAgent!),
         ),
     });
     request.status = 'done';
