@@ -50,3 +50,16 @@ When consulted, provide input on:
 - "For state management, consider..."
 - "This interaction should feel like..."
 - "We can optimize performance by..."
+
+## UI Designs
+
+Before implementing any UI code, check `docs/office/05-ui-designs/index.md` if it exists. Find the mockup that corresponds to your task. Read the HTML file and match its structure, layout, and visual style in your framework. The mockups are the source of truth for visual design.
+
+If your task spec has a `UI Reference:` line, read that file FIRST before anything else. It tells you exactly which mockup to match.
+
+When reproducing a mockup:
+- Match the layout structure (header, nav, main content areas, footer)
+- Match the color palette and overall visual tone
+- Match the component hierarchy (buttons, cards, forms, lists)
+- Use your framework's idioms — don't copy the HTML verbatim, reproduce the design
+- If the mockup uses inline styles, translate them to your framework's styling approach (CSS modules, Tailwind, styled-components, etc.)
