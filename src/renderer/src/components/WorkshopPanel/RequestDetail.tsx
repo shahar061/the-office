@@ -44,6 +44,42 @@ const styles = {
     fontSize: '10px',
     color: colors.textDim,
   },
+  gitBlock: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+    fontFamily: 'monospace',
+    fontSize: '10px',
+  },
+  gitLine: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  gitLabel: {
+    color: colors.textMuted,
+    minWidth: '50px',
+  },
+  gitValue: {
+    color: colors.text,
+    flex: 1,
+    wordBreak: 'break-all' as const,
+  },
+  copyBtn: {
+    background: 'transparent',
+    border: `1px solid ${colors.border}`,
+    borderRadius: '4px',
+    color: colors.textMuted,
+    cursor: 'pointer',
+    fontSize: '9px',
+    padding: '2px 6px',
+    fontFamily: 'inherit',
+  },
+  degradedNote: {
+    fontStyle: 'italic' as const,
+    color: colors.textDim,
+    fontSize: '10px',
+  },
 } as const;
 
 function formatTime(ts: number | null): string {
@@ -81,6 +117,42 @@ export function RequestDetail({ request }: RequestDetailProps) {
         <div style={styles.section}>
           <div style={styles.label}>Error</div>
           <div style={styles.error}>{request.error}</div>
+        </div>
+      )}
+
+      {request.branchIsolated && request.branchName && (
+        <div style={styles.section}>
+          <div style={styles.label}>Git</div>
+          <div style={styles.gitBlock}>
+            <div style={styles.gitLine}>
+              <span style={styles.gitLabel}>Branch:</span>
+              <span style={styles.gitValue}>{request.branchName}</span>
+              <button
+                style={styles.copyBtn}
+                onClick={() => window.office.copyToClipboard(request.branchName!)}
+              >
+                Copy
+              </button>
+            </div>
+            {request.baseBranch && (
+              <div style={styles.gitLine}>
+                <span style={styles.gitLabel}>Base:</span>
+                <span style={styles.gitValue}>{request.baseBranch}</span>
+              </div>
+            )}
+            {request.commitSha && (
+              <div style={styles.gitLine}>
+                <span style={styles.gitLabel}>Commit:</span>
+                <span style={styles.gitValue}>{request.commitSha}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!request.branchIsolated && (request.status === 'done' || request.status === 'failed') && (
+        <div style={styles.section}>
+          <div style={styles.degradedNote}>Ran without branch isolation.</div>
         </div>
       )}
 
