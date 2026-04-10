@@ -18,6 +18,8 @@ import type {
   WarTableReviewPayload,
   WarTableReviewResponse,
   UIDesignReviewResponse,
+  RequestPlanResponse,
+  RequestPlanReadyPayload,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -66,6 +68,8 @@ import {
   persistPendingReview,
   clearPendingReview,
   requestStore,
+  pendingRequestPlanReview,
+  setPendingRequestPlanReview,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -632,6 +636,14 @@ export function initPhaseHandlers(): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.REQUEST_PLAN_RESPONSE, async (_event, response: RequestPlanResponse) => {
+    if (pendingRequestPlanReview) {
+      const pending = pendingRequestPlanReview;
+      setPendingRequestPlanReview(null);
+      pending.resolve(response);
+    }
+  });
+
   ipcMain.handle(IPC_CHANNELS.UI_DESIGN_REVIEW_RESPONSE, async (_event, response: UIDesignReviewResponse) => {
     if (pendingUIReview) {
       pendingUIReview.resolve(response);
@@ -818,6 +830,16 @@ export function initPhaseHandlers(): void {
         requestStore?.update(updated.id, updated);
         send(IPC_CHANNELS.REQUEST_UPDATED, updated);
       },
+      waitForPlanReview: (requestId, plan) =>
+        new Promise<RequestPlanResponse>((resolve) => {
+          setPendingRequestPlanReview({ requestId, resolve });
+          const payload: RequestPlanReadyPayload = {
+            requestId,
+            title: request.title || request.description.slice(0, 60),
+            plan,
+          };
+          send(IPC_CHANNELS.REQUEST_PLAN_READY, payload);
+        }),
     }).catch((err) => {
       console.error('[Workshop] Request failed:', err);
     });

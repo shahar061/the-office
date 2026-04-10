@@ -8,6 +8,7 @@ import type {
   WarTableChoreographyPayload, RestartPhasePayload,
   UIDesignReviewPayload, UIDesignReviewResponse,
   Request,
+  RequestPlanReadyPayload, RequestPlanResponse,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -97,6 +98,10 @@ contextBridge.exposeInMainWorld('office', {
   listRequests: () => ipcRenderer.invoke(IPC_CHANNELS.LIST_REQUESTS),
   createRequest: (description: string) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_REQUEST, description),
   onRequestUpdated: (cb: (request: Request) => void) => onEvent(IPC_CHANNELS.REQUEST_UPDATED, cb),
+  onRequestPlanReady: (cb: (payload: RequestPlanReadyPayload) => void) =>
+    onEvent(IPC_CHANNELS.REQUEST_PLAN_READY, cb),
+  respondRequestPlan: (response: RequestPlanResponse) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REQUEST_PLAN_RESPONSE, response),
 
   // War Table
   onWarTableState: (cb: (s: WarTableVisualState) => void) => onEvent(IPC_CHANNELS.WAR_TABLE_STATE, cb),
