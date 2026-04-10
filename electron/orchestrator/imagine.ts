@@ -1,10 +1,11 @@
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
-import type { PhaseConfig } from '../../shared/types';
+import type { PhaseConfig, UIDesignReviewPayload, UIDesignReviewResponse } from '../../shared/types';
 
 export interface ImagineConfig extends PhaseConfig {
   onSystemMessage: (text: string) => void;
   onArtifactAvailable: (payload: { key: string; filename: string; agentRole: string }) => void;
+  onUIReviewReady: (payload: UIDesignReviewPayload) => Promise<UIDesignReviewResponse>;
 }
 
 interface Act {
@@ -122,34 +123,55 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
   await runAct({
     name: 'UI/UX Design',
     artifact: { key: 'ui-designs', filename: '05-ui-designs/index.md', agentRole: 'ui-ux-expert' },
-    run: () => {
+    run: async () => {
       const visionBrief = artifactStore.readArtifact('01-vision-brief.md');
       const prd = artifactStore.readArtifact('02-prd.md');
       const marketAnalysis = artifactStore.readArtifact('03-market-analysis.md');
-      return runAgentSession({
-        agentName: 'ui-ux-expert',
-        agentsDir,
-        prompt: [
-          'You are the UI/UX Expert leading the UI Design act.',
-          'Produce 3-5 HTML mockups of the product\'s key screens based on the documents below.',
-          'Each mockup must be self-contained (inline CSS, no external dependencies).',
-          'Write the mockups to docs/office/05-ui-designs/NN-slug.html and create docs/office/05-ui-designs/index.md with captions and explanations.',
-          '',
-          '## Vision Brief',
-          visionBrief,
-          '',
-          '## PRD',
-          prd,
-          '',
-          '## Market Analysis',
-          marketAnalysis,
-        ].join('\n'),
-        cwd: projectDir,
-        env,
-        expectedOutput: 'docs/office/05-ui-designs/index.md',
-        onEvent,
-        onWaiting,
-      });
+
+      const basePrompt = [
+        'You are the UI/UX Expert leading the UI Design act.',
+        'Produce 3-5 HTML mockups of the product\'s key screens based on the documents below.',
+        'Each mockup must be self-contained (inline CSS, no external dependencies).',
+        'Write the mockups to docs/office/05-ui-designs/NN-slug.html and create docs/office/05-ui-designs/index.md with captions and explanations.',
+        '',
+        '## Vision Brief',
+        visionBrief,
+        '',
+        '## PRD',
+        prd,
+        '',
+        '## Market Analysis',
+        marketAnalysis,
+      ].join('\n');
+
+      let feedback: string | undefined;
+      while (true) {
+        const prompt = feedback
+          ? `REVISION REQUEST: The user reviewed your mockups and wants these changes:\n\n${feedback}\n\nRead the existing files in docs/office/05-ui-designs/ and apply the feedback.\n\n${basePrompt}`
+          : basePrompt;
+
+        await runAgentSession({
+          agentName: 'ui-ux-expert',
+          agentsDir,
+          prompt,
+          cwd: projectDir,
+          env,
+          expectedOutput: 'docs/office/05-ui-designs/index.md',
+          onEvent,
+          onWaiting,
+        });
+
+        // Parse the produced files and present for review
+        const uiDesigns = artifactStore.listUIDesigns();
+        const response = await config.onUIReviewReady({
+          designDirection: uiDesigns.designDirection,
+          mockups: uiDesigns.mockups,
+        });
+
+        if (response.approved) break;
+        feedback = response.feedback;
+        if (!feedback) break; // no feedback = implicit approval
+      }
     },
   }, artifactStore, config);
 

@@ -16,6 +16,7 @@ import type {
   WarTableChoreographyPayload,
   WarTableReviewPayload,
   WarTableReviewResponse,
+  UIDesignReviewResponse,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -50,6 +51,8 @@ import {
   setPermissionHandler,
   pendingReview,
   setPendingReview,
+  pendingUIReview,
+  setPendingUIReview,
   pendingIntro,
   setPendingIntro,
   pendingBuildIntro,
@@ -136,6 +139,12 @@ async function handleStartImagine(userIdea: string, resume = false): Promise<voi
       onSystemMessage,
       onArtifactAvailable: (info) => {
         send(IPC_CHANNELS.ARTIFACT_AVAILABLE, info);
+      },
+      onUIReviewReady: (payload) => {
+        return new Promise<UIDesignReviewResponse>((resolve) => {
+          setPendingUIReview({ resolve });
+          send(IPC_CHANNELS.UI_DESIGN_REVIEW_READY, payload);
+        });
       },
       onActStart: (actName) => statsCollector?.onActStart('imagine', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('imagine', actName),
@@ -616,6 +625,13 @@ export function initPhaseHandlers(): void {
     if (pendingReview) {
       pendingReview.resolve(response);
       setPendingReview(null);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.UI_DESIGN_REVIEW_RESPONSE, async (_event, response: UIDesignReviewResponse) => {
+    if (pendingUIReview) {
+      pendingUIReview.resolve(response);
+      setPendingUIReview(null);
     }
   });
 

@@ -450,6 +450,8 @@ export interface OfficeAPI {
   onWarTableCardAdded(callback: (card: WarTableCard) => void): () => void;
   onWarTableReviewReady(callback: (payload: WarTableReviewPayload) => void): () => void;
   respondWarTableReview(response: WarTableReviewResponse): Promise<void>;
+  onUIDesignReviewReady(callback: (payload: UIDesignReviewPayload) => void): () => void;
+  respondUIDesignReview(response: UIDesignReviewResponse): Promise<void>;
   onWarTableChoreography(callback: (payload: WarTableChoreographyPayload) => void): () => void;
   warRoomIntroDone(): Promise<void>;
   // Logs

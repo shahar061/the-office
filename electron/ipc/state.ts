@@ -69,6 +69,16 @@ export function setPendingReview(pr: PendingReview | null): void {
   pendingReview = pr;
 }
 
+// Pending UI design review promise, resolved when user responds
+export interface PendingUIReview {
+  resolve: (response: import('../../shared/types').UIDesignReviewResponse) => void;
+}
+export let pendingUIReview: PendingUIReview | null = null;
+
+export function setPendingUIReview(pr: PendingUIReview | null): void {
+  pendingUIReview = pr;
+}
+
 // Pending warroom intro completion
 export interface PendingIntro {
   resolve: () => void;
@@ -333,6 +343,7 @@ export function resetSessionState(): void {
   // Clear pending promises
   rejectPendingQuestions('Project switch');
   pendingReview = null;
+  pendingUIReview = null;
   pendingIntro = null;
   pendingBuildIntro = null;
 
