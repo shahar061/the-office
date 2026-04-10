@@ -93,6 +93,7 @@ export interface ProjectState {
   introSeen: boolean;
   buildIntroSeen: boolean;
   mode?: 'greenfield' | 'workshop';
+  scanStatus?: 'pending' | 'in_progress' | 'done' | 'skipped';
 }
 
 export interface PhaseInfo {
@@ -420,6 +421,12 @@ export const IPC_CHANNELS = {
   LIST_REQUESTS: 'office:list-requests',
   CREATE_REQUEST: 'office:create-request',
   REQUEST_UPDATED: 'office:request-updated',
+  // Workshop onboarding (sub-project 2)
+  CHECK_PROJECT_EXISTS: 'office:check-project-exists',
+  OPEN_DIRECTORY_AS_WORKSHOP: 'office:open-directory-as-workshop',
+  RUN_ONBOARDING_SCAN: 'office:run-onboarding-scan',
+  SKIP_ONBOARDING_SCAN: 'office:skip-onboarding-scan',
+  PROJECT_STATE_CHANGED: 'office:project-state-changed',
 } as const;
 
 // ── OfficeAPI (exposed via preload) ──
@@ -498,6 +505,12 @@ export interface OfficeAPI {
   listRequests(): Promise<Request[]>;
   createRequest(description: string): Promise<{ success: boolean; request?: Request; error?: string }>;
   onRequestUpdated(callback: (request: Request) => void): () => void;
+
+  checkProjectExists(projectPath: string): Promise<{ exists: boolean; fileCount: number }>;
+  openDirectoryAsWorkshop(projectPath: string): Promise<{ success: boolean; error?: string }>;
+  runOnboardingScan(): Promise<{ success: boolean; error?: string }>;
+  skipOnboardingScan(): Promise<void>;
+  onProjectStateChanged(callback: (state: ProjectState) => void): () => void;
 }
 
 declare global {
