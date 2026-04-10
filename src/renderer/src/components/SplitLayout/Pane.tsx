@@ -18,6 +18,7 @@ import { ArtifactToolbox } from '../OfficeView/ArtifactToolbox';
 import { AudioControls } from '../OfficeView/AudioControls';
 import { ArtifactOverlay } from '../OfficeView/ArtifactOverlay';
 import { PlanOverlay } from '../OfficeView/PlanOverlay';
+import { UIDesignReviewOverlay } from '../OfficeView/UIDesignReviewOverlay';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 
 const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
@@ -135,6 +136,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
             <AudioControls />
             <ArtifactOverlay />
             <PlanOverlay />
+            <UIDesignReviewOverlay />
             <SpecProgressStrip />
           </div>
         )}
