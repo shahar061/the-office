@@ -4,6 +4,7 @@ function mapStatus(s: Request['status']): KanbanTask['status'] {
   switch (s) {
     case 'queued': return 'queued';
     case 'in_progress': return 'active';
+    case 'awaiting_review': return 'review';
     case 'done': return 'done';
     case 'failed': return 'failed';
     case 'cancelled': return 'queued';

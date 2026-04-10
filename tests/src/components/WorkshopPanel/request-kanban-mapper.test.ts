@@ -13,6 +13,7 @@ const makeRequest = (partial: Partial<Request> = {}): Request => ({
   assignedAgent: null,
   result: null,
   error: null,
+  plan: null,
   ...partial,
 });
 
@@ -97,5 +98,10 @@ describe('requestsToKanbanState', () => {
       makeRequest({ status: 'failed', error: 'Build broke' }),
     ]);
     expect(state.tasks[0].error).toBe('Build broke');
+  });
+
+  it('maps awaiting_review to review', () => {
+    const state = requestsToKanbanState([makeRequest({ status: 'awaiting_review' })]);
+    expect(state.tasks[0].status).toBe('review');
   });
 });

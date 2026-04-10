@@ -18,6 +18,8 @@ import type {
   WarTableReviewPayload,
   WarTableReviewResponse,
   UIDesignReviewResponse,
+  RequestPlanResponse,
+  RequestPlanReadyPayload,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
@@ -66,6 +68,8 @@ import {
   persistPendingReview,
   clearPendingReview,
   requestStore,
+  pendingRequestPlanReview,
+  setPendingRequestPlanReview,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -450,6 +454,64 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
   }
 }
 
+/**
+ * Resume a request that was persisted in `awaiting_review` state with a plan.
+ * Re-emits REQUEST_PLAN_READY so the overlay reappears; on user response,
+ * continues directly into execution or a fresh planning loop.
+ */
+export function resumeAwaitingReview(request: Request): void {
+  if (!currentProjectDir) return;
+  if (!request.plan) return;
+
+  const projectDir = currentProjectDir;
+  const ph = new PermissionHandler(
+    'auto-all',
+    (req) => send(IPC_CHANNELS.PERMISSION_REQUEST, req),
+  );
+
+  // Re-register the pending-review slot for the INITIAL wait
+  const reviewPromise = new Promise<RequestPlanResponse>((resolve) => {
+    setPendingRequestPlanReview({ requestId: request.id, resolve });
+  });
+
+  // Emit after a tick so renderer listeners are ready
+  setTimeout(() => {
+    const payload: RequestPlanReadyPayload = {
+      requestId: request.id,
+      title: request.title || request.description.slice(0, 60),
+      plan: request.plan!,
+    };
+    send(IPC_CHANNELS.REQUEST_PLAN_READY, payload);
+  }, 100);
+
+  // When the user responds, continue the workflow
+  reviewPromise.then(async (response) => {
+    const { continueWorkshopAfterReview } = await import('../orchestrator/workshop');
+    continueWorkshopAfterReview(request, response, {
+      projectDir,
+      agentsDir,
+      env: authManager.getAuthEnv() || {},
+      permissionHandler: ph,
+      onEvent: onAgentEvent,
+      onRequestUpdated: (updated: Request) => {
+        requestStore?.update(updated.id, updated);
+        send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+      },
+      waitForPlanReview: (requestId, plan) =>
+        new Promise<RequestPlanResponse>((resolve) => {
+          setPendingRequestPlanReview({ requestId, resolve });
+          send(IPC_CHANNELS.REQUEST_PLAN_READY, {
+            requestId,
+            title: request.title || request.description.slice(0, 60),
+            plan,
+          });
+        }),
+    }).catch((err) => {
+      console.error('[Workshop] Resumed request failed:', err);
+    });
+  });
+}
+
 export function initPhaseHandlers(): void {
   // ── Phases ──
 
@@ -629,6 +691,14 @@ export function initPhaseHandlers(): void {
     if (pendingReview) {
       pendingReview.resolve(response);
       setPendingReview(null);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REQUEST_PLAN_RESPONSE, async (_event, response: RequestPlanResponse) => {
+    if (pendingRequestPlanReview) {
+      const pending = pendingRequestPlanReview;
+      setPendingRequestPlanReview(null);
+      pending.resolve(response);
     }
   });
 
@@ -818,6 +888,16 @@ export function initPhaseHandlers(): void {
         requestStore?.update(updated.id, updated);
         send(IPC_CHANNELS.REQUEST_UPDATED, updated);
       },
+      waitForPlanReview: (requestId, plan) =>
+        new Promise<RequestPlanResponse>((resolve) => {
+          setPendingRequestPlanReview({ requestId, resolve });
+          const payload: RequestPlanReadyPayload = {
+            requestId,
+            title: request.title || request.description.slice(0, 60),
+            plan,
+          };
+          send(IPC_CHANNELS.REQUEST_PLAN_READY, payload);
+        }),
     }).catch((err) => {
       console.error('[Workshop] Request failed:', err);
     });

@@ -260,13 +260,14 @@ export interface Request {
   id: string;
   title: string;
   description: string;
-  status: 'queued' | 'in_progress' | 'done' | 'failed' | 'cancelled';
+  status: 'queued' | 'in_progress' | 'awaiting_review' | 'done' | 'failed' | 'cancelled';
   createdAt: number;
   startedAt: number | null;
   completedAt: number | null;
   assignedAgent: AgentRole | null;
   result: string | null;
   error: string | null;
+  plan: string | null;
 }
 
 // ── Stats ──
@@ -336,6 +337,19 @@ export interface AppSettings {
   defaultPermissionMode: BuildConfig['permissionMode'];
   maxParallelTLs: number;
   windowBounds?: { x: number; y: number; width: number; height: number };
+}
+
+// ── Workshop Plan Review ──
+
+export interface RequestPlanReadyPayload {
+  requestId: string;
+  title: string;
+  plan: string;
+}
+
+export interface RequestPlanResponse {
+  action: 'approve' | 'revise';
+  feedback?: string;
 }
 
 // ── IPC Channels ──
@@ -421,6 +435,9 @@ export const IPC_CHANNELS = {
   LIST_REQUESTS: 'office:list-requests',
   CREATE_REQUEST: 'office:create-request',
   REQUEST_UPDATED: 'office:request-updated',
+  // Workshop mini-plan review (sub-project 3)
+  REQUEST_PLAN_READY: 'office:request-plan-ready',
+  REQUEST_PLAN_RESPONSE: 'office:request-plan-response',
   // Workshop onboarding (sub-project 2)
   CHECK_PROJECT_EXISTS: 'office:check-project-exists',
   OPEN_DIRECTORY_AS_WORKSHOP: 'office:open-directory-as-workshop',
@@ -505,6 +522,8 @@ export interface OfficeAPI {
   listRequests(): Promise<Request[]>;
   createRequest(description: string): Promise<{ success: boolean; request?: Request; error?: string }>;
   onRequestUpdated(callback: (request: Request) => void): () => void;
+  onRequestPlanReady(callback: (payload: RequestPlanReadyPayload) => void): () => void;
+  respondRequestPlan(response: RequestPlanResponse): Promise<void>;
 
   checkProjectExists(projectPath: string): Promise<{ exists: boolean; fileCount: number }>;
   openDirectoryAsWorkshop(projectPath: string): Promise<{ success: boolean; error?: string }>;

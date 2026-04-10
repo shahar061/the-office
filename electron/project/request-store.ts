@@ -29,7 +29,10 @@ export class RequestStore {
       const raw = fs.readFileSync(this.filePath, 'utf-8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        this.requests = parsed;
+        this.requests = parsed.map((r: Partial<Request>) => ({
+          ...r,
+          plan: r.plan ?? null,
+        })) as Request[];
         // Compute nextId as highest existing number + 1
         for (const r of this.requests) {
           const num = this.parseIdNumber(r.id);
@@ -91,6 +94,7 @@ export class RequestStore {
       assignedAgent: null,
       result: null,
       error: null,
+      plan: null,
     };
     this.requests.push(request);
     this.save();

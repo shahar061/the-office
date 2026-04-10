@@ -7,7 +7,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
 import { ProjectScanner } from '../project/project-scanner';
-import { resumePhase, resumeWarroomAfterReview } from './phase-handlers';
+import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview } from './phase-handlers';
 import {
   mainWindow,
   currentProjectDir,
@@ -19,6 +19,7 @@ import {
   setArtifactStore,
   setChatHistoryStore,
   setRequestStore,
+  requestStore,
   setCurrentChatPhase,
   setCurrentChatAgentRole,
   setCurrentChatRunNumber,
@@ -48,6 +49,16 @@ export function initProjectHandlers(): void {
       chatHistoryStore?.flush();
       const newChatStore = new ChatHistoryStore(projectPath);
       setChatHistoryStore(newChatStore);
+
+      // Sub-project 3: resume any awaiting_review requests with a persisted plan
+      if (requestStore) {
+        const awaitingReview = requestStore.list().filter(
+          (r) => r.status === 'awaiting_review' && r.plan,
+        );
+        for (const req of awaitingReview) {
+          resumeAwaitingReview(req);
+        }
+      }
 
       // Auto-enter workshop mode for already-completed projects
       const openedState = projectManager.getProjectState(projectPath);

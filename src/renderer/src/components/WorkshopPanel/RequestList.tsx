@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRequestStore } from '../../stores/request.store';
+import { useRequestPlanReviewStore } from '../../stores/request-plan-review.store';
 import { AGENT_COLORS } from '@shared/types';
 import { colors } from '../../theme';
 import { RequestDetail } from './RequestDetail';
@@ -81,6 +82,7 @@ function statusIcon(status: Request['status']): string {
   switch (status) {
     case 'queued': return '⏳';
     case 'in_progress': return '⟳';
+    case 'awaiting_review': return '👁';
     case 'done': return '✓';
     case 'failed': return '✗';
     case 'cancelled': return '◯';
@@ -126,7 +128,17 @@ export function RequestList() {
                 ...styles.row,
                 ...(hoverId === r.id ? styles.rowHover : {}),
               }}
-              onClick={() => setExpandedId(isExpanded ? null : r.id)}
+              onClick={() => {
+                if (r.status === 'awaiting_review' && r.plan) {
+                  useRequestPlanReviewStore.getState().openReview({
+                    requestId: r.id,
+                    title: r.title || r.description.slice(0, 60),
+                    plan: r.plan,
+                  });
+                  return;
+                }
+                setExpandedId(isExpanded ? null : r.id);
+              }}
               onMouseEnter={() => setHoverId(r.id)}
               onMouseLeave={() => setHoverId(null)}
             >

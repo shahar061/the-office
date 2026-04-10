@@ -81,6 +81,17 @@ export function setPendingUIReview(pr: PendingUIReview | null): void {
   pendingUIReview = pr;
 }
 
+// Pending Workshop request plan review promise, resolved when user responds
+export interface PendingRequestPlanReview {
+  requestId: string;
+  resolve: (response: import('../../shared/types').RequestPlanResponse) => void;
+}
+export let pendingRequestPlanReview: PendingRequestPlanReview | null = null;
+
+export function setPendingRequestPlanReview(pr: PendingRequestPlanReview | null): void {
+  pendingRequestPlanReview = pr;
+}
+
 // Pending warroom intro completion
 export interface PendingIntro {
   resolve: () => void;
@@ -352,6 +363,7 @@ export function resetSessionState(): void {
   pendingUIReview = null;
   pendingIntro = null;
   pendingBuildIntro = null;
+  pendingRequestPlanReview = null;
 
   // Reset stats collector
   if (statsCollector) statsCollector.flush();

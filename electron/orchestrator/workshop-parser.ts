@@ -4,6 +4,7 @@ export interface TriageResult {
   title: string;
   assignedAgent: AgentRole;
   reasoning: string;
+  mode: 'direct' | 'plan';
 }
 
 const ALLOWED_AGENTS: ReadonlySet<AgentRole> = new Set<AgentRole>([
@@ -30,6 +31,7 @@ export function parseTriageOutput(
     title: fallbackDescription.slice(0, 60),
     assignedAgent: FALLBACK_AGENT,
     reasoning: 'fallback — triage failed',
+    mode: 'direct',
   };
 
   const jsonBlock = extractFirstJsonBlock(raw);
@@ -52,10 +54,15 @@ export function parseTriageOutput(
   if (!title || !title.trim()) return fallback;
   if (!assignedAgent || !ALLOWED_AGENTS.has(assignedAgent as AgentRole)) return fallback;
 
+  const modeRaw = typeof obj.mode === 'string' ? obj.mode : null;
+  const mode: 'direct' | 'plan' =
+    modeRaw === 'plan' || modeRaw === 'direct' ? modeRaw : 'direct';
+
   return {
     title: title.trim(),
     assignedAgent: assignedAgent as AgentRole,
     reasoning: reasoning.trim(),
+    mode,
   };
 }
 
