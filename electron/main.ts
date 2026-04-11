@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { execSync } from 'child_process';
 import { IPC_CHANNELS } from '../shared/types';
@@ -18,6 +18,7 @@ import {
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers } from './ipc/phase-handlers';
+import { initSettingsHandlers } from './ipc/settings-handlers';
 
 // ── Suppress noisy Chromium/macOS warnings from stderr ──
 // These are harmless but spam the console (~30 lines per menu interaction):
@@ -36,6 +37,66 @@ process.stderr.write = (chunk: any, ...args: any[]): boolean => {
 };
 
 // ── Window ──
+
+function buildAppMenu(): void {
+  const isMac = process.platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name || 'The Office',
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              {
+                label: 'Preferences…',
+                accelerator: 'Cmd+,',
+                click: () => {
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send(IPC_CHANNELS.OPEN_SETTINGS);
+                  }
+                },
+              },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: 'File',
+      submenu: [
+        ...(isMac
+          ? [{ role: 'close' as const }]
+          : [
+              {
+                label: 'Preferences…',
+                accelerator: 'Ctrl+,',
+                click: () => {
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send(IPC_CHANNELS.OPEN_SETTINGS);
+                  }
+                },
+              },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ]),
+      ],
+    },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -117,9 +178,11 @@ function fixPath(): void {
 app.whenReady().then(async () => {
   fixPath();
   createWindow();
+  buildAppMenu();
   initAuthHandlers();
   initProjectHandlers();
   initPhaseHandlers();
+  initSettingsHandlers();
   // Detect CLI auth on startup and notify renderer
   await authManager.detectCliAuth();
   send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());

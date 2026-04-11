@@ -109,6 +109,25 @@ describe('acceptRequest', () => {
     expect(branches.all).toContain('the-office/req-002-conflict');
   });
 
+  it('applies identity env vars to the merge commit when provided', async () => {
+    const { g, branchName, baseBranch } = await setupRepoWithRequestBranch(tmpDir);
+    // Make main diverge so we get a merge commit (not FF)
+    fs.writeFileSync(path.join(tmpDir, 'main-change.ts'), 'export const m = 1;\n');
+    await g.add('.');
+    await g.commit('main divergence');
+
+    const result = await acceptRequest(
+      g,
+      { branchName, baseBranch },
+      { id: 'x', label: 'Work', name: 'Jane Doe', email: 'jane@acme.com' },
+    );
+    expect(result.ok).toBe(true);
+
+    const log = await g.log();
+    expect(log.latest?.author_name).toBe('Jane Doe');
+    expect(log.latest?.author_email).toBe('jane@acme.com');
+  });
+
   it('returns to the original branch on conflict even if it was not baseBranch', async () => {
     const { g } = await setupRepoWithRequestBranch(tmpDir);
     fs.writeFileSync(path.join(tmpDir, 'shared.txt'), 'base\n');

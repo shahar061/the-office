@@ -78,6 +78,7 @@ import {
   setPendingRequestPlanReview,
   pendingGitInit,
   setPendingGitInit,
+  settingsStore,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -233,11 +234,7 @@ async function handleStartWarroom(): Promise<void> {
           setPendingIntro({ resolve });
         });
       },
-      getSettings: async (): Promise<AppSettings> => ({
-        defaultModelPreset: 'default',
-        defaultPermissionMode: 'auto-safe',
-        maxParallelTLs: 4,
-      }),
+      getSettings: async (): Promise<AppSettings> => settingsStore.get(),
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
@@ -449,11 +446,7 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
         });
       },
       waitForIntro: () => Promise.resolve(), // not used in resume path
-      getSettings: async (): Promise<AppSettings> => ({
-        defaultModelPreset: 'default',
-        defaultPermissionMode: 'auto-safe',
-        maxParallelTLs: 4,
-      }),
+      getSettings: async (): Promise<AppSettings> => settingsStore.get(),
       resumeReviewResponse: reviewResponse,
     });
     statsCollector?.onPhaseComplete('warroom');
@@ -498,6 +491,10 @@ export function resumeAwaitingReview(request: Request): void {
       const payload: GitInitPromptPayload = { projectPath: projectDir };
       send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
     }),
+    resolveIdentity: () => {
+      const state = projectManager.getProjectState(projectDir);
+      return settingsStore.resolveIdentityForProject(state);
+    },
   };
 
   // Re-register the pending-review slot for the INITIAL wait
@@ -774,11 +771,17 @@ export function initPhaseHandlers(): void {
     if (!request.branchName || !request.baseBranch) {
       return { ok: false, error: 'Request has no isolated branch' };
     }
+    const projectState = projectManager.getProjectState(currentProjectDir);
+    const identity = settingsStore.resolveIdentityForProject(projectState);
     const gm = new GitManager(currentProjectDir);
-    const result = await acceptRequest(gm.getSimpleGitInstance(), {
-      branchName: request.branchName,
-      baseBranch: request.baseBranch,
-    });
+    const result = await acceptRequest(
+      gm.getSimpleGitInstance(),
+      {
+        branchName: request.branchName,
+        baseBranch: request.baseBranch,
+      },
+      identity,
+    );
     if (!result.ok) {
       if (result.conflict) {
         const note: GitRecoveryNote = {
@@ -873,20 +876,6 @@ export function initPhaseHandlers(): void {
     const date = new Date().toISOString().slice(0, 10);
     const logPath = path.join(currentProjectDir, `session-${date}.log`);
     fs.appendFileSync(logPath, logText, 'utf-8');
-  });
-
-  // ── Settings ──
-
-  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async (): Promise<AppSettings> => {
-    return {
-      defaultModelPreset: 'default',
-      defaultPermissionMode: 'auto-safe',
-      maxParallelTLs: 4,
-    };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, _settings: AppSettings) => {
-    // Placeholder — will persist to disk in a future iteration
   });
 
   ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (_event, url: string) => {
@@ -1022,6 +1011,11 @@ export function initPhaseHandlers(): void {
         const payload: GitInitPromptPayload = { projectPath: currentProjectDir! };
         send(IPC_CHANNELS.GIT_INIT_PROMPT, payload);
       }),
+      resolveIdentity: () => {
+        if (!currentProjectDir) return null;
+        const state = projectManager.getProjectState(currentProjectDir);
+        return settingsStore.resolveIdentityForProject(state);
+      },
     };
 
     // Run in background (don't await — the IPC returns immediately)

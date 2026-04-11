@@ -9,7 +9,7 @@ import type {
   UIDesignReviewPayload, UIDesignReviewResponse,
   Request,
   RequestPlanReadyPayload, RequestPlanResponse,
-  GitInitPromptPayload, GitRecoveryNote,
+  GitInitPromptPayload, GitRecoveryNote, GitIdentity,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -73,7 +73,24 @@ contextBridge.exposeInMainWorld('office', {
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SETTINGS),
-  saveSettings: (s: AppSettings) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, s),
+  saveSettings: (patch: Partial<AppSettings>) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, patch),
+  onSettingsUpdated: (cb: (settings: AppSettings) => void) =>
+    onEvent(IPC_CHANNELS.SETTINGS_UPDATED, cb),
+  onOpenSettings: (cb: () => void) => onEvent(IPC_CHANNELS.OPEN_SETTINGS, cb),
+
+  // Git identity
+  addGitIdentity: (identity: Omit<GitIdentity, 'id'>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_GIT_IDENTITY, identity),
+  updateGitIdentity: (id: string, patch: Partial<Omit<GitIdentity, 'id'>>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATE_GIT_IDENTITY, id, patch),
+  deleteGitIdentity: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DELETE_GIT_IDENTITY, id),
+  setDefaultGitIdentity: (id: string | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_DEFAULT_GIT_IDENTITY, id),
+  setProjectGitIdentity: (projectPath: string, id: string | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_PROJECT_GIT_IDENTITY, projectPath, id),
+  importGitconfigIdentity: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.IMPORT_GITCONFIG_IDENTITY),
 
   // Layouts
   getLayouts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_LAYOUTS),

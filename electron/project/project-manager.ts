@@ -79,6 +79,8 @@ export class ProjectManager {
         buildIntroSeen: data.buildIntroSeen ?? false,
         mode: data.mode ?? 'greenfield',
         scanStatus: data.scanStatus,
+        gitInit: data.gitInit,
+        gitIdentityId: data.gitIdentityId ?? null,
       };
     } catch {
       return {

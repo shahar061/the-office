@@ -1,6 +1,7 @@
-import type { Request } from '../../shared/types';
+import type { Request, GitIdentity } from '../../shared/types';
 import { GitManager } from '../project/git-manager';
 import { slugifyTitle } from '../project/slugify';
+import { buildGitEnv } from '../project/git-identity-apply';
 
 export interface GitGateContext {
   git: GitManager;
@@ -8,6 +9,8 @@ export interface GitGateContext {
   gitInitChoice: 'yes' | 'no' | null;
   /** Wired to IPC modal. Called at most once per project when gitInitChoice is null. */
   promptGitInit: () => Promise<'yes' | 'no'>;
+  /** Optional: resolve the identity to use for commits. Called at gate entry and on each exit. */
+  resolveIdentity?: () => GitIdentity | null;
 }
 
 export interface EnterResult {
@@ -46,7 +49,11 @@ export async function enterGitGate(
     // Initialize and create an empty initial commit so HEAD exists
     try {
       await ctx.git.init();
-      await ctx.git.createInitialEmptyCommit();
+      const resolvedIdentity = ctx.resolveIdentity?.() ?? null;
+      const initialIdentity = resolvedIdentity
+        ? { name: resolvedIdentity.name, email: resolvedIdentity.email }
+        : undefined;
+      await ctx.git.createInitialEmptyCommit(initialIdentity);
       isRepo = true;
     } catch (err: any) {
       return { isolated: false, reason: `git init failed: ${err?.message || err}` };
@@ -106,17 +113,21 @@ export async function exitGitGate(
   let commitSha: string | null = null;
   let restoreWarning: string | null = null;
 
+  // Resolve identity once for this exit (same identity for success and FAILED commits)
+  const resolved = ctx.resolveIdentity?.() ?? null;
+  const env = buildGitEnv(resolved);
+
   // 1. Commit on the branch
   try {
     if (outcome === 'success') {
       const message = `${request.id}: ${request.title}`;
-      const sha = await ctx.git.commitAll(message);
+      const sha = await ctx.git.commitAll(message, env);
       commitSha = sha || null;
     } else {
       // Failure: if dirty, preserve partial work under a FAILED commit
       if (await ctx.git.hasUncommittedChanges()) {
         const message = `${request.id}: FAILED — partial work`;
-        const sha = await ctx.git.commitAll(message);
+        const sha = await ctx.git.commitAll(message, env);
         commitSha = sha || null;
       }
     }
