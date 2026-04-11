@@ -1,6 +1,7 @@
 import React from 'react';
 import { GitIdentitySubsection } from './GitIdentitySubsection';
 import { GitPreferencesSubsection } from './GitPreferencesSubsection';
+import { MobilePairingSubsection } from './MobilePairingSubsection';
 import { colors } from '../../../theme';
 
 const styles = {
@@ -18,6 +19,7 @@ export function IntegrationsSection() {
     <div style={styles.root}>
       <GitIdentitySubsection />
       <GitPreferencesSubsection />
+      <MobilePairingSubsection />
     </div>
   );
 }
