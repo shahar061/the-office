@@ -42,7 +42,7 @@ interface ActionItem {
 }
 
 const UTILITY_ACTIONS: ActionItem[] = [
-  { id: 'settings', icon: '⚙', label: 'Settings' },
+  { id: 'settings', icon: '⚙️', label: 'Settings' },
 ];
 
 const styles = {
@@ -55,9 +55,22 @@ const styles = {
     flexDirection: 'column' as const,
     alignItems: 'center',
     paddingTop: '8px',
+    paddingBottom: '8px',
     gap: '2px',
     flexShrink: 0,
     zIndex: 2,
+    minHeight: 0,
+    overflowY: 'auto' as const,
+    scrollbarWidth: 'none' as const,
+  },
+  actionSpacer: {
+    marginTop: 'auto',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '2px',
+    flexShrink: 0,
   },
   divider: {
     width: '20px',
@@ -189,6 +202,37 @@ function IconButton({
   );
 }
 
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title={label}
+      style={{
+        ...styles.iconButton(false),
+        cursor: 'pointer',
+        color: colors.text,
+        opacity: hovered ? 1 : 0.7,
+        background: hovered ? colors.surface : 'transparent',
+      }}
+    >
+      {icon}
+      {hovered && <div style={styles.tooltip}>{label}</div>}
+    </button>
+  );
+}
+
 export function IconRail() {
   const tree = useLayoutStore((s) => s.tree);
   const focusedPaneId = useLayoutStore((s) => s.focusedPaneId);
@@ -288,16 +332,16 @@ export function IconRail() {
           onDragStart={(e) => handleDragStart(e, item.id)}
         />
       ))}
-      {UTILITY_ACTIONS.map((action) => (
-        <button
-          key={action.id}
-          onClick={() => useSettingsStore.getState().open()}
-          title={action.label}
-          style={styles.iconButton(false)}
-        >
-          {action.icon}
-        </button>
-      ))}
+      <div style={styles.actionSpacer}>
+        {UTILITY_ACTIONS.map((action) => (
+          <ActionButton
+            key={action.id}
+            icon={action.icon}
+            label={action.label}
+            onClick={() => useSettingsStore.getState().open()}
+          />
+        ))}
+      </div>
     </div>
   );
 }
