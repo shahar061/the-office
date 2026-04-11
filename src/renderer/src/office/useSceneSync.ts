@@ -4,9 +4,10 @@ import { useProjectStore } from '../stores/project.store';
 import { useArtifactStore } from '../stores/artifact.store';
 import { useWarTableStore } from '../stores/war-table.store';
 import type { OfficeScene } from './OfficeScene';
-import type { AgentRole } from '../../../../shared/types';
+import { AGENT_GROUPS, type AgentRole } from '../../../../shared/types';
 import { audioManager } from '../audio/AudioManager';
 import { useSpecProgressStore } from '../stores/spec-progress.store';
+import { EngineerCloneManager, type SceneLike } from './EngineerCloneManager';
 
 /**
  * Watches the Zustand office store and synchronizes character state
@@ -454,5 +455,27 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     window.addEventListener('war-table-choreography', handleChoreography);
     return () => window.removeEventListener('war-table-choreography', handleChoreography);
+  }, [scene]);
+
+  // Engineer clone lifecycle — subscribe to raw agent events and drive clones
+  useEffect(() => {
+    if (!scene) return;
+
+    const manager = new EngineerCloneManager(
+      scene as unknown as SceneLike,
+      AGENT_GROUPS.engineering as readonly AgentRole[],
+    );
+
+    const unsub = window.office.onAgentEvent((event) => {
+      if (event.type === 'agent:created' && event.isTopLevel) {
+        manager.start(event.agentRole);
+      } else if (event.type === 'agent:closed') {
+        manager.end(event.agentRole);
+      }
+    });
+
+    return () => {
+      unsub();
+    };
   }, [scene]);
 }
