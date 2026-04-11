@@ -712,6 +712,15 @@ export interface OfficeAPI {
   runOnboardingScan(): Promise<{ success: boolean; error?: string }>;
   skipOnboardingScan(): Promise<void>;
   onProjectStateChanged(callback: (state: ProjectState) => void): () => void;
+
+  // Mobile Bridge
+  mobile: {
+    getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
+    listDevices(): Promise<PairedDevice[]>;
+    revokeDevice(deviceId: string): Promise<void>;
+    getStatus(): Promise<{ running: boolean; port: number | null; connectedDevices: number }>;
+    onStatusChange(callback: (status: { running: boolean; port: number | null; connectedDevices: number }) => void): () => void;
+  };
 }
 
 declare global {
