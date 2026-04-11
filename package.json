@@ -12,7 +12,9 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate-maps": "tsx scripts/generate-maps.ts"
+    "generate-maps": "tsx scripts/generate-maps.ts",
+    "dev:mobile-renderer": "vite --config vite.config.mobile.ts",
+    "build:mobile-renderer": "vite build --config vite.config.mobile.ts"
   },
   "keywords": [],
   "author": "",
