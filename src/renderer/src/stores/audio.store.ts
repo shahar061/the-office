@@ -1,62 +1,58 @@
 import { create } from 'zustand';
 import { audioManager } from '../audio/AudioManager';
 
-const STORAGE_KEY = 'the-office-audio-prefs';
-
-interface AudioPrefs {
-  musicMuted: boolean;
-  sfxMuted: boolean;
-}
-
-function loadPrefs(): AudioPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { musicMuted: false, sfxMuted: false };
-}
-
-function savePrefs(prefs: AudioPrefs): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {}
-}
-
 interface AudioStore {
   musicMuted: boolean;
   sfxMuted: boolean;
-  toggleMusic: () => void;
-  toggleSfx: () => void;
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+  toggleMusic: () => Promise<void>;
+  toggleSfx: () => Promise<void>;
 }
 
-const initial = loadPrefs();
+export const useAudioStore = create<AudioStore>((set, get) => ({
+  musicMuted: false,
+  sfxMuted: false,
+  hydrated: false,
 
-export const useAudioStore = create<AudioStore>((set) => ({
-  musicMuted: initial.musicMuted,
-  sfxMuted: initial.sfxMuted,
+  hydrate: async () => {
+    if (get().hydrated) return;
+    try {
+      const settings = await window.office.getSettings();
+      const audio = settings.audio ?? { musicMuted: false, sfxMuted: false };
+      audioManager.setMusicMuted(audio.musicMuted);
+      audioManager.setSfxMuted(audio.sfxMuted);
+      set({ musicMuted: audio.musicMuted, sfxMuted: audio.sfxMuted, hydrated: true });
+    } catch (err) {
+      console.warn('[audio store] hydrate failed, using defaults', err);
+      set({ hydrated: true });
+    }
+  },
 
-  toggleMusic: () =>
-    set((state) => {
-      const musicMuted = !state.musicMuted;
-      audioManager.setMusicMuted(musicMuted);
-      if (musicMuted) {
-        audioManager.stopMusic();
-      } else {
-        audioManager.playMusic();
-      }
-      savePrefs({ musicMuted, sfxMuted: state.sfxMuted });
-      return { musicMuted };
-    }),
+  toggleMusic: async () => {
+    const next = !get().musicMuted;
+    set({ musicMuted: next });
+    audioManager.setMusicMuted(next);
+    if (next) {
+      audioManager.stopMusic();
+    } else {
+      audioManager.playMusic();
+    }
+    try {
+      await window.office.saveSettings({ audio: { musicMuted: next, sfxMuted: get().sfxMuted } });
+    } catch (err) {
+      console.warn('[audio store] save failed', err);
+    }
+  },
 
-  toggleSfx: () =>
-    set((state) => {
-      const sfxMuted = !state.sfxMuted;
-      audioManager.setSfxMuted(sfxMuted);
-      savePrefs({ musicMuted: state.musicMuted, sfxMuted });
-      return { sfxMuted };
-    }),
+  toggleSfx: async () => {
+    const next = !get().sfxMuted;
+    set({ sfxMuted: next });
+    audioManager.setSfxMuted(next);
+    try {
+      await window.office.saveSettings({ audio: { musicMuted: get().musicMuted, sfxMuted: next } });
+    } catch (err) {
+      console.warn('[audio store] save failed', err);
+    }
+  },
 }));
-
-// Apply persisted mute states to AudioManager on load
-audioManager.setMusicMuted(initial.musicMuted);
-audioManager.setSfxMuted(initial.sfxMuted);

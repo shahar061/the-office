@@ -22,6 +22,10 @@ const DEFAULT_SETTINGS: AppSettings = {
     port: null,
     devices: [],
   },
+  audio: {
+    musicMuted: false,
+    sfxMuted: false,
+  },
 };
 
 export class SettingsStore {
@@ -133,6 +137,7 @@ export class SettingsStore {
         defaultGitIdentityId: parsed.defaultGitIdentityId ?? null,
         gitPreferences: parsed.gitPreferences ?? DEFAULT_SETTINGS.gitPreferences,
         mobile: parsed.mobile ?? DEFAULT_SETTINGS.mobile,
+        audio: parsed.audio ?? DEFAULT_SETTINGS.audio,
       };
     } catch (err) {
       console.warn('[SettingsStore] Corrupted settings.json, using defaults:', err);

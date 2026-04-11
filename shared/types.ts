@@ -369,6 +369,10 @@ export interface AppSettings {
     port: number | null;  // null = dynamic
     devices: PairedDevice[];
   };
+  audio?: {
+    musicMuted: boolean;
+    sfxMuted: boolean;
+  };
 }
 
 // ── Workshop Plan Review ──

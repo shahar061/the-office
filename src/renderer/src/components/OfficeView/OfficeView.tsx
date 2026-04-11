@@ -187,13 +187,15 @@ export default function OfficeView() {
     return cleanup;
   }, []);
 
-  // Auto-play music on mount, preload SFX
+  // Hydrate audio prefs from AppSettings, then auto-play music and preload SFX
   useEffect(() => {
-    const { musicMuted } = useAudioStore.getState();
-    if (!musicMuted) {
-      audioManager.playMusic();
-    }
-    audioManager.preloadSfx();
+    useAudioStore.getState().hydrate().then(() => {
+      const { musicMuted } = useAudioStore.getState();
+      if (!musicMuted) {
+        audioManager.playMusic();
+      }
+      audioManager.preloadSfx();
+    });
   }, []);
 
   // Feed log store from agent events
