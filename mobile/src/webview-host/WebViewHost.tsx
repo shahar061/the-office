@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
@@ -11,7 +11,7 @@ interface Props {
 
 export function WebViewHost({ style }: Props) {
   const webViewRef = useRef<WebView>(null);
-  const assetUriRef = useRef<string | null>(null);
+  const [assetUri, setAssetUri] = useState<string | null>(null);
 
   // Load the bundled HTML asset once
   useEffect(() => {
@@ -19,7 +19,7 @@ export function WebViewHost({ style }: Props) {
       try {
         const asset = Asset.fromModule(require('../../assets/webview/index.html'));
         await asset.downloadAsync();
-        assetUriRef.current = asset.localUri ?? asset.uri;
+        setAssetUri(asset.localUri ?? asset.uri);
       } catch (err) {
         console.warn('[WebViewHost] asset load failed', err);
       }
@@ -48,7 +48,7 @@ export function WebViewHost({ style }: Props) {
     <WebView
       ref={webViewRef}
       style={[styles.root, style]}
-      source={assetUriRef.current ? { uri: assetUriRef.current } : { uri: 'about:blank' }}
+      source={assetUri ? { uri: assetUri } : { uri: 'about:blank' }}
       originWhitelist={['*']}
       allowFileAccess
       allowFileAccessFromFileURLs
