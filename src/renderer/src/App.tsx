@@ -13,6 +13,7 @@ import { useRequestStore } from './stores/request.store';
 import { useRequestPlanReviewStore } from './stores/request-plan-review.store';
 import { useGitInitModalStore } from './stores/git-init-modal.store';
 import { useGitBannerStore } from './stores/git-banner.store';
+import { useGreenfieldBannersStore } from './stores/greenfield-banners.store';
 import { useSettingsStore } from './stores/settings.store';
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
@@ -33,6 +34,7 @@ export default function App() {
   const markArtifactAvailable = useArtifactStore((s) => s.markAvailable);
   const hydrateArtifacts = useArtifactStore((s) => s.hydrateFromStatus);
   const setStats = useStatsStore((s) => s.setStats);
+  const settings = useSettingsStore((s) => s.settings);
 
   useWorkshopKanbanSync();
 
@@ -71,6 +73,14 @@ export default function App() {
       }),
       window.office.onGitRecoveryNote((note) => {
         useGitBannerStore.getState().addBanner(note);
+      }),
+      window.office.onGreenfieldGitNote((note) => {
+        // Append a transient status banner with a unique id so it doesn't replace others
+        useGreenfieldBannersStore.getState().addBanner({
+          id: `greenfield-git-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          level: note.level,
+          message: note.message,
+        });
       }),
       window.office.onProjectStateChanged((state) => {
         useProjectStore.getState().setProjectState(state);
@@ -141,6 +151,47 @@ export default function App() {
     }
     useRequestStore.getState().load();
   }, [projectState?.path]);
+
+  // Greenfield git setup banner — shown when user has no identity and imagine has started
+  useEffect(() => {
+    if (!projectState || !settings) return;
+    if (projectState.mode !== 'greenfield') return;
+
+    if (useGreenfieldBannersStore.getState().isDismissedForProject(projectState.path)) {
+      return;
+    }
+
+    const imagineInProgressOrDone =
+      projectState.currentPhase === 'imagine' ||
+      projectState.completedPhases.includes('imagine');
+    if (!imagineInProgressOrDone) return;
+
+    const hasIdentity =
+      settings.gitIdentities.length > 0 &&
+      settings.defaultGitIdentityId !== null;
+
+    if (hasIdentity) {
+      useGreenfieldBannersStore.getState().dismissBanner('greenfield-git-setup');
+      return;
+    }
+
+    useGreenfieldBannersStore.getState().addBanner({
+      id: 'greenfield-git-setup',
+      level: 'info',
+      message: 'Save your progress to git?',
+      action: {
+        label: 'Set up identity',
+        onClick: () => useSettingsStore.getState().open('integrations'),
+      },
+    });
+  }, [
+    projectState?.mode,
+    projectState?.currentPhase,
+    projectState?.completedPhases,
+    projectState?.path,
+    settings?.gitIdentities,
+    settings?.defaultGitIdentityId,
+  ]);
 
   const view = projectState ? 'office' : 'picker';
 
