@@ -81,6 +81,7 @@ export class ProjectManager {
         scanStatus: data.scanStatus,
         gitInit: data.gitInit,
         gitIdentityId: data.gitIdentityId ?? null,
+        greenfieldGit: data.greenfieldGit,
       };
     } catch {
       return {
