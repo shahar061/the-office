@@ -1,32 +1,38 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
-    "version": "1.0.0",
+    "name": "The Office",
+    "slug": "the-office",
+    "scheme": "theoffice",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0a0a"
     },
+    "assetBundlePatterns": ["**/*", "assets/webview/**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.shahar.theoffice",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "The Office connects to your desktop on the local network to show live agent activity.",
+        "NSCameraUsageDescription": "The Office uses your camera to scan the pairing QR code shown on your desktop."
+      }
     },
     "android": {
+      "package": "dev.shahar.theoffice",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0a0a0a"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "usesCleartextTraffic": true,
+      "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"]
     },
     "plugins": [
+      ["expo-camera", { "cameraPermission": "Allow The Office to scan pairing QR codes" }],
       "expo-secure-store",
       "expo-asset"
     ]
