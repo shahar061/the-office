@@ -101,11 +101,17 @@ export class Character {
     const currentTile = this.getTilePosition();
     if (currentTile.x === this.deskTile.x && currentTile.y === this.deskTile.y) {
       this.state = workType;
-      this.sprite.setAnimation(workType, 'up');
+      this.sprite.setAnimation(workType, this.workingDirection());
     } else {
       this.pendingWork = workType;
       this.moveTo(this.deskTile);
     }
+  }
+
+  private workingDirection(): Direction {
+    // CEO's desk is oriented so he faces the camera (down) while working.
+    // All other agents face up at their desks.
+    return this.role === 'ceo' ? 'down' : 'up';
   }
 
   setIdle(): void {
@@ -209,7 +215,7 @@ export class Character {
       if (this.pendingWork) {
         this.state = this.pendingWork;
         this.pendingWork = null;
-        this.sprite.setAnimation(this.state as AnimState, 'up');
+        this.sprite.setAnimation(this.state as AnimState, this.workingDirection());
       } else {
         this.setIdle();
       }
