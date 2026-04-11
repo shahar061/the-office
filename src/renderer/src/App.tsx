@@ -152,7 +152,7 @@ export default function App() {
     useRequestStore.getState().load();
   }, [projectState?.path]);
 
-  // Greenfield git setup banner — shown when user has no identity and imagine has started
+  // Greenfield git setup banner — shown when user has no identity and imagine has completed
   useEffect(() => {
     if (!projectState || !settings) return;
     if (projectState.mode !== 'greenfield') return;
@@ -161,10 +161,7 @@ export default function App() {
       return;
     }
 
-    const imagineInProgressOrDone =
-      projectState.currentPhase === 'imagine' ||
-      projectState.completedPhases.includes('imagine');
-    if (!imagineInProgressOrDone) return;
+    if (!projectState.completedPhases.includes('imagine')) return;
 
     const hasIdentity =
       settings.gitIdentities.length > 0 &&

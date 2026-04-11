@@ -8,6 +8,8 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '6px',
     padding: '8px 12px 0',
+    position: 'relative' as const,
+    zIndex: 30,
   },
   banner: {
     display: 'flex',
