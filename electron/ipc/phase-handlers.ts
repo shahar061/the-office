@@ -613,6 +613,25 @@ export function initPhaseHandlers(): void {
     rejectPendingQuestions('Phase restart', true);
     setPendingReview(null);
 
+    // 1b. Greenfield iteration — create backup branch + reset main before destructive clear
+    const currentState = projectManager.getProjectState(currentProjectDir);
+    if (currentState.mode === 'greenfield' && currentState.greenfieldGit?.initialized) {
+      const gg = new GreenfieldGit(
+        currentProjectDir,
+        projectManager,
+        settingsStore,
+        (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
+      );
+      const result = await gg.startIteration(targetPhase as Phase);
+      if (!result.ok) {
+        return {
+          success: false,
+          error: result.message,
+          reason: result.reason,
+        };
+      }
+    }
+
     // 2. Clean artifacts from target phase onward
     const store = new ArtifactStore(currentProjectDir);
     store.clearFrom(targetPhase);
