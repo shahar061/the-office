@@ -901,6 +901,12 @@ export function initPhaseHandlers(): void {
     if (pendingBuildIntro) {
       pendingBuildIntro.resolve();
       setPendingBuildIntro(null);
+      // Flip the renderer out of the "starting" override. handleStartBuild
+      // transitioned the PhaseMachine to 'build'/'active' earlier and then
+      // manually overrode to 'starting' so the KanbanBoard would show the
+      // BuildIntro modal; now that the user has dismissed the intro, we need
+      // to re-emit 'active' so the modal unmounts.
+      send(IPC_CHANNELS.PHASE_CHANGE, { phase: 'build', status: 'active' } as PhaseInfo);
     }
   });
 
