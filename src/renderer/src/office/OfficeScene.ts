@@ -385,6 +385,15 @@ export class OfficeScene {
     return clone;
   }
 
+  /**
+   * Retrieve a clone character by its clone id.
+   * Used by EngineerCloneManager for lifecycle control.
+   * Returns null if no clone with that id exists.
+   */
+  getClone(cloneId: string): Character | null {
+    return this.characters.get(cloneId) ?? null;
+  }
+
   destroyClone(cloneId: string): void {
     const character = this.characters.get(cloneId);
     if (!character) return;
