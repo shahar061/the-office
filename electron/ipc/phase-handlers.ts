@@ -97,18 +97,24 @@ const WORKSHOP_GIT_DENY = [
  * No-op for workshop projects (gated by state.mode check).
  */
 function attachGreenfieldGitListener(pm: PhaseMachine): void {
+  // Capture the project dir at attach time; PhaseMachines are recreated
+  // when the project changes, so this binding is stable for the lifetime
+  // of this listener. Constructing gg here (not per-event) ensures all
+  // change events share the same commitMutex.
+  const projectDir = currentProjectDir;
+  if (!projectDir) return; // nothing to attach to
+
+  const gg = new GreenfieldGit(
+    projectDir,
+    projectManager,
+    settingsStore,
+    (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
+  );
+
   pm.on('change', async (info: PhaseInfo) => {
-    if (!currentProjectDir) return;
-    const state = projectManager.getProjectState(currentProjectDir);
+    const state = projectManager.getProjectState(projectDir);
     if (state.mode !== 'greenfield') return;
     if (info.status !== 'completed' && info.status !== 'failed') return;
-
-    const gg = new GreenfieldGit(
-      currentProjectDir,
-      projectManager,
-      settingsStore,
-      (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
-    );
     await gg.commitPhase(info.phase, info.status);
   });
 }
