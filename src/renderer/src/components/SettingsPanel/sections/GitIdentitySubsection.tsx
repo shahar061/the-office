@@ -26,30 +26,82 @@ const styles = {
     borderRadius: '6px',
     overflow: 'hidden',
   },
-  row: {
+  row: (selected: boolean, hovered: boolean) => ({
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    padding: '10px 12px',
+    padding: '12px 14px 12px 16px',
     borderBottom: `1px solid ${colors.borderLight}`,
     fontSize: '12px',
-  },
+    cursor: selected ? 'default' : 'pointer',
+    background: selected
+      ? 'rgba(59, 130, 246, 0.08)'
+      : hovered
+        ? 'rgba(148, 163, 184, 0.04)'
+        : 'transparent',
+    boxShadow: selected ? `inset 3px 0 0 ${colors.accent}` : 'none',
+    transition: 'background 150ms ease, box-shadow 150ms ease',
+  }),
   rowLast: {
     borderBottom: 'none',
   },
-  radio: {
-    cursor: 'pointer',
+  radioWrap: {
+    position: 'relative' as const,
+    width: '14px',
+    height: '14px',
+    flexShrink: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  label: {
-    fontWeight: 600 as const,
+  hiddenRadio: {
+    position: 'absolute' as const,
+    opacity: 0,
+    pointerEvents: 'none' as const,
+    width: 0,
+    height: 0,
+    margin: 0,
+  },
+  indicator: (selected: boolean, rowHovered: boolean) => ({
+    width: '14px',
+    height: '14px',
+    borderRadius: '3px',
+    background: selected ? colors.accent : colors.bgDark,
+    border: `1px solid ${
+      selected ? colors.accent : rowHovered ? colors.textMuted : colors.border
+    }`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxSizing: 'border-box' as const,
+    transition: 'background 150ms ease, border-color 150ms ease',
+  }),
+  indicatorDot: {
+    width: '4px',
+    height: '4px',
+    background: colors.text,
+  },
+  label: (selected: boolean) => ({
+    fontWeight: selected ? 700 : 600,
     color: colors.text,
     minWidth: '100px',
-  },
+  }),
   meta: {
     color: colors.textMuted,
     fontFamily: 'monospace',
     fontSize: '11px',
     flex: 1,
+  },
+  defaultPill: {
+    fontSize: '9px',
+    fontWeight: 700 as const,
+    letterSpacing: '0.5px',
+    color: colors.accent,
+    background: 'rgba(59, 130, 246, 0.12)',
+    padding: '2px 6px',
+    borderRadius: '3px',
+    textTransform: 'uppercase' as const,
+    marginRight: '4px',
   },
   iconBtn: {
     background: 'transparent',
@@ -136,7 +188,7 @@ const styles = {
     gap: '8px',
     marginTop: '8px',
   },
-} as const;
+};
 
 interface IdentityForm {
   label: string;
@@ -260,30 +312,17 @@ export function GitIdentitySubsection() {
 
       {/* Identities list */}
       {identities.length > 0 && (
-        <div style={styles.list}>
+        <div style={styles.list} role="radiogroup" aria-label="Default git identity">
           {identities.map((identity, idx) => (
-            <div
+            <IdentityRow
               key={identity.id}
-              style={{ ...styles.row, ...(idx === identities.length - 1 ? styles.rowLast : {}) }}
-            >
-              <input
-                type="radio"
-                checked={defaultId === identity.id}
-                onChange={() => setAsDefault(identity.id)}
-                style={styles.radio}
-                title="Set as default"
-              />
-              <span style={styles.label}>{identity.label}</span>
-              <span style={styles.meta}>
-                {identity.name} · {identity.email}
-              </span>
-              <button style={styles.iconBtn} onClick={() => startEdit(identity)} title="Edit">
-                ✎
-              </button>
-              <button style={styles.iconBtn} onClick={() => startDelete(identity.id)} title="Delete">
-                🗑
-              </button>
-            </div>
+              identity={identity}
+              isDefault={defaultId === identity.id}
+              isLast={idx === identities.length - 1}
+              onSetDefault={() => setAsDefault(identity.id)}
+              onEdit={() => startEdit(identity)}
+              onDelete={() => startDelete(identity.id)}
+            />
           ))}
         </div>
       )}
@@ -352,6 +391,68 @@ export function GitIdentitySubsection() {
           + Add identity
         </button>
       )}
+    </div>
+  );
+}
+
+interface IdentityRowProps {
+  identity: GitIdentity;
+  isDefault: boolean;
+  isLast: boolean;
+  onSetDefault: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function IdentityRow({
+  identity,
+  isDefault,
+  isLast,
+  onSetDefault,
+  onEdit,
+  onDelete,
+}: IdentityRowProps) {
+  const [hovered, setHovered] = useState(false);
+
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Don't hijack clicks on inner buttons (edit/delete)
+    if ((e.target as HTMLElement).closest('button')) return;
+    if (!isDefault) onSetDefault();
+  };
+
+  return (
+    <div
+      style={{
+        ...styles.row(isDefault, hovered),
+        ...(isLast ? styles.rowLast : {}),
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={handleRowClick}
+    >
+      <label style={styles.radioWrap} title="Set as default">
+        <input
+          type="radio"
+          name="default-git-identity"
+          checked={isDefault}
+          onChange={onSetDefault}
+          style={styles.hiddenRadio}
+        />
+        <span style={styles.indicator(isDefault, hovered)}>
+          {isDefault && <span style={styles.indicatorDot} />}
+        </span>
+      </label>
+      <span style={styles.label(isDefault)}>{identity.label}</span>
+      <span style={styles.meta}>
+        {identity.name} · {identity.email}
+      </span>
+      {isDefault && <span style={styles.defaultPill}>Default</span>}
+      <button style={styles.iconBtn} onClick={onEdit} title="Edit">
+        ✎
+      </button>
+      <button style={styles.iconBtn} onClick={onDelete} title="Delete">
+        🗑
+      </button>
     </div>
   );
 }
