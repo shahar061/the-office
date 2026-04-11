@@ -378,6 +378,26 @@ describe('GreenfieldGit.startIteration', () => {
     return gg;
   }
 
+  it('returns git-error when targetPhase is idle', async () => {
+    const gg = await setupFullHistory();
+    const result = await gg.startIteration('idle');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('git-error');
+      expect(result.message).toContain('idle');
+    }
+  });
+
+  it('returns git-error when targetPhase is complete', async () => {
+    const gg = await setupFullHistory();
+    const result = await gg.startIteration('complete');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('git-error');
+      expect(result.message).toContain('complete');
+    }
+  });
+
   it('refuses with dirty-tree when working tree has uncommitted changes', async () => {
     const gg = await setupFullHistory();
     // Dirty the tree

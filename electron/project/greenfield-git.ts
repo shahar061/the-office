@@ -7,6 +7,8 @@ import type { SettingsStore } from './settings-store';
 import type { ProjectManager } from './project-manager';
 import { findCommitByPrefix } from './find-commit-by-prefix';
 
+const PHASE_ORDER: Phase[] = ['idle', 'imagine', 'warroom', 'build', 'complete'];
+
 export interface GreenfieldGitNote {
   level: 'info' | 'warning';
   message: string;
@@ -284,127 +286,136 @@ export class GreenfieldGit {
   }
 
   async startIteration(targetPhase: Phase): Promise<StartIterationResult> {
-    const state = this.projectManager.getProjectState(this.projectDir);
-    if (!state.greenfieldGit?.initialized) {
-      return {
-        ok: false,
-        reason: 'git-error',
-        message: 'Project has no git history yet',
-      };
-    }
-
-    const gitManager = new GitManager(this.projectDir);
-    const git = gitManager.getSimpleGitInstance();
-
-    // 1. Dirty tree safety check
-    let status: string;
-    try {
-      status = await git.raw(['status', '--porcelain']);
-    } catch (err: any) {
-      return {
-        ok: false,
-        reason: 'git-error',
-        message: `git status failed: ${err?.message ?? err}`,
-      };
-    }
-    if (status.trim().length > 0) {
-      return {
-        ok: false,
-        reason: 'dirty-tree',
-        message: 'You have uncommitted changes. Commit or discard them before refining.',
-      };
-    }
-
-    // 2. Find the target commit by message prefix
-    // Refining from warroom → reset main to the imagine commit
-    // Refining from imagine → reset main to the initial commit
-    const PHASE_ORDER: Phase[] = ['idle', 'imagine', 'warroom', 'build', 'complete'];
-    const targetIdx = PHASE_ORDER.indexOf(targetPhase);
-    let targetPrefix: string;
-    if (targetIdx <= 1) {
-      // imagine → reset to initial commit
-      targetPrefix = 'Initial commit (The Office)';
-    } else {
-      const prevPhase = PHASE_ORDER[targetIdx - 1];
-      targetPrefix = `${prevPhase}:`;
-    }
-
-    let log: string;
-    try {
-      log = await git.raw(['log', '--format=%H|%s', '--all']);
-    } catch (err: any) {
-      return {
-        ok: false,
-        reason: 'git-error',
-        message: `git log failed: ${err?.message ?? err}`,
-      };
-    }
-
-    const targetSha = findCommitByPrefix(log, targetPrefix);
-    if (!targetSha) {
-      return {
-        ok: false,
-        reason: 'no-target-commit',
-        message: `Could not find the "${targetPrefix}" commit in git history`,
-      };
-    }
-
-    // 3. Compute next iteration number
-    let branchList: string;
-    try {
-      branchList = await git.raw(['branch', '--list', 'office/iteration-*']);
-    } catch {
-      branchList = '';
-    }
-    const existingNums = branchList
-      .split('\n')
-      .map((b) => b.trim().replace(/^\*?\s*/, '').replace('office/iteration-', ''))
-      .map((n) => parseInt(n, 10))
-      .filter((n) => !isNaN(n));
-    const nextN = (existingNums.length > 0 ? Math.max(...existingNums) : 0) + 1;
-    const iterationBranch = `office/iteration-${nextN}`;
-
-    // 4. Create backup branch at current HEAD (no checkout)
-    try {
-      await git.raw(['branch', iterationBranch]);
-    } catch (err: any) {
-      return {
-        ok: false,
-        reason: 'git-error',
-        message: `Failed to create backup branch: ${err?.message ?? err}`,
-      };
-    }
-
-    // 5. Reset main to the target commit
-    try {
-      await git.raw(['reset', '--hard', targetSha]);
-    } catch (err: any) {
-      // Rollback: delete the branch we just created
-      try {
-        await git.raw(['branch', '-D', iterationBranch]);
-      } catch {
-        // Best-effort rollback
+    return this.withMutex(async (): Promise<StartIterationResult> => {
+      if (targetPhase === 'idle' || targetPhase === 'complete') {
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: `Cannot start iteration for phase "${targetPhase}"`,
+        };
       }
-      return {
-        ok: false,
-        reason: 'git-error',
-        message: `Failed to reset main: ${err?.message ?? err}`,
-      };
-    }
 
-    // 6. Update state
-    this.projectManager.updateProjectState(this.projectDir, {
-      greenfieldGit: {
-        ...state.greenfieldGit,
-        lastIterationN: nextN,
-      },
+      const state = this.projectManager.getProjectState(this.projectDir);
+      if (!state.greenfieldGit?.initialized) {
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: 'Project has no git history yet',
+        };
+      }
+
+      const gitManager = new GitManager(this.projectDir);
+      const git = gitManager.getSimpleGitInstance();
+
+      // 1. Dirty tree safety check
+      let status: string;
+      try {
+        status = await git.raw(['status', '--porcelain']);
+      } catch (err: any) {
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: `git status failed: ${err?.message ?? err}`,
+        };
+      }
+      if (status.trim().length > 0) {
+        return {
+          ok: false,
+          reason: 'dirty-tree',
+          message: 'You have uncommitted changes. Commit or discard them before refining.',
+        };
+      }
+
+      // 2. Find the target commit by message prefix
+      // Refining from warroom → reset main to the imagine commit
+      // Refining from imagine → reset main to the initial commit
+      const targetIdx = PHASE_ORDER.indexOf(targetPhase);
+      let targetPrefix: string;
+      if (targetIdx <= 1) {
+        // imagine → reset to initial commit
+        targetPrefix = 'Initial commit (The Office)';
+      } else {
+        const prevPhase = PHASE_ORDER[targetIdx - 1];
+        targetPrefix = `${prevPhase}:`;
+      }
+
+      let log: string;
+      try {
+        log = await git.raw(['log', '--format=%H|%s', '--all']);
+      } catch (err: any) {
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: `git log failed: ${err?.message ?? err}`,
+        };
+      }
+
+      const targetSha = findCommitByPrefix(log, targetPrefix);
+      if (!targetSha) {
+        return {
+          ok: false,
+          reason: 'no-target-commit',
+          message: `Could not find the "${targetPrefix}" commit in git history`,
+        };
+      }
+
+      // 3. Compute next iteration number
+      let branchList: string;
+      try {
+        branchList = await git.raw(['branch', '--list', 'office/iteration-*']);
+      } catch {
+        branchList = '';
+      }
+      const existingNums = branchList
+        .split('\n')
+        .map((b) => b.trim().replace(/^\*?\s*/, '').replace('office/iteration-', ''))
+        .map((n) => parseInt(n, 10))
+        .filter((n) => !isNaN(n));
+      const nextN = (existingNums.length > 0 ? Math.max(...existingNums) : 0) + 1;
+      const iterationBranch = `office/iteration-${nextN}`;
+
+      // 4. Create backup branch at current HEAD (no checkout)
+      try {
+        await git.raw(['branch', iterationBranch]);
+      } catch (err: any) {
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: `Failed to create backup branch: ${err?.message ?? err}`,
+        };
+      }
+
+      // 5. Reset main to the target commit
+      try {
+        await git.raw(['reset', '--hard', targetSha]);
+      } catch (err: any) {
+        // Rollback: delete the branch we just created
+        try {
+          await git.raw(['branch', '-D', iterationBranch]);
+        } catch {
+          // Best-effort rollback
+        }
+        return {
+          ok: false,
+          reason: 'git-error',
+          message: `Failed to reset main: ${err?.message ?? err}`,
+        };
+      }
+
+      // 6. Update state
+      this.projectManager.updateProjectState(this.projectDir, {
+        greenfieldGit: {
+          ...state.greenfieldGit,
+          lastIterationN: nextN,
+        },
+      });
+
+      this.emitNote({
+        level: 'info',
+        message: `Iteration ${nextN} preserved on ${iterationBranch}. Main reset to ${targetPrefix.replace(/:$/, '')}.`,
+      });
+
+      return { ok: true, iterationBranch };
     });
-
-    this.emitNote({
-      level: 'info',
-      message: `Iteration ${nextN} preserved on ${iterationBranch}. Main reset to ${targetPrefix.replace(/:$/, '')}.`,
-    });
-
-    return { ok: true, iterationBranch };
   }
 }
