@@ -14,11 +14,17 @@ import {
   rejectPendingQuestions,
   setMainWindow,
   setActiveAbort,
+  settingsStore,
+  setMobileBridge,
+  mobileBridge,
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers } from './ipc/phase-handlers';
 import { initSettingsHandlers } from './ipc/settings-handlers';
+import { hostname } from 'os';
+import { createMobileBridge } from './mobile-bridge';
+import { registerMobileHandlers, unregisterMobileHandlers } from './ipc/mobile-handlers';
 
 // ── Suppress noisy Chromium/macOS warnings from stderr ──
 // These are harmless but spam the console (~30 lines per menu interaction):
@@ -183,6 +189,21 @@ app.whenReady().then(async () => {
   initProjectHandlers();
   initPhaseHandlers();
   initSettingsHandlers();
+
+  // Start mobile bridge
+  try {
+    const bridge = createMobileBridge({
+      settings: settingsStore,
+      desktopName: hostname(),
+    });
+    await bridge.start();
+    setMobileBridge(bridge);
+    registerMobileHandlers(bridge);
+    console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
+  } catch (err) {
+    console.error('[mobile-bridge] failed to start:', err);
+  }
+
   // Detect CLI auth on startup and notify renderer
   await authManager.detectCliAuth();
   send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
@@ -207,6 +228,10 @@ app.on('window-all-closed', () => {
 
   // Reject any pending AskUserQuestion promises
   rejectPendingQuestions('App closing');
+
+  // Stop mobile bridge
+  unregisterMobileHandlers();
+  void mobileBridge?.stop();
 
   app.quit();
 });
