@@ -12,7 +12,12 @@ interface Props {
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Agent']);
 
 function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[]): void {
+  // OfficeScene.init() creates all 15 Character instances but leaves them invisible
+  // until scene.showCharacter(role) adds them to the scene graph. The desktop flow
+  // calls this from useSceneSync as characters become active; the mobile flow has
+  // to do it here since the snapshot is our single source of truth.
   for (const c of characters) {
+    scene.showCharacter(c.agentRole);
     const character = scene.getCharacter(c.agentRole);
     if (!character) continue;
     switch (c.activity) {
@@ -36,9 +41,15 @@ function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[
 }
 
 function applyEventToScene(scene: OfficeScene, event: AgentEvent): void {
+  // Make sure the character is on-screen before any state change. showCharacter()
+  // is idempotent — it no-ops if the character is already visible.
+  scene.showCharacter(event.agentRole);
   const character = scene.getCharacter(event.agentRole);
   if (!character) return;
   switch (event.type) {
+    case 'agent:created':
+      // Character is now visible via showCharacter above; nothing else to do.
+      break;
     case 'agent:tool:start': {
       const isRead = event.toolName ? READ_TOOLS.has(event.toolName) : false;
       character.setWorking(isRead ? 'read' : 'type');
@@ -52,7 +63,10 @@ function applyEventToScene(scene: OfficeScene, event: AgentEvent): void {
     case 'agent:waiting':
       character.showToolBubble('', '...');
       break;
-    // Other events are non-visual or handled by the snapshot pass.
+    case 'agent:closed':
+      scene.hideCharacter(event.agentRole);
+      break;
+    // Other events are non-visual.
     default:
       break;
   }
