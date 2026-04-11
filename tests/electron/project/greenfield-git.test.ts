@@ -305,3 +305,161 @@ describe('GreenfieldGit.commitPhase', () => {
     expect(log.total).toBe(3);
   });
 });
+
+describe('GreenfieldGit.startIteration', () => {
+  let tmpDir: string;
+  let userDataDir: string;
+  let projectDir: string;
+  let notes: Array<{ level: string; message: string }>;
+  let projectManager: ProjectManager;
+  let settingsStore: SettingsStore;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'greenfield-git-iter-'));
+    userDataDir = path.join(tmpDir, 'userData');
+    projectDir = path.join(tmpDir, 'project');
+    fs.mkdirSync(userDataDir, { recursive: true });
+    fs.mkdirSync(projectDir, { recursive: true });
+    fs.mkdirSync(path.join(projectDir, '.the-office'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, '.the-office', 'config.json'),
+      JSON.stringify({
+        name: 'test',
+        path: projectDir,
+        currentPhase: 'idle',
+        completedPhases: [],
+        interrupted: false,
+        introSeen: true,
+        buildIntroSeen: false,
+        mode: 'greenfield',
+      }),
+    );
+    projectManager = new ProjectManager(userDataDir);
+    settingsStore = new SettingsStore(userDataDir, projectManager);
+    notes = [];
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function makeGG(): GreenfieldGit {
+    return new GreenfieldGit(
+      projectDir,
+      projectManager,
+      settingsStore,
+      (note) => notes.push(note),
+    );
+  }
+
+  async function setupFullHistory(): Promise<GreenfieldGit> {
+    const identity = settingsStore.addIdentity({
+      label: 'Test',
+      name: 'Tester',
+      email: 'tester@example.com',
+    });
+    settingsStore.setDefaultIdentity(identity.id);
+
+    const gg = makeGG();
+    await gg.initializeOnCreation();
+
+    // imagine
+    fs.writeFileSync(path.join(projectDir, 'vision.md'), '# Vision\n');
+    await gg.commitPhase('imagine', 'completed');
+
+    // warroom
+    fs.writeFileSync(path.join(projectDir, 'plan.md'), '# Plan\n');
+    await gg.commitPhase('warroom', 'completed');
+
+    // build
+    fs.writeFileSync(path.join(projectDir, 'index.ts'), 'export const x = 1;\n');
+    await gg.commitPhase('build', 'completed');
+
+    return gg;
+  }
+
+  it('refuses with dirty-tree when working tree has uncommitted changes', async () => {
+    const gg = await setupFullHistory();
+    // Dirty the tree
+    fs.writeFileSync(path.join(projectDir, 'dirty.md'), '# dirty\n');
+
+    const result = await gg.startIteration('warroom');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('dirty-tree');
+  });
+
+  it('creates office/iteration-1 and resets main to imagine commit', async () => {
+    const gg = await setupFullHistory();
+
+    const result = await gg.startIteration('warroom');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.iterationBranch).toBe('office/iteration-1');
+
+    const git = simpleGit(projectDir);
+    const branches = await git.branch();
+    expect(branches.all).toContain('office/iteration-1');
+
+    const log = await git.log(['HEAD']);
+    // main should be at the imagine commit — total of 2 commits (initial + imagine)
+    expect(log.total).toBe(2);
+    expect(log.latest?.message).toContain('imagine: vision brief');
+  });
+
+  it('creates office/iteration-2 on second refine', async () => {
+    const gg = await setupFullHistory();
+    await gg.startIteration('warroom');
+    // Simulate another full build on main after the reset
+    fs.writeFileSync(path.join(projectDir, 'plan2.md'), '# plan v2\n');
+    await gg.commitPhase('warroom', 'completed');
+    fs.writeFileSync(path.join(projectDir, 'index2.ts'), 'export const y = 2;\n');
+    await gg.commitPhase('build', 'completed');
+
+    const result = await gg.startIteration('warroom');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.iterationBranch).toBe('office/iteration-2');
+
+    const git = simpleGit(projectDir);
+    const branches = await git.branch();
+    expect(branches.all).toContain('office/iteration-1');
+    expect(branches.all).toContain('office/iteration-2');
+  });
+
+  it('resets to initial commit when target is imagine', async () => {
+    const gg = await setupFullHistory();
+
+    const result = await gg.startIteration('imagine');
+    expect(result.ok).toBe(true);
+
+    const git = simpleGit(projectDir);
+    const log = await git.log(['HEAD']);
+    // Only the initial commit
+    expect(log.total).toBe(1);
+    expect(log.latest?.message).toContain('Initial commit (The Office)');
+  });
+
+  it('returns no-target-commit when the target phase commit is missing', async () => {
+    const identity = settingsStore.addIdentity({
+      label: 'Test',
+      name: 'Tester',
+      email: 'tester@example.com',
+    });
+    settingsStore.setDefaultIdentity(identity.id);
+
+    const gg = makeGG();
+    await gg.initializeOnCreation();
+    // Only initial commit exists — no imagine, no warroom
+
+    const result = await gg.startIteration('warroom');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('no-target-commit');
+  });
+
+  it('returns git-error when project is not initialized', async () => {
+    const gg = makeGG();
+    // No initialization at all
+
+    const result = await gg.startIteration('warroom');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('git-error');
+  });
+});
