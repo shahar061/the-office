@@ -5,6 +5,7 @@ import { IPC_CHANNELS } from '../../shared/types';
 import type { Phase, GitRecoveryNote } from '../../shared/types';
 import { GitManager } from '../project/git-manager';
 import { writeRepoIdentity } from '../project/git-identity-apply';
+import { GreenfieldGit } from '../project/greenfield-git';
 import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
@@ -211,6 +212,16 @@ export function initProjectHandlers(): void {
       setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();
       setChatHistoryStore(new ChatHistoryStore(projectPath));
+
+      // Greenfield git init (no-op for non-greenfield identity configs, handled in helper)
+      const gg = new GreenfieldGit(
+        projectPath,
+        projectManager,
+        settingsStore,
+        (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
+      );
+      await gg.initializeOnCreation();
+
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create project';
