@@ -33,7 +33,10 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'dist/mobile-renderer'),
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'src/mobile-renderer/index.html'),
+      input: {
+        main: path.resolve(__dirname, 'src/mobile-renderer/index.html'),
+        harness: path.resolve(__dirname, 'src/mobile-renderer/dev-harness.html'),
+      },
     },
   },
   server: {
