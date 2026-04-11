@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# generated webview bundle (keep placeholder index.html)
+assets/webview/assets/
+assets/webview/dev-harness.html

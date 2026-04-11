@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "generate-maps": "tsx scripts/generate-maps.ts",
     "dev:mobile-renderer": "vite --config vite.config.mobile.ts",
-    "build:mobile-renderer": "vite build --config vite.config.mobile.ts"
+    "build:mobile-renderer": "vite build --config vite.config.mobile.ts",
+    "copy:webview": "tsx scripts/copy-webview-bundle.ts",
+    "build:mobile-all": "npm run build:mobile-renderer && npm run copy:webview"
   },
   "keywords": [],
   "author": "",
