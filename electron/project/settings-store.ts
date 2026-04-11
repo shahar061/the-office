@@ -17,6 +17,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   gitIdentities: [],
   defaultGitIdentityId: null,
   gitPreferences: { includeOfficeStateInRepo: false },
+  mobile: {
+    enabled: true,
+    port: null,
+    devices: [],
+  },
 };
 
 export class SettingsStore {
@@ -127,6 +132,7 @@ export class SettingsStore {
         gitIdentities: Array.isArray(parsed.gitIdentities) ? parsed.gitIdentities : [],
         defaultGitIdentityId: parsed.defaultGitIdentityId ?? null,
         gitPreferences: parsed.gitPreferences ?? DEFAULT_SETTINGS.gitPreferences,
+        mobile: parsed.mobile ?? DEFAULT_SETTINGS.mobile,
       };
     } catch (err) {
       console.warn('[SettingsStore] Corrupted settings.json, using defaults:', err);

@@ -12,7 +12,11 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate-maps": "tsx scripts/generate-maps.ts"
+    "generate-maps": "tsx scripts/generate-maps.ts",
+    "dev:mobile-renderer": "vite --config vite.config.mobile.ts",
+    "build:mobile-renderer": "vite build --config vite.config.mobile.ts",
+    "copy:webview": "tsx scripts/copy-webview-bundle.ts",
+    "build:mobile-all": "npm run build:mobile-renderer && npm run copy:webview"
   },
   "keywords": [],
   "author": "",
@@ -23,10 +27,12 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "1.6",
     "electron": "^41.0.2",
     "electron-vite": "^5.0.0",
+    "jsdom": "^21.1.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
@@ -38,11 +44,13 @@
     "js-yaml": "^4.1.1",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.17.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^9.1.0",
     "remark-gfm": "^4.0.1",
     "simple-git": "^3.35.2",
+    "ws": "^8.20.0",
     "zustand": "^5.0.11"
   }
 }

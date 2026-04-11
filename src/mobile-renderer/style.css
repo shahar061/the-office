@@ -1,0 +1,94 @@
+:root {
+  --tab-bar-height: 56px;
+  --banner-height: 32px;
+  --bg: #0a0a0a;
+  --fg: #f5f5f5;
+  --muted: #999;
+  --accent: #6366f1;
+  color-scheme: dark;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.mobile-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tab-pane {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.tab-pane.hidden { display: none; }
+
+.tab-bar {
+  display: flex;
+  height: var(--tab-bar-height);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #111;
+  border-top: 1px solid #222;
+}
+
+.tab-bar button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-bar button.active {
+  color: var(--accent);
+}
+
+.office-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chat-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+
+.chat-message {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border-radius: 10px;
+}
+
+.chat-message .role {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.chat-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+}

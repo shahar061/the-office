@@ -14,11 +14,17 @@ import {
   rejectPendingQuestions,
   setMainWindow,
   setActiveAbort,
+  settingsStore,
+  setMobileBridge,
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers } from './ipc/phase-handlers';
 import { initSettingsHandlers } from './ipc/settings-handlers';
+import { hostname } from 'os';
+import { createMobileBridge } from './mobile-bridge';
+import type { MobileBridge } from './mobile-bridge';
+import { registerMobileHandlers, unregisterMobileHandlers, broadcastMobileStatus } from './ipc/mobile-handlers';
 
 // ── Suppress noisy Chromium/macOS warnings from stderr ──
 // These are harmless but spam the console (~30 lines per menu interaction):
@@ -35,6 +41,10 @@ process.stderr.write = (chunk: any, ...args: any[]): boolean => {
   if (SUPPRESSED_PATTERNS.some((p) => str.includes(p))) return true;
   return (originalStderrWrite as any)(chunk, ...args);
 };
+
+// ── Module-scope bridge ref (avoids stale ES module binding) ──
+
+let mobileBridgeRef: MobileBridge | null = null;
 
 // ── Window ──
 
@@ -183,6 +193,23 @@ app.whenReady().then(async () => {
   initProjectHandlers();
   initPhaseHandlers();
   initSettingsHandlers();
+
+  // Start mobile bridge
+  try {
+    const bridge = createMobileBridge({
+      settings: settingsStore,
+      desktopName: hostname(),
+    });
+    await bridge.start();
+    setMobileBridge(bridge);
+    mobileBridgeRef = bridge;
+    registerMobileHandlers(bridge);
+    broadcastMobileStatus(bridge);
+    console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
+  } catch (err) {
+    console.error('[mobile-bridge] failed to start:', err);
+  }
+
   // Detect CLI auth on startup and notify renderer
   await authManager.detectCliAuth();
   send(IPC_CHANNELS.AUTH_STATUS_CHANGE, authManager.getStatus());
@@ -209,4 +236,20 @@ app.on('window-all-closed', () => {
   rejectPendingQuestions('App closing');
 
   app.quit();
+});
+
+let bridgeStopping = false;
+app.on('before-quit', async (event) => {
+  if (mobileBridgeRef && !bridgeStopping) {
+    event.preventDefault();
+    bridgeStopping = true;
+    unregisterMobileHandlers();
+    try {
+      await mobileBridgeRef.stop();
+    } catch (err) {
+      console.warn('[mobile-bridge] stop failed:', err);
+    }
+    mobileBridgeRef = null;
+    app.quit();
+  }
 });

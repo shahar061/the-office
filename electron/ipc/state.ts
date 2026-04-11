@@ -21,6 +21,7 @@ import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
 import { StatsCollector } from '../stats/stats-collector';
 import { SettingsStore } from '../project/settings-store';
+import type { MobileBridge } from '../mobile-bridge';
 
 // ── Constants ──
 
@@ -44,6 +45,7 @@ export let statsCollector: StatsCollector | null = null;
 export let phaseMachine: PhaseMachine | null = null;
 export let permissionHandler: PermissionHandler | null = null;
 export let activeAbort: (() => void) | null = null;
+export let mobileBridge: MobileBridge | null = null;
 export let currentChatPhase: Phase | null = null;
 export let currentChatAgentRole: AgentRole | null = null;
 export let currentChatRunNumber: number = 0;
@@ -160,6 +162,10 @@ export function setActiveAbort(fn: (() => void) | null): void {
   activeAbort = fn;
 }
 
+export function setMobileBridge(bridge: MobileBridge | null): void {
+  mobileBridge = bridge;
+}
+
 export function setCurrentChatPhase(phase: Phase | null): void {
   currentChatPhase = phase;
 }
@@ -191,6 +197,7 @@ export function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>, persist: bo
     ...msg,
   };
   send(IPC_CHANNELS.CHAT_MESSAGE, chatMsg);
+  if (msg.role !== 'agent') mobileBridge?.onChat([chatMsg]);
 
   if (persist && chatHistoryStore && currentChatPhase && currentChatRunNumber > 0) {
     const agentRole = msg.agentRole ?? currentChatAgentRole;
@@ -215,6 +222,7 @@ export function onAgentEvent(event: AgentEvent): void {
   }
 
   send(IPC_CHANNELS.AGENT_EVENT, event);
+  mobileBridge?.onAgentEvent(event);
 
   // Track agent session boundaries for run numbering
   // Only respond to top-level init events (isTopLevel === true), not sub-task delegation

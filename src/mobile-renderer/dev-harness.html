@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=414, initial-scale=1" />
+    <title>Mobile Renderer Dev Harness</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; background: #222; color: #eee; }
+      .harness { display: flex; gap: 16px; padding: 16px; }
+      iframe {
+        width: 414px;
+        height: 896px;
+        border: 1px solid #444;
+        background: #000;
+      }
+      .controls { display: flex; flex-direction: column; gap: 8px; max-width: 300px; }
+      .controls h3 { margin: 0; font-size: 14px; }
+      .controls button { padding: 8px; cursor: pointer; background: #333; color: #eee; border: 1px solid #555; border-radius: 4px; }
+      .controls button:hover { background: #444; }
+      .controls textarea { width: 100%; height: 120px; background: #111; color: #eee; border: 1px solid #444; font-family: monospace; font-size: 11px; padding: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="harness">
+      <iframe id="app" src="./index.html"></iframe>
+      <div class="controls">
+        <h3>Inject messages into WebView</h3>
+        <button id="send-snapshot">Send empty snapshot</button>
+        <button id="send-agent-ceo">Send agent:created (ceo)</button>
+        <button id="send-agent-pm">Send agent:created (product-manager)</button>
+        <button id="send-tool-start-read">Send tool:start (Read)</button>
+        <button id="send-tool-start-write">Send tool:start (Write)</button>
+        <button id="send-tool-done">Send tool:done</button>
+        <button id="send-chat">Send chat message</button>
+        <button id="send-phase-build">Send state: phase → build</button>
+        <h3>Custom JSON</h3>
+        <textarea id="custom" placeholder='{"type":"event","v":1,"event":{...}}'></textarea>
+        <button id="send-custom">Send custom JSON</button>
+      </div>
+    </div>
+    <script>
+      const iframe = document.getElementById('app');
+      const send = (msg) => iframe.contentWindow.postMessage(JSON.stringify(msg), '*');
+
+      document.getElementById('send-snapshot').onclick = () => send({
+        type: 'snapshot', v: 1,
+        snapshot: {
+          sessionId: 's', desktopName: 'Harness', phase: 'imagine', startedAt: Date.now(),
+          activeAgentId: null, characters: [], chatTail: [], sessionEnded: false,
+        },
+      });
+
+      document.getElementById('send-agent-ceo').onclick = () => send({
+        type: 'event', v: 1,
+        event: { agentId: 'ceo', agentRole: 'ceo', source: 'sdk', type: 'agent:created', timestamp: Date.now(), isTopLevel: true },
+      });
+
+      document.getElementById('send-agent-pm').onclick = () => send({
+        type: 'event', v: 1,
+        event: { agentId: 'product-manager', agentRole: 'product-manager', source: 'sdk', type: 'agent:created', timestamp: Date.now(), isTopLevel: true },
+      });
+
+      document.getElementById('send-tool-start-read').onclick = () => send({
+        type: 'event', v: 1,
+        event: { agentId: 'ceo', agentRole: 'ceo', source: 'sdk', type: 'agent:tool:start', toolName: 'Read', toolId: 't-' + Date.now(), timestamp: Date.now() },
+      });
+
+      document.getElementById('send-tool-start-write').onclick = () => send({
+        type: 'event', v: 1,
+        event: { agentId: 'ceo', agentRole: 'ceo', source: 'sdk', type: 'agent:tool:start', toolName: 'Write', toolId: 't-' + Date.now(), timestamp: Date.now() },
+      });
+
+      document.getElementById('send-tool-done').onclick = () => send({
+        type: 'event', v: 1,
+        event: { agentId: 'ceo', agentRole: 'ceo', source: 'sdk', type: 'agent:tool:done', toolId: 't-last', timestamp: Date.now() },
+      });
+
+      document.getElementById('send-chat').onclick = () => send({
+        type: 'chat', v: 1,
+        messages: [{ id: 'm-' + Date.now(), role: 'agent', agentRole: 'ceo', text: 'Hello from harness at ' + new Date().toLocaleTimeString(), timestamp: Date.now() }],
+      });
+
+      document.getElementById('send-phase-build').onclick = () => send({
+        type: 'state', v: 1, patch: { kind: 'phase', phase: 'build' },
+      });
+
+      document.getElementById('send-custom').onclick = () => {
+        try {
+          send(JSON.parse(document.getElementById('custom').value));
+        } catch (e) { alert('Bad JSON: ' + e.message); }
+      };
+    </script>
+  </body>
+</html>

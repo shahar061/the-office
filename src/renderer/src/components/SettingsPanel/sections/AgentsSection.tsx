@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettingsStore } from '../../../stores/settings.store';
 import { colors } from '../../../theme';
+import { SegmentedControl } from '../SegmentedControl';
 import type { AppSettings, BuildConfig } from '@shared/types';
 
 const styles = {
@@ -25,18 +26,6 @@ const styles = {
     fontSize: '11px',
     color: colors.textMuted,
     marginBottom: '6px',
-  },
-  radioGroup: {
-    display: 'flex',
-    gap: '16px',
-  },
-  radioLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    color: colors.text,
   },
   numberInput: {
     width: '80px',
@@ -77,19 +66,15 @@ export function AgentsSection() {
         <div style={styles.description}>
           Which model agents use by default. Applied on next session start.
         </div>
-        <div style={styles.radioGroup}>
-          {modelPresets.map((preset) => (
-            <label key={preset} style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="modelPreset"
-                checked={settings.defaultModelPreset === preset}
-                onChange={() => save({ defaultModelPreset: preset })}
-              />
-              <span style={{ textTransform: 'capitalize' }}>{preset}</span>
-            </label>
-          ))}
-        </div>
+        <SegmentedControl
+          name="modelPreset"
+          value={settings.defaultModelPreset}
+          onChange={(v) => save({ defaultModelPreset: v })}
+          options={modelPresets.map((preset) => ({
+            value: preset,
+            label: preset,
+          }))}
+        />
       </div>
 
       <div style={styles.field}>
@@ -97,19 +82,15 @@ export function AgentsSection() {
         <div style={styles.description}>
           How agents handle tool permissions. Applied on next session start.
         </div>
-        <div style={styles.radioGroup}>
-          {permissionModes.map((mode) => (
-            <label key={mode} style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="permissionMode"
-                checked={settings.defaultPermissionMode === mode}
-                onChange={() => save({ defaultPermissionMode: mode })}
-              />
-              <span style={{ textTransform: 'capitalize' }}>{mode.replace('-', ' ')}</span>
-            </label>
-          ))}
-        </div>
+        <SegmentedControl
+          name="permissionMode"
+          value={settings.defaultPermissionMode}
+          onChange={(v) => save({ defaultPermissionMode: v })}
+          options={permissionModes.map((mode) => ({
+            value: mode,
+            label: mode.replace('-', ' '),
+          }))}
+        />
       </div>
 
       <div style={styles.field}>

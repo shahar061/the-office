@@ -364,6 +364,11 @@ export interface AppSettings {
   gitPreferences?: {
     includeOfficeStateInRepo: boolean;
   };
+  mobile?: {
+    enabled: boolean;
+    port: number | null;  // null = dynamic
+    devices: PairedDevice[];
+  };
 }
 
 // ── Workshop Plan Review ──
@@ -417,6 +422,63 @@ export interface DiffResult {
   totalDeletions: number;
 }
 
+// ── Mobile Bridge ──
+
+export interface PairedDevice {
+  deviceId: string;
+  deviceName: string;
+  deviceTokenHash: string;  // scrypt hash; never the raw token
+  pairedAt: number;
+  lastSeenAt: number;
+}
+
+export interface PairingQRPayload {
+  v: 1;
+  host: string;
+  port: number;
+  pairingToken: string;
+  expiresAt: number;
+}
+
+export interface CharacterSnapshot {
+  agentId: string;
+  agentRole: AgentRole;
+  x: number;
+  y: number;
+  activity: 'idle' | 'walking' | 'reading' | 'typing' | 'waiting';
+}
+
+export interface SessionSnapshot {
+  sessionId: string;
+  desktopName: string;
+  phase: Phase;
+  startedAt: number;
+  activeAgentId: string | null;
+  characters: CharacterSnapshot[];
+  chatTail: ChatMessage[];  // capped at 50 messages
+  sessionEnded: boolean;
+}
+
+export type SessionStatePatch =
+  | { kind: 'phase'; phase: Phase }
+  | { kind: 'activeAgent'; agentId: string | null }
+  | { kind: 'ended'; ended: boolean };
+
+export type MobileMessage =
+  // Phone → Desktop
+  | { type: 'pair'; v: 1; pairingToken: string; deviceName: string }
+  | { type: 'auth'; v: 1; deviceId: string; deviceToken: string }
+  // Desktop → Phone
+  | { type: 'paired'; v: 1; deviceId: string; deviceToken: string; desktopName: string }
+  | { type: 'authed'; v: 1; snapshot: SessionSnapshot }
+  | { type: 'authFailed'; v: 1; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' }
+  | { type: 'snapshot'; v: 1; snapshot: SessionSnapshot }
+  | { type: 'event'; v: 1; event: AgentEvent }
+  | { type: 'chat'; v: 1; messages: ChatMessage[] }
+  | { type: 'state'; v: 1; patch: SessionStatePatch }
+  // Bidirectional
+  | { type: 'heartbeat'; v: 1 };
+
 // ── IPC Channels ──
 
 export const IPC_CHANNELS = {
@@ -468,6 +530,12 @@ export const IPC_CHANNELS = {
   SET_DEFAULT_GIT_IDENTITY: 'office:set-default-git-identity',
   SET_PROJECT_GIT_IDENTITY: 'office:set-project-git-identity',
   IMPORT_GITCONFIG_IDENTITY: 'office:import-gitconfig-identity',
+  // Mobile Bridge
+  MOBILE_GET_PAIRING_QR: 'office:mobile-get-pairing-qr',
+  MOBILE_LIST_DEVICES: 'office:mobile-list-devices',
+  MOBILE_REVOKE_DEVICE: 'office:mobile-revoke-device',
+  MOBILE_GET_STATUS: 'office:mobile-get-status',
+  MOBILE_STATUS_CHANGE: 'office:mobile-status-change',
   // Layouts
   GET_LAYOUTS: 'office:get-layouts',
   SAVE_LAYOUTS: 'office:save-layouts',
@@ -644,6 +712,15 @@ export interface OfficeAPI {
   runOnboardingScan(): Promise<{ success: boolean; error?: string }>;
   skipOnboardingScan(): Promise<void>;
   onProjectStateChanged(callback: (state: ProjectState) => void): () => void;
+
+  // Mobile Bridge
+  mobile: {
+    getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
+    listDevices(): Promise<PairedDevice[]>;
+    revokeDevice(deviceId: string): Promise<void>;
+    getStatus(): Promise<{ running: boolean; port: number | null; connectedDevices: number }>;
+    onStatusChange(callback: (status: { running: boolean; port: number | null; connectedDevices: number }) => void): () => void;
+  };
 }
 
 declare global {

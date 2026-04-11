@@ -153,4 +153,14 @@ contextBridge.exposeInMainWorld('office', {
 
   // Logs
   flushLogs: (logText: string) => ipcRenderer.invoke(IPC_CHANNELS.FLUSH_LOGS, logText),
+
+  // Mobile Bridge
+  mobile: {
+    getPairingQR: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_GET_PAIRING_QR),
+    listDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_LIST_DEVICES),
+    revokeDevice: (deviceId: string) => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_REVOKE_DEVICE, deviceId),
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_GET_STATUS),
+    onStatusChange: (cb: (s: { running: boolean; port: number | null; connectedDevices: number }) => void) =>
+      onEvent(IPC_CHANNELS.MOBILE_STATUS_CHANGE, cb),
+  },
 });
