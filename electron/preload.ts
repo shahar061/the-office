@@ -126,6 +126,8 @@ contextBridge.exposeInMainWorld('office', {
     ipcRenderer.invoke(IPC_CHANNELS.GIT_INIT_RESPONSE, answer),
   onGitRecoveryNote: (cb: (note: GitRecoveryNote) => void) =>
     onEvent(IPC_CHANNELS.GIT_RECOVERY_NOTE, cb),
+  onGreenfieldGitNote: (cb: (note: { level: 'info' | 'warning'; message: string }) => void) =>
+    onEvent(IPC_CHANNELS.GREENFIELD_GIT_NOTE, cb),
   getRequestDiff: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.GET_REQUEST_DIFF, requestId),
   acceptRequest: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACCEPT_REQUEST, requestId),
   rejectRequest: (requestId: string) => ipcRenderer.invoke(IPC_CHANNELS.REJECT_REQUEST, requestId),
