@@ -23,6 +23,7 @@ import { RequestPlanReviewOverlay } from '../WorkshopPanel/RequestPlanReviewOver
 import { GitInitModal } from '../WorkshopPanel/GitInitModal';
 import { DiffPanel } from '../DiffPanel/DiffPanel';
 import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
+import { GreenfieldBanners } from '../OfficeView/GreenfieldBanners';
 import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
 
@@ -139,6 +140,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
         {panelId === 'chat' && <ChatPanel isExpanded={true} />}
         {panelId === 'office' && (
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <GreenfieldBanners />
             <OfficeCanvas onSceneReady={onSceneReady} />
             <ArtifactToolbox />
             <AudioControls />
