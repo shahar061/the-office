@@ -8,6 +8,7 @@ import { InteractiveObjects } from './InteractiveObjects';
 import { FogOfWar } from './engine/FogOfWar';
 import { MonitorGlow } from './MonitorGlow';
 import { WarTable } from './WarTable';
+import { SeatPool } from './SeatPool';
 import type { AgentRole } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
@@ -41,6 +42,7 @@ export class OfficeScene {
   private fog: FogOfWar | null = null;
   private monitorGlow!: MonitorGlow;
   private warTable!: WarTable;
+  private readonly seatPool = new SeatPool(['pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5', 'pc-6']);
 
   constructor(app: Application) {
     this.app = app;
@@ -383,6 +385,15 @@ export class OfficeScene {
     return clone;
   }
 
+  /**
+   * Retrieve a clone character by its clone id.
+   * Used by EngineerCloneManager for lifecycle control.
+   * Returns null if no clone with that id exists.
+   */
+  getClone(cloneId: string): Character | null {
+    return this.characters.get(cloneId) ?? null;
+  }
+
   destroyClone(cloneId: string): void {
     const character = this.characters.get(cloneId);
     if (!character) return;
@@ -394,6 +405,20 @@ export class OfficeScene {
 
   setMonitorGlow(seatName: string, on: boolean): void {
     this.monitorGlow.setGlowing(seatName, on);
+  }
+
+  /**
+   * Reserve the next free PC seat in the shared pool.
+   * Both TL warroom clones and engineer clones reserve through this method.
+   * Returns null if all 6 seats are currently taken.
+   */
+  reserveFreeSeat(): string | null {
+    return this.seatPool.reserveNext();
+  }
+
+  /** Release a previously-reserved seat. */
+  releaseSeat(seat: string): void {
+    this.seatPool.release(seat);
   }
 
   getWarTable(): WarTable {

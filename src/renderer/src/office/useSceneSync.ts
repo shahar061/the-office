@@ -4,9 +4,10 @@ import { useProjectStore } from '../stores/project.store';
 import { useArtifactStore } from '../stores/artifact.store';
 import { useWarTableStore } from '../stores/war-table.store';
 import type { OfficeScene } from './OfficeScene';
-import type { AgentRole } from '../../../../shared/types';
+import { AGENT_GROUPS, type AgentRole } from '../../../../shared/types';
 import { audioManager } from '../audio/AudioManager';
 import { useSpecProgressStore } from '../stores/spec-progress.store';
+import { EngineerCloneManager, type SceneLike } from './EngineerCloneManager';
 
 /**
  * Watches the Zustand office store and synchronizes character state
@@ -253,9 +254,6 @@ export function useSceneSync(scene: OfficeScene | null) {
   useEffect(() => {
     if (!scene) return;
 
-    // PC seats available for TL clones (spawn points in the Tiled map)
-    const PC_SEATS = ['pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5', 'pc-6'];
-    const occupiedSeats = new Set<string>();
     // Maps cloneId → state. We track arrival-at-desk and writing separately so
     // the monitor glow only turns on when BOTH are true (clone is seated AND writing).
     const cloneMap = new Map<string, {
@@ -273,10 +271,6 @@ export function useSceneSync(scene: OfficeScene | null) {
         const clone = scene!.getCharacter(info.characterId);
         if (clone) clone.setWorking('type');
       }
-    }
-
-    function getNextSeat(): string | undefined {
-      return PC_SEATS.find(s => !occupiedSeats.has(s));
     }
 
     function handleChoreography(e: Event) {
@@ -361,9 +355,8 @@ export function useSceneSync(scene: OfficeScene | null) {
         case 'tl-clone-spawned': {
           if (!cloneId) break;
           const { phaseId, phaseName } = (e as CustomEvent).detail;
-          const seat = getNextSeat();
+          const seat = scene!.reserveFreeSeat();
           if (!seat) break;
-          occupiedSeats.add(seat);
           const characterId = `tl-clone-${cloneId}`;
           const spawnedCloneId = cloneId;
           cloneMap.set(cloneId, { seat, characterId, hasArrived: false, isWriting: false });
@@ -427,13 +420,13 @@ export function useSceneSync(scene: OfficeScene | null) {
               const entrance = scene!.getEntrancePosition();
               doneClone.walkToAndThen(entrance, () => {
                 scene!.destroyClone(doneInfo.characterId);
-                occupiedSeats.delete(doneInfo.seat);
+                scene!.releaseSeat(doneInfo.seat);
                 cloneMap.delete(cloneId);
               });
             }, 1000);
           } else {
             // Clone already gone — just clean up
-            occupiedSeats.delete(doneInfo.seat);
+            scene!.releaseSeat(doneInfo.seat);
             cloneMap.delete(cloneId);
           }
           break;
@@ -447,7 +440,7 @@ export function useSceneSync(scene: OfficeScene | null) {
           }
           for (const [, { characterId, seat }] of cloneMap) {
             scene!.destroyClone(characterId);
-            occupiedSeats.delete(seat);
+            scene!.releaseSeat(seat);
           }
           cloneMap.clear();
 
@@ -462,5 +455,27 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     window.addEventListener('war-table-choreography', handleChoreography);
     return () => window.removeEventListener('war-table-choreography', handleChoreography);
+  }, [scene]);
+
+  // Engineer clone lifecycle — subscribe to raw agent events and drive clones
+  useEffect(() => {
+    if (!scene) return;
+
+    const manager = new EngineerCloneManager(
+      scene as unknown as SceneLike,
+      AGENT_GROUPS.engineering as readonly AgentRole[],
+    );
+
+    const unsub = window.office.onAgentEvent((event) => {
+      if (event.type === 'agent:created' && event.isTopLevel) {
+        manager.start(event.agentRole);
+      } else if (event.type === 'agent:closed') {
+        manager.end(event.agentRole);
+      }
+    });
+
+    return () => {
+      unsub();
+    };
   }, [scene]);
 }

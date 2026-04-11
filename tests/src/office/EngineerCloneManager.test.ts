@@ -1,0 +1,203 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  EngineerCloneManager,
+  type SceneLike,
+  type MockClone,
+} from '../../../src/renderer/src/office/EngineerCloneManager';
+
+const ENGINEERING_ROLES = [
+  'backend-engineer',
+  'frontend-engineer',
+  'mobile-developer',
+  'ui-ux-expert',
+  'data-engineer',
+  'devops',
+  'automation-developer',
+] as const;
+
+function makeMockScene(): {
+  scene: SceneLike;
+  calls: {
+    reserveFreeSeat: number;
+    releaseSeat: string[];
+    createClone: Array<{ cloneId: string; role: string; seat: string }>;
+    destroyClone: string[];
+    hideCharacter: string[];
+    showCharacter: string[];
+    setMonitorGlow: Array<{ seat: string; on: boolean }>;
+  };
+  cloneInstances: Map<string, MockClone>;
+} {
+  const seats = ['pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5', 'pc-6'];
+  const claimedSeats = new Set<string>();
+  const cloneInstances = new Map<string, MockClone>();
+
+  const calls = {
+    reserveFreeSeat: 0,
+    releaseSeat: [] as string[],
+    createClone: [] as Array<{ cloneId: string; role: string; seat: string }>,
+    destroyClone: [] as string[],
+    hideCharacter: [] as string[],
+    showCharacter: [] as string[],
+    setMonitorGlow: [] as Array<{ seat: string; on: boolean }>,
+  };
+
+  const scene: SceneLike = {
+    reserveFreeSeat: () => {
+      calls.reserveFreeSeat++;
+      for (const s of seats) {
+        if (!claimedSeats.has(s)) {
+          claimedSeats.add(s);
+          return s;
+        }
+      }
+      return null;
+    },
+    releaseSeat: (seat) => {
+      calls.releaseSeat.push(seat);
+      claimedSeats.delete(seat);
+    },
+    createClone: (cloneId, role, seat) => {
+      calls.createClone.push({ cloneId, role, seat });
+      const clone: MockClone = {
+        walkToAndThen: vi.fn((_tile, cb) => cb()),
+        setWorking: vi.fn(),
+        getDeskTile: () => ({ x: 0, y: 0 }),
+      };
+      cloneInstances.set(cloneId, clone);
+      return clone;
+    },
+    destroyClone: (cloneId) => {
+      calls.destroyClone.push(cloneId);
+      cloneInstances.delete(cloneId);
+    },
+    getClone: (cloneId) => cloneInstances.get(cloneId) ?? null,
+    hideCharacter: (role) => {
+      calls.hideCharacter.push(role);
+    },
+    showCharacter: (role) => {
+      calls.showCharacter.push(role);
+    },
+    setMonitorGlow: (seat, on) => {
+      calls.setMonitorGlow.push({ seat, on });
+    },
+    getEntrancePosition: () => ({ x: 10, y: 10 }),
+  };
+
+  return { scene, calls, cloneInstances };
+}
+
+describe('EngineerCloneManager', () => {
+  let mock: ReturnType<typeof makeMockScene>;
+  let manager: EngineerCloneManager;
+
+  beforeEach(() => {
+    mock = makeMockScene();
+    manager = new EngineerCloneManager(mock.scene, ENGINEERING_ROLES);
+  });
+
+  it('start spawns a clone, hides base, and glows monitor', () => {
+    manager.start('backend-engineer');
+
+    expect(mock.calls.createClone).toHaveLength(1);
+    expect(mock.calls.createClone[0].role).toBe('backend-engineer');
+    expect(mock.calls.createClone[0].seat).toBe('pc-1');
+    expect(mock.calls.hideCharacter).toEqual(['backend-engineer']);
+    expect(mock.calls.setMonitorGlow).toEqual([{ seat: 'pc-1', on: true }]);
+    expect(manager.getRefCount('backend-engineer')).toBe(1);
+  });
+
+  it('ignores non-engineering roles', () => {
+    manager.start('team-lead' as any);
+    manager.start('ceo' as any);
+
+    expect(mock.calls.createClone).toHaveLength(0);
+    expect(mock.calls.hideCharacter).toEqual([]);
+  });
+
+  it('start twice for the same role only creates one clone (ref-count)', () => {
+    manager.start('backend-engineer');
+    manager.start('backend-engineer');
+
+    expect(mock.calls.createClone).toHaveLength(1);
+    expect(mock.calls.hideCharacter).toEqual(['backend-engineer']);
+    expect(manager.getRefCount('backend-engineer')).toBe(2);
+  });
+
+  it('end with refCount > 1 decrements without despawning', () => {
+    manager.start('backend-engineer');
+    manager.start('backend-engineer');
+    manager.end('backend-engineer');
+
+    expect(mock.calls.setMonitorGlow).toEqual([{ seat: 'pc-1', on: true }]);
+    expect(mock.calls.destroyClone).toHaveLength(0);
+    expect(manager.getRefCount('backend-engineer')).toBe(1);
+  });
+
+  it('end with refCount === 1 despawns the clone and restores base', () => {
+    manager.start('backend-engineer');
+    manager.end('backend-engineer');
+
+    expect(mock.calls.setMonitorGlow).toEqual([
+      { seat: 'pc-1', on: true },
+      { seat: 'pc-1', on: false },
+    ]);
+    expect(mock.calls.destroyClone).toHaveLength(1);
+    expect(mock.calls.destroyClone[0]).toContain('backend-engineer');
+    expect(mock.calls.releaseSeat).toContain('pc-1');
+    expect(mock.calls.showCharacter).toEqual(['backend-engineer']);
+    expect(manager.getRefCount('backend-engineer')).toBe(0);
+  });
+
+  it('multiple different engineering roles get different seats', () => {
+    manager.start('backend-engineer');
+    manager.start('frontend-engineer');
+    manager.start('data-engineer');
+
+    expect(mock.calls.createClone).toHaveLength(3);
+    const seats = mock.calls.createClone.map(c => c.seat);
+    expect(new Set(seats).size).toBe(3);
+    expect(seats).toEqual(['pc-1', 'pc-2', 'pc-3']);
+  });
+
+  it('seat overflow (all 6 seats taken) skips clone creation for overflow', () => {
+    manager.start('backend-engineer');
+    manager.start('frontend-engineer');
+    manager.start('mobile-developer');
+    manager.start('ui-ux-expert');
+    manager.start('data-engineer');
+    manager.start('devops');
+    // 7th engineer — should silently skip
+    manager.start('automation-developer');
+
+    expect(mock.calls.createClone).toHaveLength(6);
+    expect(manager.getRefCount('automation-developer')).toBe(0);
+    expect(mock.calls.hideCharacter).not.toContain('automation-developer');
+  });
+
+  it('end for a role with no active clone is a no-op', () => {
+    manager.end('backend-engineer');
+    expect(mock.calls.destroyClone).toEqual([]);
+    expect(mock.calls.showCharacter).toEqual([]);
+  });
+
+  it('end with ref-count going below zero is clamped', () => {
+    manager.start('backend-engineer');
+    manager.end('backend-engineer');
+    // Extra close event (shouldn't happen but defensive)
+    manager.end('backend-engineer');
+    expect(manager.getRefCount('backend-engineer')).toBe(0);
+    // No second destroy call
+    expect(mock.calls.destroyClone).toHaveLength(1);
+  });
+
+  it('restart after end reuses available seat', () => {
+    manager.start('backend-engineer');
+    manager.end('backend-engineer');
+    manager.start('backend-engineer');
+
+    expect(mock.calls.createClone).toHaveLength(2);
+    expect(mock.calls.createClone[0].seat).toBe('pc-1');
+    expect(mock.calls.createClone[1].seat).toBe('pc-1');
+  });
+});
