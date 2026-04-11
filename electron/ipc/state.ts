@@ -197,7 +197,7 @@ export function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>, persist: bo
     ...msg,
   };
   send(IPC_CHANNELS.CHAT_MESSAGE, chatMsg);
-  mobileBridge?.onChat([chatMsg]);
+  if (msg.role !== 'agent') mobileBridge?.onChat([chatMsg]);
 
   if (persist && chatHistoryStore && currentChatPhase && currentChatRunNumber > 0) {
     const agentRole = msg.agentRole ?? currentChatAgentRole;
