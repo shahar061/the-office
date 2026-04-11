@@ -30,6 +30,7 @@
     "@vitest/coverage-v8": "1.6",
     "electron": "^41.0.2",
     "electron-vite": "^5.0.0",
+    "jsdom": "^21.1.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
