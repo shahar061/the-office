@@ -109,9 +109,13 @@ export class Character {
   }
 
   private workingDirection(): Direction {
-    // CEO's desk is oriented so he faces the camera (down) while working.
-    // All other agents face up at their desks.
-    return this.role === 'ceo' ? 'down' : 'up';
+    // Per-role desk orientation overrides:
+    //   - CEO's monitor sits below him, so he faces the camera (down)
+    //   - Market researcher's monitor is to the left of her desk, so she faces left
+    //   - All other agents default to facing up at their desks
+    if (this.role === 'ceo') return 'down';
+    if (this.role === 'market-researcher') return 'left';
+    return 'up';
   }
 
   setIdle(): void {
