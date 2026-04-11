@@ -35,6 +35,7 @@ export interface WsServerOptions {
   desktopName: string;
   deviceStore: DeviceStore;
   snapshots: SnapshotBuilder;
+  onChange?: () => void;
 }
 
 export class WsServer {
@@ -94,6 +95,7 @@ export class WsServer {
     for (const c of this.connections.values()) {
       if (c.deviceId === deviceId) this.teardown(c, 4401);
     }
+    this.notifyChange();
   }
 
   broadcastToAuthenticated(msg: MobileMessage): void {
@@ -102,6 +104,14 @@ export class WsServer {
       if (c.state === 'authenticated' && c.ws.readyState === WebSocket.OPEN) {
         try { c.ws.send(wire); } catch (err) { console.warn('[mobile-bridge] send failed', err); }
       }
+    }
+  }
+
+  private notifyChange(): void {
+    try {
+      this.opts.onChange?.();
+    } catch (err) {
+      console.warn('[mobile-bridge] onChange listener failed', err);
     }
   }
 
@@ -178,6 +188,7 @@ export class WsServer {
       lastSeenAt: now,
     };
     this.opts.deviceStore.add(device);
+    this.notifyChange();
 
     this.send(conn, { type: 'paired', v: 1, deviceId, deviceToken, desktopName: this.opts.desktopName });
     // pairing connection is one-shot — close after success
@@ -205,6 +216,7 @@ export class WsServer {
     conn.deviceId = msg.deviceId;
     if (conn.idleTimer) { clearTimeout(conn.idleTimer); conn.idleTimer = null; }
     this.opts.deviceStore.touch(msg.deviceId, Date.now());
+    this.notifyChange();
 
     this.send(conn, { type: 'authed', v: 1, snapshot: this.opts.snapshots.getSnapshot() });
 
@@ -225,11 +237,13 @@ export class WsServer {
 
   private teardown(conn: Connection, code: number): void {
     if (conn.state === 'closed') return;
+    const wasAuthenticated = conn.state === 'authenticated';
     conn.state = 'closed';
     if (conn.idleTimer) clearTimeout(conn.idleTimer);
     if (conn.heartbeatTimer) clearInterval(conn.heartbeatTimer);
     try { conn.ws.close(code); } catch { /* ignore */ }
     this.connections.delete(conn.id);
+    if (wasAuthenticated) this.notifyChange();
   }
 }
 

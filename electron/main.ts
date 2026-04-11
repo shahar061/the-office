@@ -205,6 +205,7 @@ app.whenReady().then(async () => {
     mobileBridgeRef = bridge;
     registerMobileHandlers(bridge);
     broadcastMobileStatus(bridge);
+    bridge.onChange(() => broadcastMobileStatus(bridge));
     console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
   } catch (err) {
     console.error('[mobile-bridge] failed to start:', err);

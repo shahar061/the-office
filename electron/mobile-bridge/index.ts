@@ -15,6 +15,7 @@ export interface MobileBridge {
   onAgentEvent(event: AgentEvent): void;
   onChat(messages: ChatMessage[]): void;
   onStatePatch(patch: SessionStatePatch): void;
+  onChange(handler: () => void): () => void;
 }
 
 export interface MobileBridgeOptions {
@@ -25,11 +26,18 @@ export interface MobileBridgeOptions {
 export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const deviceStore = new DeviceStore(opts.settings);
   const snapshots = new SnapshotBuilder(opts.desktopName);
+  const changeListeners = new Set<() => void>();
+  const notifyChange = () => {
+    for (const h of changeListeners) {
+      try { h(); } catch (err) { console.warn('[mobile-bridge] listener failed', err); }
+    }
+  };
   const server = new WsServer({
     port: opts.settings.get().mobile?.port ?? null,
     desktopName: opts.desktopName,
     deviceStore,
     snapshots,
+    onChange: notifyChange,
   });
   const forwarder = new EventForwarder(snapshots, server);
 
@@ -49,5 +57,9 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onAgentEvent: forwarder.onAgentEvent,
     onChat: forwarder.onChat,
     onStatePatch: forwarder.onStatePatch,
+    onChange(handler) {
+      changeListeners.add(handler);
+      return () => { changeListeners.delete(handler); };
+    },
   };
 }
