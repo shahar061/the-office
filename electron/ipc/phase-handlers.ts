@@ -24,6 +24,7 @@ import type {
   GitRecoveryNote,
 } from '../../shared/types';
 import { PhaseMachine } from '../orchestrator/phase-machine';
+import { GreenfieldGit } from '../project/greenfield-git';
 import { PermissionHandler } from '../sdk/permission-handler';
 import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
@@ -90,6 +91,34 @@ const WORKSHOP_GIT_DENY = [
   /^git\s+(commit|checkout|reset|branch|merge|rebase|stash|push|pull|rm|clean)\b/,
 ];
 
+/**
+ * Attach a change listener to a PhaseMachine so that greenfield projects
+ * commit their phase state when a phase completes or fails.
+ * No-op for workshop projects (gated by state.mode check).
+ */
+function attachGreenfieldGitListener(pm: PhaseMachine): void {
+  // Capture the project dir at attach time; PhaseMachines are recreated
+  // when the project changes, so this binding is stable for the lifetime
+  // of this listener. Constructing gg here (not per-event) ensures all
+  // change events share the same commitMutex.
+  const projectDir = currentProjectDir;
+  if (!projectDir) return; // nothing to attach to
+
+  const gg = new GreenfieldGit(
+    projectDir,
+    projectManager,
+    settingsStore,
+    (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
+  );
+
+  pm.on('change', async (info: PhaseInfo) => {
+    const state = projectManager.getProjectState(projectDir);
+    if (state.mode !== 'greenfield') return;
+    if (info.status !== 'completed' && info.status !== 'failed') return;
+    await gg.commitPhase(info.phase, info.status);
+  });
+}
+
 function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
   const sessionPath = path.join(projectDir, 'docs', 'office', 'session.yaml');
   if (!fs.existsSync(sessionPath)) return;
@@ -126,6 +155,7 @@ async function handleStartImagine(userIdea: string, resume = false): Promise<voi
 
   const state = projectManager.getProjectState(currentProjectDir!);
   const pm = new PhaseMachine(state.currentPhase, state.completedPhases);
+  attachGreenfieldGitListener(pm);
   setPhaseMachine(pm);
   pm.on('change', (info: PhaseInfo) => {
     send(IPC_CHANNELS.PHASE_CHANGE, info);
@@ -314,6 +344,7 @@ function ensurePhaseMachine(): void {
   if (phaseMachine || !currentProjectDir) return;
   const state = projectManager.getProjectState(currentProjectDir);
   const pm = new PhaseMachine(state.currentPhase, state.completedPhases);
+  attachGreenfieldGitListener(pm);
   setPhaseMachine(pm);
   pm.on('change', (info: PhaseInfo) => {
     send(IPC_CHANNELS.PHASE_CHANGE, info);
@@ -392,6 +423,7 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
   if (!phaseMachine) {
     const state = projectManager.getProjectState(currentProjectDir);
     const pm = new PhaseMachine(state.currentPhase, state.completedPhases);
+    attachGreenfieldGitListener(pm);
     setPhaseMachine(pm);
     pm.on('change', (info: PhaseInfo) => {
       send(IPC_CHANNELS.PHASE_CHANGE, info);
@@ -581,6 +613,25 @@ export function initPhaseHandlers(): void {
     rejectPendingQuestions('Phase restart', true);
     setPendingReview(null);
 
+    // 1b. Greenfield iteration — create backup branch + reset main before destructive clear
+    const currentState = projectManager.getProjectState(currentProjectDir);
+    if (currentState.mode === 'greenfield' && currentState.greenfieldGit?.initialized) {
+      const gg = new GreenfieldGit(
+        currentProjectDir,
+        projectManager,
+        settingsStore,
+        (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
+      );
+      const result = await gg.startIteration(targetPhase as Phase);
+      if (!result.ok) {
+        return {
+          success: false,
+          error: result.message,
+          reason: result.reason,
+        };
+      }
+    }
+
     // 2. Clean artifacts from target phase onward
     const store = new ArtifactStore(currentProjectDir);
     store.clearFrom(targetPhase);
@@ -627,6 +678,7 @@ export function initPhaseHandlers(): void {
       // handleStartWarroom expects phaseMachine to exist — create one from cleaned state
       const cleanedState = projectManager.getProjectState(currentProjectDir);
       const pm = new PhaseMachine(cleanedState.currentPhase, cleanedState.completedPhases);
+      attachGreenfieldGitListener(pm);
       setPhaseMachine(pm);
       pm.on('change', (info: PhaseInfo) => {
         send(IPC_CHANNELS.PHASE_CHANGE, info);
@@ -642,6 +694,7 @@ export function initPhaseHandlers(): void {
       // handleStartBuild expects phaseMachine to exist — create one from cleaned state
       const cleanedState = projectManager.getProjectState(currentProjectDir);
       const pm = new PhaseMachine(cleanedState.currentPhase, cleanedState.completedPhases);
+      attachGreenfieldGitListener(pm);
       setPhaseMachine(pm);
       pm.on('change', (info: PhaseInfo) => {
         send(IPC_CHANNELS.PHASE_CHANGE, info);

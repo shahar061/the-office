@@ -96,6 +96,12 @@ export interface ProjectState {
   scanStatus?: 'pending' | 'in_progress' | 'done' | 'skipped';
   gitInit?: 'yes' | 'no' | null;
   gitIdentityId?: string | null;
+  greenfieldGit?: {
+    initialized: boolean;
+    deferred: boolean;
+    includeOfficeState: boolean;
+    lastIterationN: number;
+  };
 }
 
 export interface PhaseInfo {
@@ -355,6 +361,9 @@ export interface AppSettings {
   windowBounds?: { x: number; y: number; width: number; height: number };
   gitIdentities: GitIdentity[];
   defaultGitIdentityId: string | null;
+  gitPreferences?: {
+    includeOfficeStateInRepo: boolean;
+  };
 }
 
 // ── Workshop Plan Review ──
@@ -507,6 +516,8 @@ export const IPC_CHANNELS = {
   GIT_INIT_PROMPT: 'office:git-init-prompt',
   GIT_INIT_RESPONSE: 'office:git-init-response',
   GIT_RECOVERY_NOTE: 'office:git-recovery-note',
+  // Greenfield git
+  GREENFIELD_GIT_NOTE: 'office:greenfield-git-note',
   // Workshop diff review (sub-project 5)
   GET_REQUEST_DIFF: 'office:get-request-diff',
   ACCEPT_REQUEST: 'office:accept-request',
@@ -612,6 +623,9 @@ export interface OfficeAPI {
   onGitInitPrompt(callback: (payload: GitInitPromptPayload) => void): () => void;
   respondGitInit(answer: 'yes' | 'no'): Promise<void>;
   onGitRecoveryNote(callback: (note: GitRecoveryNote) => void): () => void;
+  onGreenfieldGitNote(
+    callback: (note: { level: 'info' | 'warning'; message: string }) => void,
+  ): () => void;
   getRequestDiff(requestId: string): Promise<
     | { ok: true; diff: DiffResult }
     | { ok: false; error: string }

@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   maxParallelTLs: 4,
   gitIdentities: [],
   defaultGitIdentityId: null,
+  gitPreferences: { includeOfficeStateInRepo: false },
 };
 
 export class SettingsStore {
@@ -125,6 +126,7 @@ export class SettingsStore {
         windowBounds: parsed.windowBounds,
         gitIdentities: Array.isArray(parsed.gitIdentities) ? parsed.gitIdentities : [],
         defaultGitIdentityId: parsed.defaultGitIdentityId ?? null,
+        gitPreferences: parsed.gitPreferences ?? DEFAULT_SETTINGS.gitPreferences,
       };
     } catch (err) {
       console.warn('[SettingsStore] Corrupted settings.json, using defaults:', err);
