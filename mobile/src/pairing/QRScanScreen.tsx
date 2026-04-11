@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Clipboard from 'expo-clipboard';
 import * as Device from 'expo-device';
 import { saveDevice, type PairedDeviceCredentials } from './secure-store';
 import type { PairingQRPayload, MobileMessage } from '../types/shared';
@@ -92,6 +93,21 @@ export function QRScanScreen({ onPaired, onCancel }: Props) {
     };
   }, [onPaired]);
 
+  const handlePastePayload = useCallback(async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (!text) {
+        setState({ kind: 'error', message: 'Clipboard is empty.' });
+        return;
+      }
+      // Reset the handled guard so a paste after a prior error works
+      handledRef.current = false;
+      handleScanned({ data: text });
+    } catch (err) {
+      setState({ kind: 'error', message: 'Could not read clipboard.' });
+    }
+  }, [handleScanned]);
+
   if (!permission) {
     return <SafeAreaView style={styles.root}><ActivityIndicator /></SafeAreaView>;
   }
@@ -132,6 +148,9 @@ export function QRScanScreen({ onPaired, onCancel }: Props) {
             </Pressable>
           </>
         )}
+        <Pressable style={styles.pasteBtn} onPress={handlePastePayload}>
+          <Text style={styles.pasteBtnText}>Paste payload from clipboard</Text>
+        </Pressable>
         <Pressable onPress={onCancel}><Text style={styles.link}>Cancel</Text></Pressable>
       </View>
     </SafeAreaView>
@@ -152,4 +171,17 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#6366f1', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   link: { color: '#6366f1', fontSize: 15 },
+  pasteBtn: {
+    backgroundColor: 'rgba(99,102,241,0.2)',
+    borderWidth: 1,
+    borderColor: '#6366f1',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  pasteBtnText: {
+    color: '#a5b4fc',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
