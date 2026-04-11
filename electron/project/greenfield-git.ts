@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { ProjectState } from '../../shared/types';
+import type { Phase, ProjectState } from '../../shared/types';
 import { GitManager } from './git-manager';
 import { buildGitEnv, writeRepoIdentity } from './git-identity-apply';
 import type { SettingsStore } from './settings-store';
@@ -132,5 +132,155 @@ export class GreenfieldGit {
     fs.writeFileSync(path.join(this.projectDir, '.gitignore'), content, 'utf-8');
   }
 
-  // commitPhase and startIteration added in Tasks 6 and 7
+  async commitPhase(phase: Phase, outcome: 'completed' | 'failed'): Promise<void> {
+    return this.withMutex(async () => {
+      const state = this.projectManager.getProjectState(this.projectDir);
+      const gg = state.greenfieldGit;
+
+      // If deferred, try retroactive init first
+      if (gg?.deferred) {
+        const didInit = await this.retroactiveInit();
+        if (!didInit) return; // still no identity, skip
+      }
+
+      // Re-read state after potential retroactive init
+      const latest = this.projectManager.getProjectState(this.projectDir);
+      if (!latest.greenfieldGit?.initialized) return;
+
+      // Resolve identity
+      const identity = this.settingsStore.resolveIdentityForProject(latest);
+      if (!identity) {
+        this.emitNote({
+          level: 'warning',
+          message: `Cannot commit ${phase}: no git identity configured`,
+        });
+        return;
+      }
+
+      const gitManager = new GitManager(this.projectDir);
+      const git = gitManager.getSimpleGitInstance();
+      const env = buildGitEnv(identity);
+      const gitWithEnv = Object.keys(env).length > 0 ? git.env(env) : git;
+
+      // Stage everything (respects .gitignore)
+      try {
+        await gitWithEnv.raw(['add', '-A']);
+      } catch (err: any) {
+        this.emitNote({
+          level: 'warning',
+          message: `Failed to stage ${phase}: ${err?.message ?? err}`,
+        });
+        return;
+      }
+
+      // Check if anything to commit
+      try {
+        const status = await git.raw(['status', '--porcelain']);
+        if (status.trim().length === 0) return; // nothing to commit
+      } catch (err: any) {
+        this.emitNote({
+          level: 'warning',
+          message: `git status failed for ${phase}: ${err?.message ?? err}`,
+        });
+        return;
+      }
+
+      const message = this.buildPhaseCommitMessage(phase, outcome);
+      try {
+        await gitWithEnv.commit(message);
+        this.emitNote({ level: 'info', message: `Saved ${phase} phase to git.` });
+      } catch (err: any) {
+        this.emitNote({
+          level: 'warning',
+          message: `Failed to commit ${phase}: ${err?.message ?? err}`,
+        });
+      }
+    });
+  }
+
+  /**
+   * Runs on the first commitPhase call after identity is configured
+   * (when `greenfieldGit.deferred === true`). Initializes the repo and
+   * creates the initial .gitignore commit. The caller (commitPhase) will
+   * then commit the pending phase artifacts as a separate commit.
+   *
+   * Returns true if init succeeded, false otherwise.
+   */
+  private async retroactiveInit(): Promise<boolean> {
+    const state = this.projectManager.getProjectState(this.projectDir);
+    const identity = this.settingsStore.resolveIdentityForProject(state);
+    if (!identity) return false;
+
+    const gitManager = new GitManager(this.projectDir);
+
+    // Init if not already
+    if (!(await gitManager.isGitRepo())) {
+      try {
+        await gitManager.init();
+      } catch (err: any) {
+        this.emitNote({
+          level: 'warning',
+          message: `Retroactive git init failed: ${err?.message ?? err}`,
+        });
+        return false;
+      }
+    }
+
+    const git = gitManager.getSimpleGitInstance();
+    await writeRepoIdentity(git, identity).catch(() => {});
+
+    // Write .gitignore and create initial commit
+    const includeOfficeState =
+      this.settingsStore.get().gitPreferences?.includeOfficeStateInRepo ?? false;
+    this.writeGitignore(includeOfficeState);
+
+    try {
+      const env = buildGitEnv(identity);
+      const gitWithEnv = Object.keys(env).length > 0 ? git.env(env) : git;
+      await gitWithEnv.raw(['add', '.gitignore']);
+      await gitWithEnv.commit('Initial commit (The Office)');
+    } catch (err: any) {
+      this.emitNote({
+        level: 'warning',
+        message: `Retroactive initial commit failed: ${err?.message ?? err}`,
+      });
+      return false;
+    }
+
+    this.setGreenfieldGitState({
+      initialized: true,
+      deferred: false,
+      includeOfficeState,
+      lastIterationN: 0,
+    });
+    this.emitNote({ level: 'info', message: 'Project initialized with git (retroactive).' });
+    return true;
+  }
+
+  private buildPhaseCommitMessage(
+    phase: Phase,
+    outcome: 'completed' | 'failed',
+  ): string {
+    if (phase === 'imagine') return 'imagine: vision brief, PRD, market analysis';
+    if (phase === 'warroom') return 'warroom: system design, implementation plan';
+    if (phase === 'build') {
+      return outcome === 'failed'
+        ? 'build: FAILED — partial work'
+        : 'build: initial implementation';
+    }
+    if (phase === 'complete') return 'complete: RUN.md and completion summary';
+    return `${phase}: update`;
+  }
+
+  /**
+   * Serialize async operations so concurrent commitPhase calls don't
+   * interleave and corrupt the working tree / staging area.
+   */
+  private withMutex<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.commitMutex.then(fn, fn);
+    this.commitMutex = next.catch(() => {});
+    return next;
+  }
+
+  // startIteration added in Task 7
 }
