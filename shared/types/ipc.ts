@@ -275,13 +275,8 @@ export interface OfficeAPI {
   };
 }
 
-// NOTE: The global Window augmentation is intentionally omitted here during the
-// transition period (Tasks 1-3). It lives in shared/types.ts until Task 4
-// creates the barrel index.ts and deletes types.ts, at which point it will be
-// re-added here:
-//
-// declare global {
-//   interface Window {
-//     office: OfficeAPI;
-//   }
-// }
+declare global {
+  interface Window {
+    office: OfficeAPI;
+  }
+}
