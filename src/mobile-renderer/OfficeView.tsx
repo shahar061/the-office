@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type React from 'react';
 import { Application } from 'pixi.js';
-import { OfficeScene } from '../renderer/src/office/OfficeScene';
+import { MobileScene } from './MobileScene';
 import { useSessionStore } from '../../shared/stores/session.store';
 import type { AgentEvent, CharacterSnapshot } from '../../shared/types';
 import { classifyActivity } from '../../shared/core/event-reducer';
@@ -10,7 +10,7 @@ interface Props {
   active: boolean;
 }
 
-function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[]): void {
+function applyCharacterStates(scene: MobileScene, characters: CharacterSnapshot[]): void {
   // OfficeScene.init() creates all 15 Character instances but leaves them invisible
   // until scene.showCharacter(role) adds them to the scene graph. The desktop flow
   // calls this from useSceneSync as characters become active; the mobile flow has
@@ -39,7 +39,7 @@ function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[
   }
 }
 
-function applyEventToScene(scene: OfficeScene, event: AgentEvent): void {
+function applyEventToScene(scene: MobileScene, event: AgentEvent): void {
   const result = classifyActivity(event);
   if (result === null) return;
 
@@ -97,7 +97,7 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
         return;
       }
 
-      const scene = new OfficeScene(app);
+      const scene = new MobileScene(app);
       try {
         await scene.init();
       } catch (err) {
