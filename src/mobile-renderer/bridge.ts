@@ -1,11 +1,11 @@
 import { decode } from '../../shared/protocol/mobile';
-import { useMobileSessionStore } from './session.store';
+import { useSessionStore } from '../../shared/stores/session.store';
 
 export function handleRawMessage(raw: unknown): void {
   if (typeof raw !== 'string') return;
   const msg = decode(raw);
   if (!msg) return;
-  const store = useMobileSessionStore.getState();
+  const store = useSessionStore.getState();
   switch (msg.type) {
     case 'snapshot': store.setSnapshot(msg.snapshot); break;
     case 'event':    store.appendEvent(msg.event); break;

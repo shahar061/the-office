@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type React from 'react';
 import { Application } from 'pixi.js';
 import { OfficeScene } from '../renderer/src/office/OfficeScene';
-import { useMobileSessionStore } from './session.store';
+import { useSessionStore } from '../../shared/stores/session.store';
 import type { AgentEvent, CharacterSnapshot } from '../../shared/types';
 import { classifyActivity } from '../../shared/core/event-reducer';
 
@@ -117,18 +117,18 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
       appRef.current = app;
 
       // Hydrate from the current snapshot if one exists.
-      const initialState = useMobileSessionStore.getState();
+      const initialState = useSessionStore.getState();
       if (initialState.snapshot) {
         applyCharacterStates(scene, initialState.snapshot.characters);
       }
 
       // Subscribe to subsequent updates.
-      unsub = useMobileSessionStore.subscribe((state, prev) => {
+      unsub = useSessionStore.subscribe((state, prev) => {
         if (state.snapshot && state.snapshot !== prev.snapshot) {
           applyCharacterStates(scene, state.snapshot.characters);
         }
         if (state.pendingEvents !== prev.pendingEvents && state.pendingEvents.length > 0) {
-          const events = useMobileSessionStore.getState().drainPendingEvents();
+          const events = useSessionStore.getState().drainPendingEvents();
           for (const e of events) applyEventToScene(scene, e);
         }
       });

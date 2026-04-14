@@ -5,7 +5,7 @@ import { WebViewHost } from '../webview-host/WebViewHost';
 import { ConnectionBanner } from '../webview-host/ConnectionBanner';
 import { LanWsTransport } from '../transport/lan-ws.transport';
 import { useConnectionStore } from '../state/connection.store';
-import { useSessionStore } from '../state/session.store';
+import { useSessionStore } from '../types/shared';
 import { loadLastKnown, saveLastKnown } from '../state/cache';
 import type { MobileMessage } from '../types/shared';
 import type { PairedDeviceCredentials } from '../pairing/secure-store';

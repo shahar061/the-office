@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import type React from 'react';
-import { useMobileSessionStore } from './session.store';
+import { useSessionStore } from '../../shared/stores/session.store';
 import { AGENT_COLORS } from '../../shared/types';
 
 export function ChatView(): React.JSX.Element {
-  const snapshot = useMobileSessionStore((s) => s.snapshot);
+  const snapshot = useSessionStore((s) => s.snapshot);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
