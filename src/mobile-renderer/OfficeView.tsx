@@ -4,12 +4,11 @@ import { Application } from 'pixi.js';
 import { OfficeScene } from '../renderer/src/office/OfficeScene';
 import { useMobileSessionStore } from './session.store';
 import type { AgentEvent, CharacterSnapshot } from '../../shared/types';
+import { classifyActivity } from '../../shared/core/event-reducer';
 
 interface Props {
   active: boolean;
 }
-
-const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Agent']);
 
 function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[]): void {
   // OfficeScene.init() creates all 15 Character instances but leaves them invisible
@@ -41,34 +40,27 @@ function applyCharacterStates(scene: OfficeScene, characters: CharacterSnapshot[
 }
 
 function applyEventToScene(scene: OfficeScene, event: AgentEvent): void {
-  // Make sure the character is on-screen before any state change. showCharacter()
-  // is idempotent — it no-ops if the character is already visible.
+  const result = classifyActivity(event);
+  if (result === null) return;
+
+  if ('removed' in result) {
+    scene.hideCharacter(event.agentRole);
+    return;
+  }
+
   scene.showCharacter(event.agentRole);
   const character = scene.getCharacter(event.agentRole);
   if (!character) return;
-  switch (event.type) {
-    case 'agent:created':
-      // Character is now visible via showCharacter above; nothing else to do.
-      break;
-    case 'agent:tool:start': {
-      const isRead = event.toolName ? READ_TOOLS.has(event.toolName) : false;
-      character.setWorking(isRead ? 'read' : 'type');
-      if (event.toolName) character.showToolBubble(event.toolName, '');
-      break;
-    }
-    case 'agent:tool:done':
-    case 'agent:tool:clear':
-      character.setIdle();
-      break;
-    case 'agent:waiting':
-      character.showToolBubble('', '...');
-      break;
-    case 'agent:closed':
-      scene.hideCharacter(event.agentRole);
-      break;
-    // Other events are non-visual.
-    default:
-      break;
+
+  switch (result.activity) {
+    case 'reading': character.setWorking('read'); break;
+    case 'typing':  character.setWorking('type'); break;
+    case 'waiting': character.showToolBubble('', '...'); break;
+    case 'idle':    character.setIdle(); break;
+  }
+
+  if (event.type === 'agent:tool:start' && event.toolName) {
+    character.showToolBubble(event.toolName, '');
   }
 }
 
