@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { encode, decode, isMobileMessage } from '../protocol';
-import type { MobileMessage } from '../../../shared/types';
+import { encode, decode, isMobileMessage } from '../mobile';
+import type { MobileMessage } from '../../types';
 
 describe('protocol', () => {
   const samples: MobileMessage[] = [

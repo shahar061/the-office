@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { networkInterfaces } from 'os';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { MobileMessage, PairedDevice } from '../../shared/types';
-import { encode, decode } from './protocol';
+import { encode, decode } from '../../shared/protocol/mobile';
 import { DeviceStore } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
 import {
