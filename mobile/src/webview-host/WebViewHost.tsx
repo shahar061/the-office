@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import { useSessionStore } from '../state/session.store';
+import { useSessionStore } from '../types/shared';
 import type { MobileMessage } from '../types/shared';
 
 interface Props {

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installBridge, handleRawMessage } from '../bridge';
-import { useMobileSessionStore } from '../session.store';
+import { useSessionStore as useMobileSessionStore } from '../../../shared/stores/session.store';
 import type { MobileMessage } from '../../shared/types';
 
 describe('bridge', () => {

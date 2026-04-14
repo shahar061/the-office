@@ -1,32 +1,34 @@
+// shared/stores/session.store.ts — Unified session store for mobile-renderer and Expo
 import { create } from 'zustand';
 import type {
   AgentEvent,
   ChatMessage,
   SessionSnapshot,
   SessionStatePatch,
-} from '../../shared/types';
+} from '../types';
 
 const CHAT_TAIL_CAP = 50;
 
-interface MobileSessionState {
+interface SessionState {
   snapshot: SessionSnapshot | null;
   pendingEvents: AgentEvent[];
-  setSnapshot: (snapshot: SessionSnapshot) => void;
-  appendEvent: (event: AgentEvent) => void;
+  setSnapshot: (s: SessionSnapshot) => void;
+  hydrateFromCache: (s: SessionSnapshot) => void;
+  appendEvent: (e: AgentEvent) => void;
   drainPendingEvents: () => AgentEvent[];
   appendChat: (messages: ChatMessage[]) => void;
   applyStatePatch: (patch: SessionStatePatch) => void;
+  clear: () => void;
 }
 
-export const useMobileSessionStore = create<MobileSessionState>((set, get) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   snapshot: null,
   pendingEvents: [],
 
   setSnapshot: (snapshot) => set({ snapshot, pendingEvents: [] }),
+  hydrateFromCache: (snapshot) => set({ snapshot }),
 
-  appendEvent: (event) => {
-    set((state) => ({ pendingEvents: [...state.pendingEvents, event] }));
-  },
+  appendEvent: (event) => set((state) => ({ pendingEvents: [...state.pendingEvents, event] })),
 
   drainPendingEvents: () => {
     const events = get().pendingEvents;
@@ -51,4 +53,6 @@ export const useMobileSessionStore = create<MobileSessionState>((set, get) => ({
       case 'ended':       set({ snapshot: { ...current, sessionEnded: patch.ended } }); break;
     }
   },
+
+  clear: () => set({ snapshot: null, pendingEvents: [] }),
 }));

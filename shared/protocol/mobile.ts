@@ -1,4 +1,4 @@
-import type { MobileMessage } from '../../shared/types';
+import type { MobileMessage } from '../types';
 
 const VALID_TYPES = new Set([
   'pair', 'auth', 'paired', 'authed', 'authFailed',
