@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Press_Start_2P } from "next/font/google";
 import "./globals.css";
+import FloatingPixels from "../components/FloatingPixels";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -36,7 +37,10 @@ export default function RootLayout({
       className={`${inter.variable} ${pressStart2P.variable}`}
       style={{ colorScheme: "dark" }}
     >
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <FloatingPixels />
+        <div className="relative z-10">{children}</div>
+      </body>
     </html>
   );
 }
