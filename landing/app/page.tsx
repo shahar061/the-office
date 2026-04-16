@@ -3,6 +3,7 @@ import { Hero } from "../components/Hero";
 import { ProblemSection } from "../components/ProblemSection";
 import { PhasesSection } from "../components/PhasesSection";
 import { OrgChart } from "../components/OrgChart";
+import { FeaturesSection } from "../components/FeaturesSection";
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <ProblemSection />
       <PhasesSection />
       <OrgChart />
+      <FeaturesSection />
     </main>
   );
 }
