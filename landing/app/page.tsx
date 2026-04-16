@@ -1,12 +1,11 @@
 import Nav from "../components/Nav";
+import { Hero } from "../components/Hero";
 
 export default function Home() {
   return (
-    <main>
+    <main className="min-h-screen bg-bg">
       <Nav />
-      <div className="flex min-h-screen items-center justify-center">
-        <h1 className="font-pixel text-2xl text-text-primary">pixel.team</h1>
-      </div>
+      <Hero />
     </main>
   );
 }
