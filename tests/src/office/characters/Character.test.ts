@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Character, CharacterState } from '../../../../src/renderer/src/office/characters/Character';
+import { Character, CharacterAnimation } from '../../../../src/renderer/src/office/characters/Character';
 
 vi.mock('../../../../src/renderer/src/office/characters/CharacterSprite', () => ({
   CharacterSprite: class MockSprite {
@@ -45,24 +45,24 @@ describe('Character', () => {
   });
 
   it('starts in idle state at desk position', () => {
-    expect(character.getState()).toBe('idle');
+    expect(character.getAnimation()).toBe('idle');
     expect(character.getTilePosition()).toEqual({ x: 5, y: 5 });
   });
 
   it('transitions to walk when given a target', () => {
     character.moveTo({ x: 7, y: 5 });
-    expect(character.getState()).toBe('walk');
+    expect(character.getAnimation()).toBe('walk');
   });
 
   it('transitions to type when setWorking called with type', () => {
     character.setWorking('type');
-    expect(['walk', 'type']).toContain(character.getState());
+    expect(['walk', 'type']).toContain(character.getAnimation());
   });
 
   it('transitions to idle when setIdle called', () => {
     character.setWorking('type');
     character.setIdle();
-    expect(character.getState()).toBe('idle');
+    expect(character.getAnimation()).toBe('idle');
   });
 
   it('advances along path on update', () => {

@@ -74,7 +74,7 @@ export function useWarRoomIntro(scene: OfficeScene | null) {
       cam.snapTo(pos.x, pos.y, 2.5);
 
       // Check if PM has arrived (no longer walking)
-      if (pm.getState() !== 'walk') {
+      if (pm.getAnimation() !== 'walk') {
         // PM arrived at boardroom — show dialog
         setShowDialog(true);
         return; // stop tracking

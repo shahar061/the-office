@@ -106,7 +106,7 @@ describe('Character visibility lifecycle', () => {
     // Character starts invisible. Simulate many seconds of idle time.
     for (let i = 0; i < 600; i++) character.update(1 / 60); // 10 seconds
     // Should still be at original position (no wandering)
-    expect(character.getState()).toBe('idle');
+    expect(character.getAnimation()).toBe('idle');
     expect(character.sprite.setPosition).not.toHaveBeenCalled();
   });
 

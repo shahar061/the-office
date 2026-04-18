@@ -2,10 +2,10 @@ import { Texture } from 'pixi.js';
 import { CharacterSprite, type Direction, type AnimState } from './CharacterSprite';
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
-import type { AgentRole } from '../../../../shared/types';
+import type { AgentRole, CharacterState } from '../../../../shared/types';
 import { ToolBubble } from './ToolBubble';
 
-export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
+export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
 
 const SPEED = 48;
 
@@ -30,13 +30,13 @@ export class Character {
   readonly role: AgentRole;
   readonly sprite: CharacterSprite;
 
-  private state: CharacterState = 'idle';
+  private state: CharacterAnimation = 'idle';
   private mapRenderer: TiledMapRenderer;
   private deskTile: { x: number; y: number };
   private px: number;
   private py: number;
   private path: { x: number; y: number }[] = [];
-  private pendingWork: CharacterState | null = null;
+  private pendingWork: CharacterAnimation | null = null;
   private direction: Direction = 'down';
   private idleTimer = 0;
   private idleWanderDelay = 3 + Math.random() * 5;
@@ -70,8 +70,21 @@ export class Character {
     this.toolBubble = new ToolBubble();
   }
 
-  getState(): CharacterState {
+  getAnimation(): CharacterAnimation {
     return this.state;
+  }
+
+  getStateSnapshot(): CharacterState {
+    return {
+      agentId: this.agentId,
+      x: this.px,
+      y: this.py,
+      direction: this.direction,
+      animation: this.state,
+      visible: this.isVisible,
+      alpha: this.sprite.container.alpha,
+      toolBubble: this.toolBubble.getPublicState(),
+    };
   }
 
   getTilePosition(): { x: number; y: number } {

@@ -298,7 +298,7 @@ export class OfficeScene {
     nameText.y = 6;
 
     const stateText = new Text({
-      text: character.getState(),
+      text: character.getAnimation(),
       style: { fontSize: 8, fill: '#94a3b8', fontFamily: 'monospace' },
     });
     stateText.x = 8;
