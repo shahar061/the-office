@@ -1,7 +1,6 @@
 import React from 'react';
 import { GitIdentitySubsection } from './GitIdentitySubsection';
 import { GitPreferencesSubsection } from './GitPreferencesSubsection';
-import { MobilePairingSubsection } from './MobilePairingSubsection';
 import { colors } from '../../../theme';
 
 const styles = {
@@ -12,6 +11,13 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '24px',
   },
+  note: {
+    color: colors.textMuted,
+    fontSize: '12px',
+    padding: '10px 12px',
+    border: `1px dashed ${colors.border}`,
+    borderRadius: '6px',
+  },
 } as const;
 
 export function IntegrationsSection() {
@@ -19,7 +25,9 @@ export function IntegrationsSection() {
     <div style={styles.root}>
       <GitIdentitySubsection />
       <GitPreferencesSubsection />
-      <MobilePairingSubsection />
+      <div style={styles.note}>
+        Mobile pairing moved to its own tab — check the <strong>Mobile</strong> section in the sidebar.
+      </div>
     </div>
   );
 }
