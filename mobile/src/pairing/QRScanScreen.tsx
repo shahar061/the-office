@@ -3,95 +3,46 @@ import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
-import * as Device from 'expo-device';
-import { saveDevice, type PairedDeviceCredentials } from './secure-store';
-import type { PairingQRPayload, MobileMessage } from '../types/shared';
+import type { PairingQRPayloadV2 } from '@shared/types';
 
 interface Props {
-  onPaired: (device: PairedDeviceCredentials) => void;
+  onScanned: (payload: PairingQRPayloadV2) => void;
   onCancel: () => void;
 }
 
 type UiState =
   | { kind: 'scanning' }
-  | { kind: 'connecting' }
   | { kind: 'error'; message: string };
 
-export function QRScanScreen({ onPaired, onCancel }: Props) {
+export function QRScanScreen({ onScanned, onCancel }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [state, setState] = useState<UiState>({ kind: 'scanning' });
   const handledRef = useRef(false);
 
+  const parsePayload = useCallback((raw: string): { ok: true; payload: PairingQRPayloadV2 } | { ok: false; message: string } => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); }
+    catch { return { ok: false, message: 'This QR code is not a valid pairing code.' }; }
+    const p = parsed as Partial<PairingQRPayloadV2>;
+    if (p.v !== 2) return { ok: false, message: 'This pairing code is not supported. Update your desktop app.' };
+    if (!p.host || !p.port || !p.desktopIdentityPub || !p.pairingToken || !p.expiresAt) {
+      return { ok: false, message: 'Pairing code is missing required fields.' };
+    }
+    if (p.expiresAt <= Date.now()) return { ok: false, message: 'This pairing code has expired. Please generate a new one on your desktop.' };
+    return { ok: true, payload: p as PairingQRPayloadV2 };
+  }, []);
+
   const handleScanned = useCallback((result: { data: string }) => {
     if (handledRef.current) return;
     handledRef.current = true;
-
-    let payload: PairingQRPayload;
-    try {
-      payload = JSON.parse(result.data) as PairingQRPayload;
-    } catch {
-      setState({ kind: 'error', message: 'This QR code is not a valid pairing code.' });
+    const parsed = parsePayload(result.data);
+    if (!parsed.ok) {
+      setState({ kind: 'error', message: parsed.message });
       handledRef.current = false;
       return;
     }
-    if (payload.v !== 1) {
-      setState({ kind: 'error', message: 'This pairing code version is not supported.' });
-      handledRef.current = false;
-      return;
-    }
-    if (payload.expiresAt <= Date.now()) {
-      setState({ kind: 'error', message: 'This pairing code has expired. Please generate a new one on your desktop.' });
-      handledRef.current = false;
-      return;
-    }
-
-    setState({ kind: 'connecting' });
-
-    const ws = new WebSocket(`ws://${payload.host}:${payload.port}/office`);
-    const timeout = setTimeout(() => {
-      try { ws.close(); } catch { /* ignore */ }
-      setState({ kind: 'error', message: 'Could not reach the desktop. Make sure it is running and on the same WiFi.' });
-      handledRef.current = false;
-    }, 10_000);
-
-    ws.onopen = () => {
-      const deviceName = Device.modelName ?? 'Phone';
-      ws.send(JSON.stringify({
-        type: 'pair', v: 1, pairingToken: payload.pairingToken, deviceName,
-      } as MobileMessage));
-    };
-
-    ws.onmessage = async (ev: { data: string }) => {
-      let msg: MobileMessage;
-      try { msg = JSON.parse(ev.data); } catch { return; }
-      if (msg.type !== 'paired') {
-        if (msg.type === 'authFailed') {
-          setState({ kind: 'error', message: `Pairing rejected: ${msg.reason}` });
-          try { ws.close(); } catch { /* ignore */ }
-          handledRef.current = false;
-        }
-        return;
-      }
-      clearTimeout(timeout);
-      try { ws.close(); } catch { /* ignore */ }
-
-      const device: PairedDeviceCredentials = {
-        deviceId: msg.deviceId,
-        deviceToken: msg.deviceToken,
-        desktopName: msg.desktopName,
-        host: payload.host,
-        port: payload.port,
-      };
-      await saveDevice(device);
-      onPaired(device);
-    };
-
-    ws.onerror = () => {
-      clearTimeout(timeout);
-      setState({ kind: 'error', message: 'Could not connect to the desktop.' });
-      handledRef.current = false;
-    };
-  }, [onPaired]);
+    onScanned(parsed.payload);
+  }, [onScanned, parsePayload]);
 
   const handlePastePayload = useCallback(async () => {
     try {
@@ -100,10 +51,9 @@ export function QRScanScreen({ onPaired, onCancel }: Props) {
         setState({ kind: 'error', message: 'Clipboard is empty.' });
         return;
       }
-      // Reset the handled guard so a paste after a prior error works
       handledRef.current = false;
       handleScanned({ data: text });
-    } catch (err) {
+    } catch {
       setState({ kind: 'error', message: 'Could not read clipboard.' });
     }
   }, [handleScanned]);
@@ -133,17 +83,18 @@ export function QRScanScreen({ onPaired, onCancel }: Props) {
         onBarcodeScanned={state.kind === 'scanning' ? handleScanned : undefined}
       />
       <View style={styles.overlay}>
-        {state.kind === 'scanning' && <Text style={styles.overlayText}>Point at the pairing QR</Text>}
-        {state.kind === 'connecting' && (
+        {state.kind === 'scanning' && (
           <>
-            <ActivityIndicator color="#fff" />
-            <Text style={styles.overlayText}>Pairing…</Text>
+            <Text style={styles.overlayText}>Scan the QR on your computer</Text>
+            <Text style={[styles.overlayText, styles.overlayHint]}>
+              You'll check a 6-digit code matches on both screens.
+            </Text>
           </>
         )}
         {state.kind === 'error' && (
           <>
             <Text style={[styles.overlayText, styles.errorText]}>{state.message}</Text>
-            <Pressable style={styles.button} onPress={() => setState({ kind: 'scanning' })}>
+            <Pressable style={styles.button} onPress={() => { handledRef.current = false; setState({ kind: 'scanning' }); }}>
               <Text style={styles.buttonText}>Try again</Text>
             </Pressable>
           </>
@@ -167,6 +118,7 @@ const styles = StyleSheet.create({
     gap: 16, alignItems: 'center',
   },
   overlayText: { color: '#f5f5f5', fontSize: 16, textAlign: 'center' },
+  overlayHint: { fontSize: 13, opacity: 0.75 },
   errorText: { color: '#f87171' },
   button: { backgroundColor: '#6366f1', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
@@ -179,9 +131,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
   },
-  pasteBtnText: {
-    color: '#a5b4fc',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  pasteBtnText: { color: '#a5b4fc', fontSize: 14, fontWeight: '600' },
 });
