@@ -23,6 +23,7 @@ out/
 .superpowers/
 .worktrees/
 docs/superpowers/
+docs/office/
 
 # Electron
 release/
