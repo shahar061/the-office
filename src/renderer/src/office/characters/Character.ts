@@ -3,7 +3,7 @@ import { CharacterSprite, type Direction, type AnimState } from './CharacterSpri
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
 import type { AgentRole } from '../../../../shared/types';
-import { ToolBubble, toolIcon } from './ToolBubble';
+import { ToolBubble } from './ToolBubble';
 
 export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
 
@@ -150,7 +150,7 @@ export class Character {
   }
 
   showToolBubble(toolName: string, target: string): void {
-    this.toolBubble.show(toolIcon(toolName), target);
+    this.toolBubble.show(toolName, target);
   }
 
   hideToolBubble(): void {

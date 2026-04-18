@@ -46,6 +46,8 @@ export class ToolBubble {
   private isThinking = false;
   private dotsElapsed = 0;
   private dotsPhase = 0;
+  private publicToolName: string | null = null;
+  private publicTarget: string | undefined = undefined;
 
   constructor() {
     this.container = new Container();
@@ -74,7 +76,10 @@ export class ToolBubble {
     this.inner.addChild(this.bg, this.label);
   }
 
-  show(icon: string, target: string): void {
+  show(toolName: string, target: string): void {
+    const icon = toolIcon(toolName);
+    this.publicToolName = toolName;
+    this.publicTarget = target || undefined;
     this.isThinking = !icon && target === '...';
 
     if (this.isThinking) {
@@ -128,6 +133,8 @@ export class ToolBubble {
     this.isThinking = false;
     this.container.alpha = 0;
     this.container.visible = false;
+    this.publicToolName = null;
+    this.publicTarget = undefined;
   }
 
   update(dt: number): void {
@@ -179,5 +186,17 @@ export class ToolBubble {
     this.bg.clear();
     this.bg.roundRect(0, 0, this.bgW, this.bgH, CORNER_RADIUS);
     this.bg.fill({ color: BG_COLOR, alpha: BG_ALPHA });
+  }
+
+  getPublicState(): { toolName: string; target?: string } | null {
+    if (!this.publicToolName) return null;
+    return this.publicTarget !== undefined
+      ? { toolName: this.publicToolName, target: this.publicTarget }
+      : { toolName: this.publicToolName };
+  }
+
+  setTarget(state: { toolName: string; target?: string } | null): void {
+    if (!state) { this.hide(); return; }
+    this.show(state.toolName, state.target ?? '');
   }
 }
