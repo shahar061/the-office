@@ -65,6 +65,8 @@ export interface WsServerOptions {
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
   onPhoneChat?: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => Promise<void>;
+  /** Fan-out to relay connections alongside LAN connections. Invoked from broadcastToAuthenticated. */
+  onBroadcastToRelay?: (msg: MobileMessageV2) => void;
 }
 
 export class WsServer {
@@ -137,6 +139,11 @@ export class WsServer {
       if (c.state.kind === 'authenticated' && c.ws.readyState === WebSocket.OPEN) {
         this.sendEncrypted(c, msg);
       }
+    }
+    try {
+      this.opts.onBroadcastToRelay?.(msg);
+    } catch (err) {
+      console.warn('[mobile-bridge] relay broadcast failed', err);
     }
   }
 
