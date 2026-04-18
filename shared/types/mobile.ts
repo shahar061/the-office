@@ -79,4 +79,5 @@ export type MobileMessageV2 =
   | { type: 'event'; v: 2; event: AgentEvent }
   | { type: 'chatFeed'; v: 2; messages: ChatMessage[] }
   | { type: 'chatAck'; v: 2; clientMsgId: string; ok: boolean; error?: string }
-  | { type: 'state'; v: 2; patch: SessionStatePatch };
+  | { type: 'state'; v: 2; patch: SessionStatePatch }
+  | { type: 'tokenRefresh'; v: 2; token: string; expiresAt: number };

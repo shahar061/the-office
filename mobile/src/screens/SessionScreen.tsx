@@ -12,6 +12,7 @@ import { useSessionStore } from '../types/shared';
 import { loadLastKnown, saveLastKnown } from '../state/cache';
 import type { MobileMessageV2 } from '../types/shared';
 import type { PairedDeviceCredentials } from '../pairing/secure-store';
+import { saveDevice } from '../pairing/secure-store';
 
 interface Props {
   device: PairedDeviceCredentials;
@@ -97,6 +98,12 @@ export function SessionScreen({ device, onPairingLost }: Props) {
             pending.resolve(m.ok, m.error);
             pendingAcksRef.current.delete(m.clientMsgId);
           }
+          break;
+        }
+        case 'tokenRefresh': {
+          // Persist the new relay token so future reconnects can use the relay.
+          const updated = { ...device, relayToken: m.token };
+          void saveDevice(updated);
           break;
         }
       }
