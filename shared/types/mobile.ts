@@ -9,6 +9,13 @@ export interface PairedDevice {
   deviceTokenHash: string;  // scrypt hash; never the raw token
   pairedAt: number;
   lastSeenAt: number;
+  // v2 fields — optional for backward compat with v1 records
+  phoneIdentityPub?: string;   // base64, phone's long-lived X25519 pubkey
+  pairSignPriv?: string;       // base64, desktop's Ed25519 priv for relay tokens
+  pairSignPub?: string;        // base64, corresponding pubkey
+  sid?: string;                // base64url, 128-bit relay session id
+  remoteAllowed?: boolean;
+  epoch?: number;              // bumped on revoke (used in Plan 2)
 }
 
 export interface PairingQRPayload {
