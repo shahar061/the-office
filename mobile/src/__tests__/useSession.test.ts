@@ -156,4 +156,18 @@ describe('useSession', () => {
     await expect(ackPromise).resolves.toEqual({ ok: false, error: expect.stringMatching(/timed out/i) });
     jest.useRealTimers();
   });
+
+  it('routes charState to applyCharState', () => {
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+    const cs = [{
+      agentId: 'ceo', x: 10, y: 20,
+      direction: 'down' as const, animation: 'idle' as const,
+      visible: true, alpha: 1, toolBubble: null,
+    }];
+    act(() => fake.emitMessage({ type: 'charState', v: 2, ts: 1234, characters: cs }));
+    expect(useSessionStore.getState().characterStates.get('ceo')?.x).toBe(10);
+    expect(useSessionStore.getState().lastCharStateTs).toBe(1234);
+  });
 });
