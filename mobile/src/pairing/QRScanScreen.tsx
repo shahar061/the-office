@@ -3,10 +3,12 @@ import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
-import type { PairingQRPayloadV2 } from '@shared/types';
+import type { PairingQRPayloadV2, PairingQRPayloadV3 } from '@shared/types';
+
+type ScannedPayload = PairingQRPayloadV2 | PairingQRPayloadV3;
 
 interface Props {
-  onScanned: (payload: PairingQRPayloadV2) => void;
+  onScanned: (payload: ScannedPayload) => void;
   onCancel: () => void;
 }
 
@@ -19,17 +21,37 @@ export function QRScanScreen({ onScanned, onCancel }: Props) {
   const [state, setState] = useState<UiState>({ kind: 'scanning' });
   const handledRef = useRef(false);
 
-  const parsePayload = useCallback((raw: string): { ok: true; payload: PairingQRPayloadV2 } | { ok: false; message: string } => {
+  const parsePayload = useCallback((raw: string):
+      | { ok: true; payload: ScannedPayload }
+      | { ok: false; message: string } => {
     let parsed: unknown;
     try { parsed = JSON.parse(raw); }
     catch { return { ok: false, message: 'This QR code is not a valid pairing code.' }; }
-    const p = parsed as Partial<PairingQRPayloadV2>;
-    if (p.v !== 2) return { ok: false, message: 'This pairing code is not supported. Update your desktop app.' };
-    if (!p.host || !p.port || !p.desktopIdentityPub || !p.pairingToken || !p.expiresAt) {
-      return { ok: false, message: 'Pairing code is missing required fields.' };
+    const p = parsed as { v?: number; [k: string]: any };
+
+    if (p.v === 2) {
+      if (!p.host || !p.port || !p.desktopIdentityPub || !p.pairingToken || !p.expiresAt) {
+        return { ok: false, message: 'Pairing code is missing required fields.' };
+      }
+      if (p.expiresAt <= Date.now()) return { ok: false, message: 'This pairing code has expired. Please generate a new one on your desktop.' };
+      return { ok: true, payload: p as PairingQRPayloadV2 };
     }
-    if (p.expiresAt <= Date.now()) return { ok: false, message: 'This pairing code has expired. Please generate a new one on your desktop.' };
-    return { ok: true, payload: p as PairingQRPayloadV2 };
+
+    if (p.v === 3) {
+      if (p.mode !== 'relay' && p.mode !== 'lan-direct') {
+        return { ok: false, message: 'This pairing code uses an unknown mode.' };
+      }
+      if (!p.roomId || !p.desktopIdentityPub || !p.pairingToken || !p.expiresAt) {
+        return { ok: false, message: 'Pairing code is missing required fields.' };
+      }
+      if (p.mode === 'lan-direct' && (!p.host || !p.port)) {
+        return { ok: false, message: 'LAN pairing code is missing host/port.' };
+      }
+      if (p.expiresAt <= Date.now()) return { ok: false, message: 'This pairing code has expired. Please generate a new one on your desktop.' };
+      return { ok: true, payload: p as PairingQRPayloadV3 };
+    }
+
+    return { ok: false, message: 'This pairing code is not supported. Update your mobile app.' };
   }, []);
 
   const handleScanned = useCallback((result: { data: string }) => {

@@ -31,6 +31,7 @@ export interface AppSettings {
     port: number | null;  // null = dynamic
     devices: PairedDevice[];
     identity?: { priv: string; pub: string };  // base64, per-desktop Noise static keypair
+    lanHost?: string;  // user-provided LAN host/IP for direct LAN pairing; empty = relay-only
   };
   audio?: {
     musicMuted: boolean;

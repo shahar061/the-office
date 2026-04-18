@@ -10,6 +10,7 @@ export function registerMobileHandlers(bridge: MobileBridge): void {
   ipcMain.handle(IPC_CHANNELS.MOBILE_SET_REMOTE_ACCESS, (_evt, deviceId: string, enabled: boolean) => bridge.setRemoteAccess(deviceId, enabled));
   ipcMain.handle(IPC_CHANNELS.MOBILE_PAUSE_RELAY, (_evt, until: number | null) => bridge.pauseRelay(until));
   ipcMain.handle(IPC_CHANNELS.MOBILE_GET_STATUS, () => bridge.getStatus());
+  ipcMain.handle(IPC_CHANNELS.MOBILE_SET_LAN_HOST, (_e, host: string | null) => bridge.setLanHost(host));
 }
 
 export function unregisterMobileHandlers(): void {
@@ -20,6 +21,7 @@ export function unregisterMobileHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.MOBILE_SET_REMOTE_ACCESS);
   ipcMain.removeHandler(IPC_CHANNELS.MOBILE_PAUSE_RELAY);
   ipcMain.removeHandler(IPC_CHANNELS.MOBILE_GET_STATUS);
+  ipcMain.removeHandler(IPC_CHANNELS.MOBILE_SET_LAN_HOST);
 }
 
 export function broadcastMobileStatus(bridge: MobileBridge): void {

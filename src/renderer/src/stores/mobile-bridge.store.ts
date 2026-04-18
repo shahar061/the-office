@@ -9,6 +9,7 @@ interface MobileStatus {
   v1DeviceCount: number;
   relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
   relayPausedUntil: number | null;
+  lanHost: string | null;
   devices: Array<{
     deviceId: string;
     deviceName: string;
@@ -31,6 +32,7 @@ interface MobileBridgeState {
   renameDevice: (deviceId: string, name: string) => Promise<void>;
   setRemoteAccess: (deviceId: string, enabled: boolean) => Promise<void>;
   pauseRelay: (until: number | null) => Promise<void>;
+  setLanHost: (host: string | null) => Promise<void>;
 }
 
 export const useMobileBridgeStore = create<MobileBridgeState>((set, get) => ({
@@ -72,6 +74,11 @@ export const useMobileBridgeStore = create<MobileBridgeState>((set, get) => ({
 
   pauseRelay: async (until) => {
     await window.office.mobile.pauseRelay(until);
+    await get().refresh();
+  },
+
+  setLanHost: async (host) => {
+    await window.office.mobile.setLanHost(host);
     await get().refresh();
   },
 }));

@@ -1,23 +1,19 @@
 import { randomUUID, randomBytes } from 'crypto';
-import { networkInterfaces } from 'os';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { MobileMessageV2, PairedDevice, PairingQRPayloadV2 } from '../../shared/types';
+import type { MobileMessageV2, PairingQRPayloadV3 } from '../../shared/types';
+import type { AppSettings } from '../../shared/types';
 import { encodeV2, decodeV2 } from '../../shared/protocol/mobile';
 import { DeviceStore } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
 import type { Identity } from './identity';
 import { deriveSessionKeys } from '../../shared/crypto/noise';
-import { deriveSas } from '../../shared/crypto/sas';
 import { SendStream, RecvStream } from '../../shared/crypto/secretstream';
 import {
   createPairingToken,
-  isPairingTokenExpired,
-  generateDeviceToken,
-  hashDeviceToken,
   verifyDeviceToken,
-  generatePairSignKeypair,
   type PairingToken,
 } from './pairing';
+import { PairingFSM } from './pairing-fsm';
 import { mintToken } from './token-minter';
 
 const IDLE_PRE_AUTH_MS = 30_000; // bumped slightly; v2 has more round trips
@@ -25,25 +21,7 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 const HEARTBEAT_TIMEOUT_MS = 45_000;
 
 type ConnState =
-  | { kind: 'awaiting-first' }
-  | {
-      kind: 'awaiting-sas';
-      devicePub: Uint8Array;
-      sessionKeys: { sendKey: Uint8Array; recvKey: Uint8Array };
-      deviceName: string;
-      pairingToken: string;
-    }
-  | {
-      kind: 'awaiting-remote-consent';
-      devicePub: Uint8Array;
-      sessionKeys: { sendKey: Uint8Array; recvKey: Uint8Array };
-      deviceName: string;
-      deviceId: string;
-      deviceToken: string;
-      deviceTokenHash: string;
-      pairSign: { priv: Uint8Array; pub: Uint8Array };
-      sid: string;
-    }
+  | { kind: 'pairing'; fsm: PairingFSM }
   | { kind: 'authenticated'; deviceId: string; send: SendStream; recv: RecvStream }
   | { kind: 'closed' };
 
@@ -63,6 +41,7 @@ export interface WsServerOptions {
   deviceStore: DeviceStore;
   snapshots: SnapshotBuilder;
   identity: Identity;
+  settings?: { get: () => AppSettings };
   onChange?: () => void;
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
@@ -116,18 +95,21 @@ export class WsServer {
     return ids;
   }
 
-  generatePairingQR(): { qrPayload: string; expiresAt: number } {
-    this.activePairing = createPairingToken();
-    const host = pickLanIP();
-    const payload: PairingQRPayloadV2 = {
-      v: 2,
-      host,
-      port: this.port ?? 0,
+  generatePairingQR(): { qrPayload: string; expiresAt: number; roomId: string; pairingToken: string } {
+    const token = createPairingToken();
+    this.activePairing = token;
+    const roomId = randomBytes(16).toString('base64url');
+    const lanHost = this.opts.settings?.get().mobile?.lanHost;
+    const payload: PairingQRPayloadV3 = {
+      v: 3,
+      mode: lanHost ? 'lan-direct' : 'relay',
+      roomId,
       desktopIdentityPub: Buffer.from(this.opts.identity.pub).toString('base64'),
-      pairingToken: this.activePairing.token,
-      expiresAt: this.activePairing.expiresAt,
+      pairingToken: token.token,
+      expiresAt: token.expiresAt,
+      ...(lanHost ? { host: lanHost, port: this.port ?? 0 } : {}),
     };
-    return { qrPayload: JSON.stringify(payload), expiresAt: this.activePairing.expiresAt };
+    return { qrPayload: JSON.stringify(payload), expiresAt: token.expiresAt, roomId, pairingToken: token.token };
   }
 
   revokeDevice(deviceId: string): void {
@@ -173,12 +155,14 @@ export class WsServer {
     const conn: Connection = {
       id: randomUUID(),
       ws,
-      state: { kind: 'awaiting-first' },
+      state: { kind: 'closed' }, // placeholder; replaced immediately below
       lastHeartbeat: Date.now(),
       lastTokenRefresh: null,
-      idleTimer: setTimeout(() => this.teardown(conn, 4408), IDLE_PRE_AUTH_MS),
+      idleTimer: null,
       heartbeatTimer: null,
     };
+    conn.idleTimer = setTimeout(() => this.teardown(conn, 4408), IDLE_PRE_AUTH_MS);
+    conn.state = { kind: 'pairing', fsm: this.createFsm(conn) };
     this.connections.set(conn.id, conn);
 
     ws.on('message', (data) => this.handleMessage(conn, data).catch((err) => {
@@ -189,6 +173,42 @@ export class WsServer {
     ws.on('error', (err) => {
       console.warn('[mobile-bridge] socket error', err);
       this.teardown(conn, 4500);
+    });
+  }
+
+  /** Build a fresh PairingFSM for a newly-accepted connection. The FSM
+   *  captures `this.activePairing` at construction time; if the token is
+   *  absent or later gets consumed, the FSM's own `handlePair` will still
+   *  reject stale tokens via its token-matching check. */
+  private createFsm(conn: Connection): PairingFSM {
+    // If there is no active pairing, we still construct an FSM with a
+    // sentinel token that cannot match anything the client sends. Its
+    // `handlePair` will reject the client cleanly with `authFailed`.
+    const pairingToken: PairingToken = this.activePairing ?? {
+      token: '__no_active_pairing__',
+      expiresAt: 0, // immediately expired
+    };
+    return new PairingFSM({
+      identity: this.opts.identity,
+      desktopName: this.opts.desktopName,
+      deviceStore: this.opts.deviceStore,
+      pairingToken,
+      sendPlain: (msg) => this.sendPlain(conn, msg),
+      sendEncrypted: (msg, send) => this.sendEncryptedWithStream(conn, msg, send),
+      onPendingSas: (sas) => this.emitPendingSas(sas),
+      onAuthenticated: ({ deviceId, send, recv }) => {
+        // The FSM has just completed the handshake and persisted the device.
+        // Transition the LAN connection to `authenticated`, clear the idle
+        // timer, start heartbeat + token refresh loop.
+        conn.state = { kind: 'authenticated', deviceId, send, recv };
+        this.activePairing = null;
+        this.opts.deviceStore.touch(deviceId, Date.now());
+        this.notifyChange();
+        if (conn.idleTimer) { clearTimeout(conn.idleTimer); conn.idleTimer = null; }
+        this.sendFreshTokenIfRemote(conn);
+        conn.lastTokenRefresh = Date.now();
+        this.startHeartbeat(conn);
+      },
     });
   }
 
@@ -208,7 +228,7 @@ export class WsServer {
     }
 
     if (!msg) {
-      if (conn.state.kind === 'awaiting-first') {
+      if (conn.state.kind === 'pairing') {
         this.sendPlain(conn, { type: 'authFailed', v: 2, reason: 'malformed' });
       }
       this.teardown(conn, 4400);
@@ -221,125 +241,28 @@ export class WsServer {
     }
 
     switch (conn.state.kind) {
-      case 'awaiting-first':
-        if (msg.type === 'pair') { await this.handlePair(conn, msg); return; }
+      case 'pairing': {
+        const fsm = conn.state.fsm;
+        // `auth` is the reconnect path — it bypasses the FSM entirely.
         if (msg.type === 'auth') { await this.handleAuth(conn, msg); return; }
+        if (msg.type === 'pair') {
+          await fsm.handlePair(msg);
+          // FSM may have closed itself on a bad token; mirror that onto conn.
+          if (fsm.getState() === 'closed' && conn.state.kind === 'pairing') {
+            this.teardown(conn, 4400);
+          }
+          return;
+        }
+        if (msg.type === 'pairConfirm') { await fsm.handlePairConfirm(); return; }
+        if (msg.type === 'pairRemoteConsent') { await fsm.handlePairRemoteConsent(msg); return; }
         break;
-      case 'awaiting-sas':
-        if (msg.type === 'pairConfirm') { this.handlePairConfirm(conn); return; }
-        break;
-      case 'awaiting-remote-consent':
-        if (msg.type === 'pairRemoteConsent') { await this.handlePairRemoteConsent(conn, msg); return; }
-        break;
+      }
       case 'authenticated':
         if (msg.type === 'chat') { await this.handleUpstreamChat(conn, msg); return; }
         // Other authenticated-state messages (heartbeat is handled above) fall through
         break;
     }
     this.teardown(conn, 4400);
-  }
-
-  private async handlePair(conn: Connection, msg: Extract<MobileMessageV2, { type: 'pair' }>): Promise<void> {
-    if (!this.activePairing
-        || this.activePairing.token !== msg.pairingToken
-        || isPairingTokenExpired(this.activePairing.expiresAt)) {
-      this.sendPlain(conn, { type: 'authFailed', v: 2, reason: 'expired' });
-      this.teardown(conn, 4400);
-      return;
-    }
-
-    let devicePub: Uint8Array;
-    try {
-      devicePub = new Uint8Array(Buffer.from(msg.devicePub, 'base64'));
-      if (devicePub.length !== 32) throw new Error('bad length');
-    } catch {
-      this.sendPlain(conn, { type: 'authFailed', v: 2, reason: 'malformed' });
-      this.teardown(conn, 4400);
-      return;
-    }
-
-    const sessionKeys = deriveSessionKeys(this.opts.identity.priv, devicePub, 'responder');
-    const sas = deriveSas(this.opts.identity.pub, devicePub, msg.pairingToken);
-
-    conn.state = {
-      kind: 'awaiting-sas',
-      devicePub,
-      sessionKeys,
-      deviceName: msg.deviceName || 'Unknown device',
-      pairingToken: msg.pairingToken,
-    };
-    this.emitPendingSas(sas);
-  }
-
-  private handlePairConfirm(conn: Connection): void {
-    if (conn.state.kind !== 'awaiting-sas') return;
-    const { devicePub, sessionKeys, deviceName } = conn.state;
-    const deviceId = randomUUID();
-    const deviceToken = generateDeviceToken();
-    const pairSign = generatePairSignKeypair();
-    const sid = randomBytes(16).toString('base64url');
-
-    // hashDeviceToken is async — defer the state transition until the hash completes.
-    // In practice the user takes >100ms to tap the next button so this is never a race.
-    void hashDeviceToken(deviceToken).then((deviceTokenHash) => {
-      if (conn.state.kind === 'closed') return;
-      conn.state = {
-        kind: 'awaiting-remote-consent',
-        devicePub,
-        sessionKeys,
-        deviceName,
-        deviceId,
-        deviceToken,
-        deviceTokenHash,
-        pairSign,
-        sid,
-      };
-    });
-  }
-
-  private async handlePairRemoteConsent(
-    conn: Connection,
-    msg: Extract<MobileMessageV2, { type: 'pairRemoteConsent' }>,
-  ): Promise<void> {
-    if (conn.state.kind !== 'awaiting-remote-consent') return;
-    const { devicePub, sessionKeys, deviceName, deviceId, deviceToken, deviceTokenHash, pairSign, sid } = conn.state;
-
-    const device: PairedDevice = {
-      deviceId,
-      deviceName,
-      deviceTokenHash,
-      pairedAt: Date.now(),
-      lastSeenAt: Date.now(),
-      phoneIdentityPub: Buffer.from(devicePub).toString('base64'),
-      pairSignPriv: Buffer.from(pairSign.priv).toString('base64'),
-      pairSignPub: Buffer.from(pairSign.pub).toString('base64'),
-      sid,
-      remoteAllowed: !!msg.remoteAllowed,
-      epoch: 1,
-    };
-    this.opts.deviceStore.add(device);
-    this.activePairing = null;
-    this.emitPendingSas(null);
-    this.notifyChange();
-
-    conn.state = {
-      kind: 'authenticated',
-      deviceId,
-      send: new SendStream(sessionKeys.sendKey),
-      recv: new RecvStream(sessionKeys.recvKey),
-    };
-    if (conn.idleTimer) { clearTimeout(conn.idleTimer); conn.idleTimer = null; }
-
-    this.sendEncrypted(conn, {
-      type: 'paired', v: 2,
-      deviceId, deviceToken,
-      desktopName: this.opts.desktopName,
-      sid,
-    });
-    this.sendFreshTokenIfRemote(conn);
-    conn.lastTokenRefresh = Date.now();
-
-    this.startHeartbeat(conn);
   }
 
   private async handleAuth(conn: Connection, msg: Extract<MobileMessageV2, { type: 'auth' }>): Promise<void> {
@@ -441,10 +364,18 @@ export class WsServer {
 
   private sendEncrypted(conn: Connection, msg: MobileMessageV2): void {
     if (conn.state.kind !== 'authenticated') return;
+    this.sendEncryptedWithStream(conn, msg, conn.state.send);
+  }
+
+  /** Encrypt `msg` with the provided SendStream and write to the socket.
+   *  Used both by `sendEncrypted` and by the PairingFSM callback, which
+   *  hands us the stream directly (the conn isn't `authenticated` yet at
+   *  the moment the FSM emits the `paired` frame). */
+  private sendEncryptedWithStream(conn: Connection, msg: MobileMessageV2, send: SendStream): void {
     if (conn.ws.readyState !== WebSocket.OPEN) return;
     try {
       const plain = new TextEncoder().encode(encodeV2(msg));
-      const ct = conn.state.send.encrypt(plain);
+      const ct = send.encrypt(plain);
       conn.ws.send(ct);
     } catch (err) {
       console.warn('[mobile-bridge] encrypt/send failed', err);
@@ -454,6 +385,10 @@ export class WsServer {
   private teardown(conn: Connection, code: number): void {
     if (conn.state.kind === 'closed') return;
     const wasAuthenticated = conn.state.kind === 'authenticated';
+    if (conn.state.kind === 'pairing') {
+      // Let the FSM clear any pending SAS it may have emitted.
+      try { conn.state.fsm.close(); } catch { /* ignore */ }
+    }
     conn.state = { kind: 'closed' };
     if (conn.idleTimer) clearTimeout(conn.idleTimer);
     if (conn.heartbeatTimer) clearInterval(conn.heartbeatTimer);
@@ -463,12 +398,3 @@ export class WsServer {
   }
 }
 
-function pickLanIP(): string {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] ?? []) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return '127.0.0.1';
-}

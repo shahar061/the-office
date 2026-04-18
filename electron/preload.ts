@@ -166,6 +166,8 @@ contextBridge.exposeInMainWorld('office', {
       ipcRenderer.invoke(IPC_CHANNELS.MOBILE_SET_REMOTE_ACCESS, deviceId, enabled),
     pauseRelay: (until: number | null) =>
       ipcRenderer.invoke(IPC_CHANNELS.MOBILE_PAUSE_RELAY, until),
+    setLanHost: (host: string | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.MOBILE_SET_LAN_HOST, host),
     onStatusChange: (cb: (s: {
       running: boolean;
       port: number | null;
@@ -174,6 +176,7 @@ contextBridge.exposeInMainWorld('office', {
       v1DeviceCount: number;
       relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
       relayPausedUntil: number | null;
+      lanHost: string | null;
       devices: Array<{
         deviceId: string;
         deviceName: string;

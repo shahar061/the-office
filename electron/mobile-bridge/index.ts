@@ -1,10 +1,13 @@
 import type { AgentEvent, ChatMessage, PairedDevice, SessionStatePatch } from '../../shared/types';
+import { RELAY_URL } from '../../shared/types';
 import { DeviceStore, type SettingsStoreLike } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
 import { EventForwarder } from './event-forwarder';
 import { WsServer } from './ws-server';
 import { getOrCreateIdentity } from './identity';
 import { RelayConnection } from './relay-connection';
+import { RendezvousClient } from './rendezvous-client';
+import type { PairingToken } from './pairing';
 
 export interface MobileBridge {
   start(): Promise<void>;
@@ -16,6 +19,7 @@ export interface MobileBridge {
   setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
   pauseRelay(until: number | null): void;
   isRelayPaused(): boolean;
+  setLanHost(host: string | null): Promise<void>;
   getStatus(): {
     running: boolean;
     port: number | null;
@@ -24,6 +28,7 @@ export interface MobileBridge {
     v1DeviceCount: number;
     relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
     relayPausedUntil: number | null;
+    lanHost: string | null;
     devices: Array<{
       deviceId: string;
       deviceName: string;
@@ -56,6 +61,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   // (which captures this map) sees the live reference.
   const relayConnections = new Map<string, RelayConnection>();
 
+  // Per-bridge pairing-rendezvous client. Scoped to the closure so multiple
+  // bridges (e.g. in test harnesses) don't share state.
+  let activeRendezvous: RendezvousClient | null = null;
+
   let relayPausedUntil: number | null = null;
   let pauseResumeTimer: NodeJS.Timeout | null = null;
 
@@ -63,6 +72,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     return relayPausedUntil !== null && (
       relayPausedUntil === Number.MAX_SAFE_INTEGER || relayPausedUntil > Date.now()
     );
+  }
+
+  function stopRendezvous(): void {
+    if (activeRendezvous) { activeRendezvous.stop(); activeRendezvous = null; }
   }
 
   const baseNotifyChange = () => {
@@ -81,6 +94,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     deviceStore,
     snapshots,
     identity,
+    settings: opts.settings,
     onChange: notifyChange,
     onPendingSas: (sas) => {
       currentPendingSas = sas;
@@ -152,11 +166,35 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     },
     async stop() {
       if (pauseResumeTimer) { clearTimeout(pauseResumeTimer); pauseResumeTimer = null; }
+      stopRendezvous();
       for (const conn of relayConnections.values()) conn.stop();
       relayConnections.clear();
       await server.stop();
     },
-    async getPairingQR() { return server.generatePairingQR(); },
+    async getPairingQR() {
+      stopRendezvous();
+      const { qrPayload, expiresAt, roomId, pairingToken } = server.generatePairingQR();
+      const token: PairingToken = { token: pairingToken, expiresAt };
+      activeRendezvous = new RendezvousClient({
+        identity,
+        desktopName: opts.desktopName,
+        deviceStore,
+        pairingToken: token,
+        roomId,
+        relayUrl: RELAY_URL,
+        onPendingSas: (sas) => {
+          currentPendingSas = sas;
+          notifyChange();
+        },
+        onPaired: (_deviceId) => {
+          notifyChange();
+          // RendezvousClient closes itself ~100ms after onPaired
+          setTimeout(() => { if (activeRendezvous) { activeRendezvous = null; } }, 500);
+        },
+      });
+      activeRendezvous.start();
+      return { qrPayload, expiresAt };
+    },
     async listDevices()  { return deviceStore.list(); },
     async revokeDevice(deviceId) { server.revokeDevice(deviceId); },
     async renameDevice(deviceId, name) {
@@ -180,6 +218,15 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       notifyChange();
     },
     isRelayPaused() { return isPaused(); },
+    async setLanHost(host) {
+      const normalized = host === null ? null : host.trim() || null;
+      const current = opts.settings.get();
+      const mobile = current.mobile ?? { enabled: true, port: null, devices: [] };
+      opts.settings.update({
+        mobile: { ...mobile, lanHost: normalized ?? undefined },
+      });
+      notifyChange();
+    },
     getStatus() {
       const devices = deviceStore.list();
       const v1DeviceCount = devices.filter((d) => !d.phoneIdentityPub).length;
@@ -219,6 +266,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
         v1DeviceCount,
         relay,
         relayPausedUntil,
+        lanHost: opts.settings.get().mobile?.lanHost ?? null,
         devices: mappedDevices,
       };
     },

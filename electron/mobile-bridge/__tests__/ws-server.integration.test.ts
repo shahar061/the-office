@@ -41,7 +41,7 @@ describe('WsServer v2 integration', () => {
     deviceStore = new DeviceStore(settings as any);
     const snapshots = new SnapshotBuilder('test-desktop');
     const identity = getOrCreateIdentity(settings as any);
-    server = new WsServer({ port: 0, desktopName: 'test-desktop', deviceStore, snapshots, identity });
+    server = new WsServer({ port: 0, desktopName: 'test-desktop', deviceStore, snapshots, identity, settings });
     await server.start();
     port = server.getPort()!;
   });
@@ -51,7 +51,11 @@ describe('WsServer v2 integration', () => {
   it('completes a full v2 pair → confirm → consent → encrypted `paired`', async () => {
     const { qrPayload } = server.generatePairingQR();
     const qr = JSON.parse(qrPayload);
-    expect(qr.v).toBe(2);
+    expect(qr.v).toBe(3);
+    expect(qr.mode).toBe('relay');
+    expect(typeof qr.roomId).toBe('string');
+    expect(qr.host).toBeUndefined();
+    expect(qr.port).toBeUndefined();
     const desktopPub = new Uint8Array(Buffer.from(qr.desktopIdentityPub, 'base64'));
 
     // Phone keypair

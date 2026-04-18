@@ -17,7 +17,8 @@ import { deriveSessionKeys } from '@shared/crypto/noise';
 import { deriveSas } from '@shared/crypto/sas';
 import { RecvStream } from '@shared/crypto/secretstream';
 import { decodeV2 } from '@shared/protocol/mobile';
-import type { PairingQRPayloadV2 } from '@shared/types';
+import type { PairingQRPayloadV2, PairingQRPayloadV3 } from '@shared/types';
+import { RELAY_URL } from '@shared/types';
 
 type Screen =
   | { kind: 'loading' }
@@ -69,7 +70,36 @@ export default function App() {
     setScreen({ kind: 'welcome' });
   };
 
-  const handleScanned = (payload: PairingQRPayloadV2) => {
+  const handleScanned = (payload: PairingQRPayloadV2 | PairingQRPayloadV3) => {
+    if (payload.v === 2) return handleLanScanned(payload, null);
+    // v3
+    if (payload.mode === 'lan-direct' && payload.host && payload.port) {
+      // User configured LAN direct — try LAN first. Carry the original v3 payload
+      // so we can fall back to relay if LAN is unreachable (e.g. the user's phone
+      // left home Wi-Fi after the desktop was configured).
+      const v2Synth: PairingQRPayloadV2 = {
+        v: 2,
+        host: payload.host,
+        port: payload.port,
+        desktopIdentityPub: payload.desktopIdentityPub,
+        pairingToken: payload.pairingToken,
+        expiresAt: payload.expiresAt,
+      };
+      return handleLanScanned(v2Synth, payload);
+    }
+    // relay mode
+    return handleRelayScanned(payload);
+  };
+
+  /**
+   * Run LAN pairing. If `relayFallback` is provided and the LAN attempt fails
+   * (error or 10-s timeout with no `onopen`), dispatch to the relay path
+   * instead of bouncing the user back to Welcome.
+   */
+  const handleLanScanned = (
+    payload: PairingQRPayloadV2,
+    relayFallback: PairingQRPayloadV3 | null,
+  ) => {
     const phonePriv = x25519.utils.randomPrivateKey();
     const phonePub = x25519.getPublicKey(phonePriv);
     const desktopPub = new Uint8Array(Buffer.from(payload.desktopIdentityPub, 'base64'));
@@ -78,13 +108,30 @@ export default function App() {
     const sas = deriveSas(desktopPub, phonePub, payload.pairingToken);
 
     const ws = new WebSocket(`ws://${payload.host}:${payload.port}/office`);
-    const timeout = setTimeout(() => {
+    let opened = false;
+    const fallbackOrFail = (reason: 'timeout' | 'error') => {
       try { ws.close(); } catch { /* ignore */ }
-      Alert.alert('Could not reach desktop', 'Make sure it is running and on the same Wi-Fi.');
+      // Clear any partial pairing state before re-dispatching.
+      pairingRef.current = null;
+      if (relayFallback) {
+        // Silent fallback — don't alert; user doesn't need to know LAN was attempted.
+        handleRelayScanned(relayFallback);
+        return;
+      }
+      const msg = reason === 'timeout'
+        ? 'Make sure it is running and on the same Wi-Fi.'
+        : 'Could not connect to the desktop.';
+      Alert.alert('Could not reach desktop', msg);
       cancelToWelcome();
+    };
+
+    const timeout = setTimeout(() => {
+      if (opened) return;
+      fallbackOrFail('timeout');
     }, 10_000);
 
     ws.onopen = () => {
+      opened = true;
       clearTimeout(timeout);
       const deviceName = Device.modelName ?? 'Phone';
       ws.send(JSON.stringify({
@@ -98,9 +145,9 @@ export default function App() {
     };
 
     ws.onerror = () => {
+      if (opened) return; // only treat pre-open errors as LAN failure
       clearTimeout(timeout);
-      Alert.alert('Connection error', 'Could not connect to the desktop.');
-      cancelToWelcome();
+      fallbackOrFail('error');
     };
 
     // Binary frames = encrypted (only `paired` is encrypted pre-session)
@@ -160,6 +207,106 @@ export default function App() {
     pairingRef.current = {
       ws, phonePriv, phonePub, desktopPub,
       sendKey, recvKey, recv, payload,
+    };
+  };
+
+  const handleRelayScanned = (payload: PairingQRPayloadV3) => {
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const desktopPub = new Uint8Array(Buffer.from(payload.desktopIdentityPub, 'base64'));
+    const { sendKey, recvKey } = deriveSessionKeys(phonePriv, desktopPub, 'initiator');
+    const recv = new RecvStream(recvKey);
+    const sas = deriveSas(desktopPub, phonePub, payload.pairingToken);
+
+    const url = `${RELAY_URL}/pair/${encodeURIComponent(payload.roomId)}?role=guest&token=${encodeURIComponent(payload.pairingToken)}`;
+    const ws = new WebSocket(url);
+
+    const timeout = setTimeout(() => {
+      try { ws.close(); } catch { /* ignore */ }
+      Alert.alert('Could not reach the relay', 'Check your internet connection.');
+      cancelToWelcome();
+    }, 10_000);
+
+    ws.onopen = () => {
+      clearTimeout(timeout);
+      const deviceName = Device.modelName ?? 'Phone';
+      ws.send(JSON.stringify({
+        type: 'pair', v: 2,
+        pairingToken: payload.pairingToken,
+        devicePub: b64encode(phonePub),
+        deviceName,
+      }));
+      setScreen({ kind: 'sas', sas });
+    };
+
+    ws.onerror = () => {
+      clearTimeout(timeout);
+      Alert.alert('Relay connection error', 'Could not connect to the pairing relay.');
+      cancelToWelcome();
+    };
+
+    ws.onmessage = async (ev: { data: unknown }) => {
+      const p = pairingRef.current;
+      if (!p) return;
+      try {
+        // All rendezvous frames are text. Encrypted `paired` is wrapped as {ct: "<b64>"}.
+        if (typeof ev.data !== 'string') return;
+        let plainJson: string;
+        let parsed: any;
+        try { parsed = JSON.parse(ev.data); } catch { return; }
+        if (parsed && typeof parsed.ct === 'string' && parsed.type === undefined) {
+          // Encrypted envelope
+          const ct = new Uint8Array(Buffer.from(parsed.ct, 'base64'));
+          const plain = p.recv.decrypt(ct);
+          plainJson = new TextDecoder().decode(plain);
+        } else {
+          // Plain MobileMessageV2
+          plainJson = ev.data;
+        }
+        const msg = decodeV2(plainJson);
+        if (!msg) return;
+        if (msg.type === 'authFailed') {
+          Alert.alert('Pairing rejected', msg.reason);
+          cancelToWelcome();
+          return;
+        }
+        if (msg.type === 'paired') {
+          const credentials: PairedDeviceCredentials = {
+            deviceId: msg.deviceId,
+            deviceToken: msg.deviceToken,
+            desktopName: msg.desktopName,
+            host: payload.host ?? '',     // v3 may have no host — store empty (SessionScreen gates LAN on host)
+            port: payload.port ?? 0,
+            identityPriv: b64encode(phonePriv),
+            identityPub: b64encode(phonePub),
+            desktopIdentityPub: payload.desktopIdentityPub,
+            sid: msg.sid,
+            remoteAllowed: (pairingRef.current as any).remoteAllowed ?? true,
+          };
+          await saveDevice(credentials);
+          try { ws.close(); } catch { /* ignore */ }
+          pairingRef.current = null;
+          setScreen({ kind: 'session', device: credentials });
+        }
+      } catch (err) {
+        console.warn('[relay-pairing] message handler error', err);
+        cancelToWelcome();
+      }
+    };
+
+    // Stash in pairingRef so SAS / consent handlers can reuse ws. Synthesize a
+    // v2-shaped payload; handleSasMatch/handleRemoteConsent only use ws via the ref.
+    pairingRef.current = {
+      ws, phonePriv, phonePub, desktopPub,
+      sendKey, recvKey, recv,
+      payload: {
+        v: 2,
+        host: payload.host ?? '',
+        port: payload.port ?? 0,
+        desktopIdentityPub: payload.desktopIdentityPub,
+        pairingToken: payload.pairingToken,
+        expiresAt: payload.expiresAt,
+      },
     };
   };
 
