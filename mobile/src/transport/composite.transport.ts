@@ -17,12 +17,14 @@ export class CompositeTransport implements Transport {
   private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private relayUsed = false;
 
-  constructor(private lan: Transport, private relay: Transport | null) {}
+  constructor(private lan: Transport | null, private relay: Transport | null) {}
 
   connect(): void {
-    // Wire LAN listeners
-    this.lanUnsubs.push(this.lan.on('status', (s) => this.onLanStatus(s)));
-    this.lanUnsubs.push(this.lan.on('message', (m) => this.onLanMessage(m)));
+    // Wire LAN listeners (only if LAN transport is configured)
+    if (this.lan) {
+      this.lanUnsubs.push(this.lan.on('status', (s) => this.onLanStatus(s)));
+      this.lanUnsubs.push(this.lan.on('message', (m) => this.onLanMessage(m)));
+    }
 
     // Wire relay listeners now (but don't start relay yet)
     if (this.relay) {
@@ -30,14 +32,19 @@ export class CompositeTransport implements Transport {
       this.relayUnsubs.push(this.relay.on('message', (m) => this.onRelayMessage(m)));
     }
 
-    this.emitStatus({ state: 'connecting', mode: 'lan' });
-    this.lan.connect();
+    if (this.lan) {
+      this.emitStatus({ state: 'connecting', mode: 'lan' });
+      this.lan.connect();
 
-    // If LAN doesn't reach "connected" before this timeout, try relay.
-    this.fallbackTimer = setTimeout(() => {
-      if (this.active === 'lan') return; // already connected via LAN
+      // If LAN doesn't reach "connected" before this timeout, try relay.
+      this.fallbackTimer = setTimeout(() => {
+        if (this.active === 'lan') return; // already connected via LAN
+        this.tryRelay();
+      }, LAN_FIRST_TIMEOUT_MS);
+    } else {
+      // No LAN transport — go straight to relay.
       this.tryRelay();
-    }, LAN_FIRST_TIMEOUT_MS);
+    }
   }
 
   disconnect(): void {
@@ -46,13 +53,13 @@ export class CompositeTransport implements Transport {
     this.lanUnsubs = [];
     for (const u of this.relayUnsubs) u();
     this.relayUnsubs = [];
-    this.lan.disconnect();
+    this.lan?.disconnect();
     this.relay?.disconnect();
     this.active = null;
   }
 
   send(msg: MobileMessageV2): void {
-    if (this.active === 'lan') this.lan.send(msg);
+    if (this.active === 'lan') this.lan?.send(msg);
     else if (this.active === 'relay') this.relay?.send(msg);
   }
 

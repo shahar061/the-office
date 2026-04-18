@@ -33,16 +33,21 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       if (last) useSessionStore.getState().hydrateFromCache(last.snapshot);
     });
 
-    const lan = new LanWsTransport({
-      host: device.host,
-      port: device.port,
-      device: {
-        deviceId: device.deviceId,
-        deviceToken: device.deviceToken,
-        identityPriv: device.identityPriv,
-        desktopIdentityPub: device.desktopIdentityPub,
-      },
-    });
+    // v3 relay-paired devices may have no LAN host/port. Only build a LAN
+    // transport when host is configured; otherwise CompositeTransport goes
+    // straight to relay.
+    const lan = device.host !== ''
+      ? new LanWsTransport({
+          host: device.host,
+          port: device.port,
+          device: {
+            deviceId: device.deviceId,
+            deviceToken: device.deviceToken,
+            identityPriv: device.identityPriv,
+            desktopIdentityPub: device.desktopIdentityPub,
+          },
+        })
+      : null;
 
     const relay = device.remoteAllowed && device.relayToken
       ? new RelayWsTransport({
