@@ -90,6 +90,9 @@ export const IPC_CHANNELS = {
   MOBILE_REVOKE_DEVICE: 'office:mobile-revoke-device',
   MOBILE_GET_STATUS: 'office:mobile-get-status',
   MOBILE_STATUS_CHANGE: 'office:mobile-status-change',
+  MOBILE_PAUSE_RELAY: 'office:mobile-pause-relay',
+  MOBILE_SET_REMOTE_ACCESS: 'office:mobile-set-remote-access',
+  MOBILE_RENAME_DEVICE: 'office:mobile-rename-device',
   // Layouts
   GET_LAYOUTS: 'office:get-layouts',
   SAVE_LAYOUTS: 'office:save-layouts',
