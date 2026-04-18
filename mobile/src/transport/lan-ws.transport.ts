@@ -45,7 +45,7 @@ export class LanWsTransport implements Transport {
   private lastServerHeartbeat = 0;
   private shouldReconnect = true;
   private fatalReason: string | null = null;
-  private send: SendStream | null = null;
+  private sendStream: SendStream | null = null;
   private recv: RecvStream | null = null;
   private authenticated = false;
 
@@ -55,7 +55,7 @@ export class LanWsTransport implements Transport {
     if (this.fatalReason) return;
     this.clearReconnect();
     this.authenticated = false;
-    this.send = null;
+    this.sendStream = null;
     this.recv = null;
     this.emitStatus({ state: 'connecting' });
 
@@ -63,7 +63,7 @@ export class LanWsTransport implements Transport {
     const priv = b64decode(this.opts.device.identityPriv);
     const desktopPub = b64decode(this.opts.device.desktopIdentityPub);
     const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
-    this.send = new SendStream(keys.sendKey);
+    this.sendStream = new SendStream(keys.sendKey);
     this.recv = new RecvStream(keys.recvKey);
 
     try {
@@ -122,11 +122,15 @@ export class LanWsTransport implements Transport {
     for (const h of this.listeners.message) (h as (m: MobileMessageV2) => void)(m);
   }
 
+  send(msg: MobileMessageV2): void {
+    this.sendEncrypted(msg);
+  }
+
   private sendEncrypted(msg: MobileMessageV2) {
-    if (!this.ws || this.ws.readyState !== 1 || !this.send) return;
+    if (!this.ws || this.ws.readyState !== 1 || !this.sendStream) return;
     try {
       const plain = new TextEncoder().encode(encodeV2(msg));
-      this.ws.send(this.send.encrypt(plain));
+      this.ws.send(this.sendStream.encrypt(plain));
     } catch { /* ignore */ }
   }
 
