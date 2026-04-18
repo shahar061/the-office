@@ -46,6 +46,27 @@ const styles = {
     padding: '4px 10px',
     fontFamily: 'inherit',
   },
+  migrationBanner: {
+    padding: '10px 12px',
+    background: 'rgba(251,146,60,0.1)',
+    border: `1px solid rgba(251,146,60,0.35)`,
+    borderRadius: '6px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  migrationBannerTitle: {
+    fontSize: '11px',
+    fontWeight: 700 as const,
+    color: '#fdba74',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+  },
+  migrationBannerBody: {
+    fontSize: '12px',
+    color: colors.textMuted,
+    lineHeight: 1.5,
+  },
   qrBlock: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -126,6 +147,15 @@ export function MobilePairingSubsection() {
   return (
     <div style={styles.root}>
       <div style={styles.header}>Mobile Pairing</div>
+
+      {status?.v1DeviceCount && status.v1DeviceCount > 0 ? (
+        <div style={styles.migrationBanner}>
+          <div style={styles.migrationBannerTitle}>Action required</div>
+          <div style={styles.migrationBannerBody}>
+            We've upgraded pairing security. Your existing phone{status.v1DeviceCount === 1 ? '' : 's'} {status.v1DeviceCount === 1 ? 'needs' : 'need'} to re-pair once to continue using the companion.
+          </div>
+        </div>
+      ) : null}
 
       <div style={styles.statusLine}>
         {status?.running

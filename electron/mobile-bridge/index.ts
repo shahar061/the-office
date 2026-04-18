@@ -11,7 +11,7 @@ export interface MobileBridge {
   getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
   listDevices(): Promise<PairedDevice[]>;
   revokeDevice(deviceId: string): Promise<void>;
-  getStatus(): { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null };
+  getStatus(): { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null; v1DeviceCount: number };
   // Event ingestion — call from main.ts wherever events are emitted
   onAgentEvent(event: AgentEvent): void;
   onChat(messages: ChatMessage[]): void;
@@ -63,11 +63,14 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     async listDevices()  { return deviceStore.list(); },
     async revokeDevice(deviceId) { server.revokeDevice(deviceId); },
     getStatus() {
+      const devices = deviceStore.list();
+      const v1DeviceCount = devices.filter((d) => !d.phoneIdentityPub).length;
       return {
         running: server.getPort() !== null,
         port: server.getPort(),
         connectedDevices: server.getConnectedCount(),
         pendingSas: currentPendingSas,
+        v1DeviceCount,
       };
     },
     onAgentEvent: forwarder.onAgentEvent,
