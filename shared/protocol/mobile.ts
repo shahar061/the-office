@@ -2,7 +2,7 @@ import type { MobileMessage, MobileMessageV2 } from '../types';
 
 const VALID_TYPES = new Set([
   'pair', 'auth', 'paired', 'authed', 'authFailed',
-  'snapshot', 'event', 'chat', 'state', 'heartbeat',
+  'snapshot', 'charState', 'event', 'chat', 'state', 'heartbeat',
 ]);
 
 export function isMobileMessage(x: unknown): x is MobileMessage {

@@ -52,6 +52,7 @@ export type MobileMessage =
   | { type: 'authed'; v: 1; snapshot: SessionSnapshot }
   | { type: 'authFailed'; v: 1; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' }
   | { type: 'snapshot'; v: 1; snapshot: SessionSnapshot }
+  | { type: 'charState'; v: 1; ts: number; characters: CharacterState[] }
   | { type: 'event'; v: 1; event: AgentEvent }
   | { type: 'chat'; v: 1; messages: ChatMessage[] }
   | { type: 'state'; v: 1; patch: SessionStatePatch }
