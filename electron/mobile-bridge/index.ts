@@ -11,7 +11,7 @@ export interface MobileBridge {
   getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
   listDevices(): Promise<PairedDevice[]>;
   revokeDevice(deviceId: string): Promise<void>;
-  getStatus(): { running: boolean; port: number | null; connectedDevices: number };
+  getStatus(): { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null };
   // Event ingestion — call from main.ts wherever events are emitted
   onAgentEvent(event: AgentEvent): void;
   onChat(messages: ChatMessage[]): void;
@@ -36,6 +36,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       try { h(); } catch (err) { console.warn('[mobile-bridge] listener failed', err); }
     }
   };
+  let currentPendingSas: string | null = null;
   const server = new WsServer({
     port: opts.settings.get().mobile?.port ?? null,
     desktopName: opts.desktopName,
@@ -43,6 +44,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     snapshots,
     identity,
     onChange: notifyChange,
+    onPendingSas: (sas) => {
+      currentPendingSas = sas;
+      notifyChange();
+    },
     onPhoneChat: async (msg) => {
       for (const h of phoneChatHandlers) {
         try { await h(msg); } catch (err) { console.warn('[mobile-bridge] phone chat handler failed', err); }
@@ -62,6 +67,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
         running: server.getPort() !== null,
         port: server.getPort(),
         connectedDevices: server.getConnectedCount(),
+        pendingSas: currentPendingSas,
       };
     },
     onAgentEvent: forwarder.onAgentEvent,

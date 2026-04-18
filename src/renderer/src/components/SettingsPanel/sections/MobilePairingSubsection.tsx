@@ -57,6 +57,31 @@ const styles = {
     borderRadius: '6px',
   },
   qrHint: { fontSize: '11px', color: colors.textMuted, textAlign: 'center' as const },
+  sasBlock: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '6px',
+    padding: '12px 16px',
+    background: 'rgba(99,102,241,0.12)',
+    border: `1px solid rgba(99,102,241,0.4)`,
+    borderRadius: '6px',
+    marginTop: '8px',
+  },
+  sasLabel: {
+    fontSize: '11px',
+    color: colors.textMuted,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+    fontWeight: 700 as const,
+  },
+  sasCode: {
+    fontFamily: 'ui-monospace, Menlo, monospace',
+    fontSize: '28px',
+    fontWeight: 700 as const,
+    letterSpacing: '0.15em',
+    color: colors.text,
+  },
   devicesHeader: { fontSize: '12px', fontWeight: 600 as const, color: colors.text, marginTop: '8px' },
   emptyHint: { fontSize: '11px', color: colors.textMuted, fontStyle: 'italic' as const },
   deviceList: { display: 'flex', flexDirection: 'column' as const, gap: '6px' },
@@ -122,6 +147,15 @@ export function MobilePairingSubsection() {
           <div style={styles.qrHint}>
             Scan from The Office mobile app. Expires in {secondsRemaining}s.
           </div>
+          {status?.pendingSas && (
+            <div style={styles.sasBlock}>
+              <div style={styles.sasLabel}>Confirm this code matches on your phone</div>
+              <div style={styles.sasCode}>{status.pendingSas}</div>
+              <div style={styles.qrHint}>
+                If the codes differ, someone may be intercepting. Cancel and try again.
+              </div>
+            </div>
+          )}
           <button style={styles.cancelBtn} onClick={clearQR}>Hide</button>
         </div>
       )}
