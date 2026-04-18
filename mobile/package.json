@@ -41,6 +41,16 @@
     "preset": "jest-expo",
     "transformIgnorePatterns": [
       "node_modules/(?!(jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?/.*)"
+    ],
+    "moduleDirectories": [
+      "node_modules",
+      "<rootDir>/node_modules"
+    ],
+    "moduleNameMapper": {
+      "^@shared/(.*)$": "<rootDir>/../shared/$1"
+    },
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
     ]
   }
 }
