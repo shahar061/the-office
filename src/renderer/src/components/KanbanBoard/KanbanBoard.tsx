@@ -76,7 +76,10 @@ const styles = {
     display: 'flex',
     gap: '10px',
     padding: '0 16px 16px',
-    overflow: 'hidden',
+    overflowX: 'auto' as const,
+    overflowY: 'hidden' as const,
+    scrollbarWidth: 'none' as const,
+    msOverflowStyle: 'none' as const,
   },
   emptyState: {
     display: 'flex',
@@ -186,7 +189,7 @@ export function KanbanBoard() {
 
       {/* Main content — board or graph */}
       {viewMode === 'board' ? (
-        <div style={styles.board}>
+        <div style={styles.board} className="hide-scrollbar">
           {COLUMNS.map(col => (
             <KanbanColumn
               key={col.status}
