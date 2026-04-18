@@ -1,9 +1,9 @@
+// mobile/src/webview-host/ConnectionBanner.tsx
 import { View, Text, StyleSheet } from 'react-native';
 import type { TransportStatus } from '../transport/transport.interface';
+import { colors, spacing, typography } from '../theme';
 
-interface Props {
-  status: TransportStatus;
-}
+interface Props { status: TransportStatus }
 
 export function ConnectionBanner({ status }: Props) {
   if (status.state === 'connected') return null;
@@ -11,20 +11,10 @@ export function ConnectionBanner({ status }: Props) {
   let text: string;
   let color: string;
   switch (status.state) {
-    case 'idle':
-      return null;
-    case 'connecting':
-      text = 'Connecting…';
-      color = '#f59e0b';
-      break;
-    case 'disconnected':
-      text = `Not connected — ${status.reason}`;
-      color = '#ef4444';
-      break;
-    case 'error':
-      text = `Error — ${status.error.message}`;
-      color = '#ef4444';
-      break;
+    case 'idle': return null;
+    case 'connecting': text = 'Connecting…'; color = colors.warning; break;
+    case 'disconnected': text = `Not connected — ${status.reason}`; color = colors.error; break;
+    case 'error': text = `Error — ${status.error.message}`; color = colors.error; break;
   }
 
   return (
@@ -35,6 +25,6 @@ export function ConnectionBanner({ status }: Props) {
 }
 
 const styles = StyleSheet.create({
-  banner: { paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center' },
-  text: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  banner: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center' },
+  text: { color: '#fff', ...typography.label },
 });
