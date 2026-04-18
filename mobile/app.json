@@ -4,7 +4,7 @@
     "slug": "the-office",
     "scheme": "theoffice",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -35,7 +35,8 @@
     "plugins": [
       ["expo-camera", { "cameraPermission": "Allow The Office to scan pairing QR codes" }],
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      "expo-screen-orientation"
     ]
   }
 }

@@ -20,6 +20,7 @@
     "expo-clipboard": "~8.0.8",
     "expo-device": "~8.0.10",
     "expo-file-system": "~19.0.21",
+    "expo-screen-orientation": "~9.0.8",
     "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
