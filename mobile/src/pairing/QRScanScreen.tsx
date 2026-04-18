@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Clipboard from 'expo-clipboard';
 import type { PairingQRPayloadV2, PairingQRPayloadV3 } from '@shared/types';
+import { colors, spacing, radius } from '../theme';
 
 type ScannedPayload = PairingQRPayloadV2 | PairingQRPayloadV3;
 
@@ -131,27 +132,27 @@ export function QRScanScreen({ onScanned, onCancel }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0a0a0a' },
-  content: { flex: 1, padding: 24, justifyContent: 'center', gap: 16 },
-  body: { color: '#f5f5f5', fontSize: 16, textAlign: 'center' },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { flex: 1, padding: spacing.xl, justifyContent: 'center', gap: spacing.lg },
+  body: { color: colors.text, fontSize: 16, textAlign: 'center' },
   overlay: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24,
+    position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.xl,
     backgroundColor: 'rgba(10,10,10,0.6)',
-    gap: 16, alignItems: 'center',
+    gap: spacing.lg, alignItems: 'center',
   },
-  overlayText: { color: '#f5f5f5', fontSize: 16, textAlign: 'center' },
+  overlayText: { color: colors.text, fontSize: 16, textAlign: 'center' },
   overlayHint: { fontSize: 13, opacity: 0.75 },
-  errorText: { color: '#f87171' },
-  button: { backgroundColor: '#6366f1', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: '#6366f1', fontSize: 15 },
+  errorText: { color: colors.error },
+  button: { backgroundColor: colors.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: radius.lg },
+  buttonText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  link: { color: colors.accent, fontSize: 15 },
   pasteBtn: {
     backgroundColor: 'rgba(99,102,241,0.2)',
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: colors.accent,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: radius.lg,
   },
   pasteBtnText: { color: '#a5b4fc', fontSize: 14, fontWeight: '600' },
 });
