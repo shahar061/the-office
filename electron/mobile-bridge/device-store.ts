@@ -65,6 +65,24 @@ export class DeviceStore {
     this.writeDevices(next);
   }
 
+  rename(deviceId: string, name: string): void {
+    const current = this.settings.get().mobile?.devices ?? [];
+    if (!current.some((d) => d.deviceId === deviceId)) return;
+    const next = current.map((d) =>
+      d.deviceId === deviceId ? { ...d, deviceName: name } : d,
+    );
+    this.writeDevices(next);
+  }
+
+  setRemoteAccess(deviceId: string, enabled: boolean): void {
+    const current = this.settings.get().mobile?.devices ?? [];
+    if (!current.some((d) => d.deviceId === deviceId)) return;
+    const next = current.map((d) =>
+      d.deviceId === deviceId ? { ...d, remoteAllowed: enabled } : d,
+    );
+    this.writeDevices(next);
+  }
+
   private writeDevices(devices: PairedDevice[]): void {
     const current = this.settings.get();
     const mobile = current.mobile ?? { enabled: true, port: null, devices: [] };
