@@ -2,7 +2,7 @@ import { Texture } from 'pixi.js';
 import { CharacterSprite, type Direction, type AnimState } from './CharacterSprite';
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
-import type { AgentRole, CharacterState } from '../../../../shared/types';
+import type { AgentRole, CharacterState } from '@shared/types';
 import { ToolBubble } from './ToolBubble';
 
 export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
