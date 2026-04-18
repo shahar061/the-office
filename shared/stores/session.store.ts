@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import type {
   AgentEvent,
+  CharacterState,
   ChatMessage,
   SessionSnapshot,
   SessionStatePatch,
@@ -12,18 +13,24 @@ const CHAT_TAIL_CAP = 50;
 interface SessionState {
   snapshot: SessionSnapshot | null;
   pendingEvents: AgentEvent[];
+  characterStates: Map<string, CharacterState>;
+  lastCharStateTs: number;
   setSnapshot: (s: SessionSnapshot) => void;
   hydrateFromCache: (s: SessionSnapshot) => void;
   appendEvent: (e: AgentEvent) => void;
   drainPendingEvents: () => AgentEvent[];
   appendChat: (messages: ChatMessage[]) => void;
   applyStatePatch: (patch: SessionStatePatch) => void;
+  applyCharState: (ts: number, states: CharacterState[]) => void;
+  clearCharStates: () => void;
   clear: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   snapshot: null,
   pendingEvents: [],
+  characterStates: new Map<string, CharacterState>(),
+  lastCharStateTs: 0,
 
   setSnapshot: (snapshot) => set({ snapshot, pendingEvents: [] }),
   hydrateFromCache: (snapshot) => set({ snapshot }),
@@ -53,6 +60,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       case 'ended':       set({ snapshot: { ...current, sessionEnded: patch.ended } }); break;
     }
   },
+
+  applyCharState: (ts, states) => {
+    if (ts <= get().lastCharStateTs) return;
+    const next = new Map<string, CharacterState>();
+    for (const s of states) next.set(s.agentId, s);
+    set({ characterStates: next, lastCharStateTs: ts });
+  },
+
+  clearCharStates: () => set({ characterStates: new Map(), lastCharStateTs: 0 }),
 
   clear: () => set({ snapshot: null, pendingEvents: [] }),
 }));
