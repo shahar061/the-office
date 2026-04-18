@@ -35,7 +35,8 @@ export function SessionScreen({ device, onPairingLost }: Props) {
   useEffect(() => {
     let cancelled = false;
     lockOrientation(mode).finally(() => {
-      if (!cancelled) transitioningRef.current = false;
+      if (cancelled) return;
+      transitioningRef.current = false;
       if (mode === 'portrait' && focusPendingRef.current) {
         focusPendingRef.current = false;
         // One animation frame to let layout settle before focusing.
