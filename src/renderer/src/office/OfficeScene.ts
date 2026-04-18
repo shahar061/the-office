@@ -9,7 +9,7 @@ import { FogOfWar } from './engine/FogOfWar';
 import { MonitorGlow } from './MonitorGlow';
 import { WarTable } from './WarTable';
 import { SeatPool } from './SeatPool';
-import type { AgentRole } from '../../../shared/types';
+import type { AgentRole, CharacterState } from '../../../shared/types';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
 import interiorsUrl from '../assets/tilesets/interiors.png?url';
@@ -258,6 +258,14 @@ export class OfficeScene {
 
   getAllCharacters(): Map<string, Character> {
     return this.characters;
+  }
+
+  getCharacterStates(): CharacterState[] {
+    const states: CharacterState[] = [];
+    for (const character of this.characters.values()) {
+      if (character.isVisible) states.push(character.getStateSnapshot());
+    }
+    return states;
   }
 
   showCharacterPopup(agentId: string): void {
