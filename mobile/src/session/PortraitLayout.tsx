@@ -1,5 +1,5 @@
 // mobile/src/session/PortraitLayout.tsx
-import { useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
@@ -13,10 +13,18 @@ interface Props {
   onExpand: () => void;
 }
 
-export function PortraitLayout({ session, onExpand }: Props) {
+export interface PortraitLayoutHandle {
+  focusInput: () => void;
+}
+
+export const PortraitLayout = forwardRef<PortraitLayoutHandle, Props>(function PortraitLayout({ session, onExpand }, ref) {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const { status, draft, setDraft, sending, canSend, submit } = session;
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => { inputRef.current?.focus(); },
+  }), []);
 
   const handleSend = async () => {
     const ack = await submit();
@@ -73,7 +81,7 @@ export function PortraitLayout({ session, onExpand }: Props) {
         : <View style={styles.keyboardAvoid}>{composer}</View>}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFillObject },
