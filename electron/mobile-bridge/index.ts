@@ -3,6 +3,7 @@ import { DeviceStore, type SettingsStoreLike } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
 import { EventForwarder } from './event-forwarder';
 import { WsServer } from './ws-server';
+import { getOrCreateIdentity } from './identity';
 
 export interface MobileBridge {
   start(): Promise<void>;
@@ -25,6 +26,7 @@ export interface MobileBridgeOptions {
 
 export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const deviceStore = new DeviceStore(opts.settings);
+  const identity = getOrCreateIdentity(opts.settings);
   const snapshots = new SnapshotBuilder(opts.desktopName);
   const changeListeners = new Set<() => void>();
   const notifyChange = () => {
@@ -37,6 +39,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     desktopName: opts.desktopName,
     deviceStore,
     snapshots,
+    identity,
     onChange: notifyChange,
   });
   const forwarder = new EventForwarder(snapshots, server);
