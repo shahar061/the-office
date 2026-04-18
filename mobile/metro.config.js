@@ -23,4 +23,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
 ];
 
+// Enable package "exports" field resolution so modern packages like
+// @noble/curves/ed25519 resolve via their declared subpath exports.
+// Requires Metro 0.79+; safe to enable.
+config.resolver.unstable_enablePackageExports = true;
+
 module.exports = config;
