@@ -61,6 +61,20 @@ export interface PairingQRPayloadV2 {
   expiresAt: number;
 }
 
+/** v3: relay-based pairing is default. host/port are optional and
+ *  populated only when the user has configured a LAN direct connection
+ *  in Settings → Mobile → Advanced. */
+export interface PairingQRPayloadV3 {
+  v: 3;
+  mode: 'relay' | 'lan-direct';
+  roomId: string;                // 128-bit base64url — rendezvous room id on the relay
+  desktopIdentityPub: string;
+  pairingToken: string;
+  expiresAt: number;
+  host?: string;                 // LAN override — present only if user configured it
+  port?: number;                 // LAN override — present only if user configured it
+}
+
 // v2 message union. Wire format is an encrypted envelope; these are the
 // plaintext shapes after envelope unwrap.
 export type MobileMessageV2 =
