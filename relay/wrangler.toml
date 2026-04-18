@@ -1,0 +1,32 @@
+name = "the-office-relay"
+main = "src/worker.ts"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SessionDO"]
+
+[[durable_objects.bindings]]
+name = "SESSION_DO"
+class_name = "SessionDO"
+
+[env.staging]
+name = "the-office-relay-staging"
+workers_dev = true
+
+[[env.staging.durable_objects.bindings]]
+name = "SESSION_DO"
+class_name = "SessionDO"
+
+[env.production]
+name = "the-office-relay"
+workers_dev = true
+
+[[env.production.durable_objects.bindings]]
+name = "SESSION_DO"
+class_name = "SessionDO"
+
+# When a custom domain is configured later, add:
+# routes = [{ pattern = "relay.example.com/*", zone_name = "example.com" }]
+# and flip workers_dev to false.

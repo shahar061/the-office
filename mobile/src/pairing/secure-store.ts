@@ -14,6 +14,7 @@ export interface PairedDeviceCredentials {
   desktopIdentityPub: string;    // base64, pinned at pairing
   sid: string;                   // base64url, relay session id
   remoteAllowed: boolean;
+  relayToken?: string;           // Ed25519-signed session token for relay fallback (populated in Task 12)
 }
 
 export async function saveDevice(device: PairedDeviceCredentials): Promise<void> {

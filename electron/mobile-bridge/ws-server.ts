@@ -18,6 +18,7 @@ import {
   generatePairSignKeypair,
   type PairingToken,
 } from './pairing';
+import { mintToken } from './token-minter';
 
 const IDLE_PRE_AUTH_MS = 30_000; // bumped slightly; v2 has more round trips
 const HEARTBEAT_INTERVAL_MS = 15_000;
@@ -51,6 +52,7 @@ interface Connection {
   ws: WebSocket;
   state: ConnState;
   lastHeartbeat: number;
+  lastTokenRefresh: number | null;
   idleTimer: NodeJS.Timeout | null;
   heartbeatTimer: NodeJS.Timeout | null;
 }
@@ -65,6 +67,8 @@ export interface WsServerOptions {
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
   onPhoneChat?: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => Promise<void>;
+  /** Fan-out to relay connections alongside LAN connections. Invoked from broadcastToAuthenticated. */
+  onBroadcastToRelay?: (msg: MobileMessageV2) => void;
 }
 
 export class WsServer {
@@ -138,6 +142,11 @@ export class WsServer {
         this.sendEncrypted(c, msg);
       }
     }
+    try {
+      this.opts.onBroadcastToRelay?.(msg);
+    } catch (err) {
+      console.warn('[mobile-bridge] relay broadcast failed', err);
+    }
   }
 
   private notifyChange(): void {
@@ -158,6 +167,7 @@ export class WsServer {
       ws,
       state: { kind: 'awaiting-first' },
       lastHeartbeat: Date.now(),
+      lastTokenRefresh: null,
       idleTimer: setTimeout(() => this.teardown(conn, 4408), IDLE_PRE_AUTH_MS),
       heartbeatTimer: null,
     };
@@ -318,6 +328,8 @@ export class WsServer {
       desktopName: this.opts.desktopName,
       sid,
     });
+    this.sendFreshTokenIfRemote(conn);
+    conn.lastTokenRefresh = Date.now();
 
     this.startHeartbeat(conn);
   }
@@ -356,6 +368,8 @@ export class WsServer {
     this.notifyChange();
 
     this.sendEncrypted(conn, { type: 'authed', v: 2, snapshot: this.opts.snapshots.getSnapshot() });
+    this.sendFreshTokenIfRemote(conn);
+    conn.lastTokenRefresh = Date.now();
     this.startHeartbeat(conn);
   }
 
@@ -386,8 +400,28 @@ export class WsServer {
         this.teardown(conn, 4409);
         return;
       }
+      if (!conn.lastTokenRefresh || Date.now() - conn.lastTokenRefresh > 10 * 60_000) {
+        this.sendFreshTokenIfRemote(conn);
+        conn.lastTokenRefresh = Date.now();
+      }
       this.sendEncrypted(conn, { type: 'heartbeat', v: 2 });
     }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  private sendFreshTokenIfRemote(conn: Connection): void {
+    if (conn.state.kind !== 'authenticated') return;
+    const device = this.opts.deviceStore.findById(conn.state.deviceId);
+    if (!device?.remoteAllowed) return;
+    if (!device.pairSignPriv || !device.sid) return;
+    const token = mintToken(
+      Buffer.from(device.pairSignPriv, 'base64'),
+      { sid: device.sid, role: 'phone', epoch: device.epoch ?? 1, ttlMs: 24 * 60 * 60_000 },
+    );
+    this.sendEncrypted(conn, {
+      type: 'tokenRefresh', v: 2,
+      token,
+      expiresAt: Date.now() + 24 * 60 * 60_000,
+    });
   }
 
   private sendPlain(conn: Connection, msg: MobileMessageV2): void {

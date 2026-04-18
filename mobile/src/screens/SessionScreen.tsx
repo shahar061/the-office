@@ -4,11 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebViewHost } from '../webview-host/WebViewHost';
 import { ConnectionBanner } from '../webview-host/ConnectionBanner';
 import { LanWsTransport } from '../transport/lan-ws.transport';
+import { RelayWsTransport } from '../transport/relay-ws.transport';
+import { CompositeTransport } from '../transport/composite.transport';
+import type { Transport } from '../transport/transport.interface';
 import { useConnectionStore } from '../state/connection.store';
 import { useSessionStore } from '../types/shared';
 import { loadLastKnown, saveLastKnown } from '../state/cache';
 import type { MobileMessageV2 } from '../types/shared';
 import type { PairedDeviceCredentials } from '../pairing/secure-store';
+import { saveDevice } from '../pairing/secure-store';
 
 interface Props {
   device: PairedDeviceCredentials;
@@ -19,7 +23,7 @@ interface PendingAck { resolve: (ok: boolean, error?: string) => void; timer: Re
 
 export function SessionScreen({ device, onPairingLost }: Props) {
   const status = useConnectionStore((s) => s.status);
-  const transportRef = useRef<LanWsTransport | null>(null);
+  const transportRef = useRef<Transport | null>(null);
   const pendingAcksRef = useRef<Map<string, PendingAck>>(new Map());
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -29,7 +33,7 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       if (last) useSessionStore.getState().hydrateFromCache(last.snapshot);
     });
 
-    const transport = new LanWsTransport({
+    const lan = new LanWsTransport({
       host: device.host,
       port: device.port,
       device: {
@@ -39,6 +43,21 @@ export function SessionScreen({ device, onPairingLost }: Props) {
         desktopIdentityPub: device.desktopIdentityPub,
       },
     });
+
+    const relay = device.remoteAllowed && device.relayToken
+      ? new RelayWsTransport({
+          device: {
+            deviceId: device.deviceId,
+            deviceToken: device.deviceToken,
+            identityPriv: device.identityPriv,
+            desktopIdentityPub: device.desktopIdentityPub,
+            sid: device.sid,
+          },
+          token: device.relayToken,
+        })
+      : null;
+
+    const transport = new CompositeTransport(lan, relay);
     transportRef.current = transport;
 
     const offStatus = transport.on('status', (s) => {
@@ -79,6 +98,12 @@ export function SessionScreen({ device, onPairingLost }: Props) {
             pending.resolve(m.ok, m.error);
             pendingAcksRef.current.delete(m.clientMsgId);
           }
+          break;
+        }
+        case 'tokenRefresh': {
+          // Persist the new relay token so future reconnects can use the relay.
+          const updated = { ...device, relayToken: m.token };
+          void saveDevice(updated);
           break;
         }
       }

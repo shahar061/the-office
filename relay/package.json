@@ -1,0 +1,21 @@
+{
+  "name": "the-office-relay",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:prod": "wrangler deploy --env production",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^3.80.0",
+    "typescript": "^5.4.0"
+  }
+}
