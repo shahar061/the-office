@@ -30,6 +30,7 @@ export interface AppSettings {
     enabled: boolean;
     port: number | null;  // null = dynamic
     devices: PairedDevice[];
+    identity?: { priv: string; pub: string };  // base64, per-desktop Noise static keypair
   };
   audio?: {
     musicMuted: boolean;
