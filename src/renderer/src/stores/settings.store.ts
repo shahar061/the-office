@@ -5,6 +5,7 @@ export type SettingsSection =
   | 'general'
   | 'agents'
   | 'workspace'
+  | 'mobile'
   | 'integrations'
   | 'about';
 

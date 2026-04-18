@@ -134,3 +134,67 @@ describe('DeviceStore v2 fields', () => {
     expect(store.list()[0].sid).toBe('FIXED');
   });
 });
+
+describe('DeviceStore rename + setRemoteAccess', () => {
+  const baseFixture = {
+    deviceId: 'd1',
+    deviceName: 'old-name',
+    deviceTokenHash: 'h',
+    pairedAt: 1,
+    lastSeenAt: 1,
+    phoneIdentityPub: 'PIP',
+    pairSignPriv: 'PSP',
+    pairSignPub: 'PSU',
+    sid: 'SID',
+    remoteAllowed: false,
+    epoch: 1,
+  };
+
+  it('rename updates the deviceName for an existing device', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add(baseFixture);
+    store.rename('d1', 'new-name');
+    const [d] = store.list();
+    expect(d.deviceName).toBe('new-name');
+  });
+
+  it('rename is a no-op for unknown deviceId', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add(baseFixture);
+    store.rename('unknown', 'whatever');
+    const [d] = store.list();
+    expect(d.deviceName).toBe('old-name');
+  });
+
+  it('setRemoteAccess flips the flag', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add(baseFixture);
+    store.setRemoteAccess('d1', true);
+    expect(store.list()[0].remoteAllowed).toBe(true);
+    store.setRemoteAccess('d1', false);
+    expect(store.list()[0].remoteAllowed).toBe(false);
+  });
+
+  it('setRemoteAccess is a no-op for unknown deviceId', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add(baseFixture);
+    store.setRemoteAccess('unknown', true);
+    expect(store.list()[0].remoteAllowed).toBe(false);
+  });
+
+  it('rename preserves all other fields', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add(baseFixture);
+    store.rename('d1', 'new-name');
+    const [d] = store.list();
+    expect(d.deviceTokenHash).toBe('h');
+    expect(d.phoneIdentityPub).toBe('PIP');
+    expect(d.sid).toBe('SID');
+    expect(d.epoch).toBe(1);
+  });
+});

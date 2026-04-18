@@ -90,6 +90,9 @@ export const IPC_CHANNELS = {
   MOBILE_REVOKE_DEVICE: 'office:mobile-revoke-device',
   MOBILE_GET_STATUS: 'office:mobile-get-status',
   MOBILE_STATUS_CHANGE: 'office:mobile-status-change',
+  MOBILE_PAUSE_RELAY: 'office:mobile-pause-relay',
+  MOBILE_SET_REMOTE_ACCESS: 'office:mobile-set-remote-access',
+  MOBILE_RENAME_DEVICE: 'office:mobile-rename-device',
   // Layouts
   GET_LAYOUTS: 'office:get-layouts',
   SAVE_LAYOUTS: 'office:save-layouts',
@@ -270,8 +273,41 @@ export interface OfficeAPI {
     getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
     listDevices(): Promise<PairedDevice[]>;
     revokeDevice(deviceId: string): Promise<void>;
-    getStatus(): Promise<{ running: boolean; port: number | null; connectedDevices: number }>;
-    onStatusChange(callback: (status: { running: boolean; port: number | null; connectedDevices: number }) => void): () => void;
+    renameDevice(deviceId: string, name: string): Promise<void>;
+    setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
+    pauseRelay(until: number | null): Promise<void>;
+    getStatus(): Promise<{
+      running: boolean;
+      port: number | null;
+      connectedDevices: number;
+      pendingSas: string | null;
+      v1DeviceCount: number;
+      relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      relayPausedUntil: number | null;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        mode: 'lan' | 'relay' | 'offline';
+        lastSeenAt: number;
+        remoteAllowed: boolean;
+      }>;
+    }>;
+    onStatusChange(callback: (status: {
+      running: boolean;
+      port: number | null;
+      connectedDevices: number;
+      pendingSas: string | null;
+      v1DeviceCount: number;
+      relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      relayPausedUntil: number | null;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        mode: 'lan' | 'relay' | 'offline';
+        lastSeenAt: number;
+        remoteAllowed: boolean;
+      }>;
+    }) => void): () => void;
   };
 }
 

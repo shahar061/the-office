@@ -160,7 +160,28 @@ contextBridge.exposeInMainWorld('office', {
     listDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_LIST_DEVICES),
     revokeDevice: (deviceId: string) => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_REVOKE_DEVICE, deviceId),
     getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_GET_STATUS),
-    onStatusChange: (cb: (s: { running: boolean; port: number | null; connectedDevices: number }) => void) =>
+    renameDevice: (deviceId: string, name: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.MOBILE_RENAME_DEVICE, deviceId, name),
+    setRemoteAccess: (deviceId: string, enabled: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.MOBILE_SET_REMOTE_ACCESS, deviceId, enabled),
+    pauseRelay: (until: number | null) =>
+      ipcRenderer.invoke(IPC_CHANNELS.MOBILE_PAUSE_RELAY, until),
+    onStatusChange: (cb: (s: {
+      running: boolean;
+      port: number | null;
+      connectedDevices: number;
+      pendingSas: string | null;
+      v1DeviceCount: number;
+      relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      relayPausedUntil: number | null;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        mode: 'lan' | 'relay' | 'offline';
+        lastSeenAt: number;
+        remoteAllowed: boolean;
+      }>;
+    }) => void) =>
       onEvent(IPC_CHANNELS.MOBILE_STATUS_CHANGE, cb),
   },
 });

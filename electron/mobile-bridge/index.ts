@@ -12,7 +12,26 @@ export interface MobileBridge {
   getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
   listDevices(): Promise<PairedDevice[]>;
   revokeDevice(deviceId: string): Promise<void>;
-  getStatus(): { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null; v1DeviceCount: number };
+  renameDevice(deviceId: string, name: string): Promise<void>;
+  setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
+  pauseRelay(until: number | null): void;
+  isRelayPaused(): boolean;
+  getStatus(): {
+    running: boolean;
+    port: number | null;
+    connectedDevices: number;
+    pendingSas: string | null;
+    v1DeviceCount: number;
+    relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+    relayPausedUntil: number | null;
+    devices: Array<{
+      deviceId: string;
+      deviceName: string;
+      mode: 'lan' | 'relay' | 'offline';
+      lastSeenAt: number;
+      remoteAllowed: boolean;
+    }>;
+  };
   // Event ingestion — call from main.ts wherever events are emitted
   onAgentEvent(event: AgentEvent): void;
   onChat(messages: ChatMessage[]): void;
@@ -36,6 +55,15 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   // Declared BEFORE `new WsServer(...)` so that the onBroadcastToRelay callback
   // (which captures this map) sees the live reference.
   const relayConnections = new Map<string, RelayConnection>();
+
+  let relayPausedUntil: number | null = null;
+  let pauseResumeTimer: NodeJS.Timeout | null = null;
+
+  function isPaused(): boolean {
+    return relayPausedUntil !== null && (
+      relayPausedUntil === Number.MAX_SAFE_INTEGER || relayPausedUntil > Date.now()
+    );
+  }
 
   const baseNotifyChange = () => {
     for (const h of changeListeners) {
@@ -72,19 +100,21 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const forwarder = new EventForwarder(snapshots, server);
 
   function syncRelayConnections(): void {
+    const paused = isPaused();
     const devices = deviceStore.list();
-    const wantedIds = new Set(
+    const wantedIds = paused ? new Set<string>() : new Set(
       devices
         .filter((d) => d.remoteAllowed && d.phoneIdentityPub && d.pairSignPriv && d.pairSignPub && d.sid)
         .map((d) => d.deviceId),
     );
-    // Remove stale
+    // Remove stale (or all, if paused)
     for (const [id, conn] of relayConnections) {
       if (!wantedIds.has(id)) {
         conn.stop();
         relayConnections.delete(id);
       }
     }
+    if (paused) return; // don't start new ones
     // Add new
     for (const d of devices) {
       if (!wantedIds.has(d.deviceId) || relayConnections.has(d.deviceId)) continue;
@@ -121,6 +151,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       syncRelayConnections();
     },
     async stop() {
+      if (pauseResumeTimer) { clearTimeout(pauseResumeTimer); pauseResumeTimer = null; }
       for (const conn of relayConnections.values()) conn.stop();
       relayConnections.clear();
       await server.stop();
@@ -128,15 +159,67 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     async getPairingQR() { return server.generatePairingQR(); },
     async listDevices()  { return deviceStore.list(); },
     async revokeDevice(deviceId) { server.revokeDevice(deviceId); },
+    async renameDevice(deviceId, name) {
+      deviceStore.rename(deviceId, name);
+      notifyChange();
+    },
+    async setRemoteAccess(deviceId, enabled) {
+      deviceStore.setRemoteAccess(deviceId, enabled);
+      notifyChange();
+    },
+    pauseRelay(until) {
+      if (pauseResumeTimer) { clearTimeout(pauseResumeTimer); pauseResumeTimer = null; }
+      relayPausedUntil = until;
+      if (until !== null && until !== Number.MAX_SAFE_INTEGER && until > Date.now()) {
+        pauseResumeTimer = setTimeout(() => {
+          relayPausedUntil = null;
+          pauseResumeTimer = null;
+          notifyChange();
+        }, until - Date.now());
+      }
+      notifyChange();
+    },
+    isRelayPaused() { return isPaused(); },
     getStatus() {
       const devices = deviceStore.list();
       const v1DeviceCount = devices.filter((d) => !d.phoneIdentityPub).length;
+      const lanAuthed = server.getAuthenticatedDeviceIds();
+      const mappedDevices = devices.map((d) => {
+        let mode: 'lan' | 'relay' | 'offline';
+        if (lanAuthed.has(d.deviceId)) mode = 'lan';
+        else if (relayConnections.get(d.deviceId)?.isConnected()) mode = 'relay';
+        else mode = 'offline';
+        return {
+          deviceId: d.deviceId,
+          deviceName: d.deviceName,
+          mode,
+          lastSeenAt: d.lastSeenAt,
+          remoteAllowed: !!d.remoteAllowed,
+        };
+      });
+
+      let relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      if (isPaused()) {
+        relay = 'paused';
+      } else {
+        const remoteWanted = devices.some((d) => d.remoteAllowed);
+        if (!remoteWanted) {
+          relay = 'disabled';
+        } else {
+          const allConnected = [...relayConnections.values()].every((c) => c.isConnected());
+          relay = allConnected ? 'ready' : 'unreachable';
+        }
+      }
+
       return {
         running: server.getPort() !== null,
         port: server.getPort(),
         connectedDevices: server.getConnectedCount(),
         pendingSas: currentPendingSas,
         v1DeviceCount,
+        relay,
+        relayPausedUntil,
+        devices: mappedDevices,
       };
     },
     onAgentEvent: forwarder.onAgentEvent,

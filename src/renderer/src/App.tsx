@@ -15,7 +15,9 @@ import { useGitInitModalStore } from './stores/git-init-modal.store';
 import { useGitBannerStore } from './stores/git-banner.store';
 import { useGreenfieldBannersStore } from './stores/greenfield-banners.store';
 import { useSettingsStore } from './stores/settings.store';
+import { useMobileBridgeStore } from './stores/mobile-bridge.store';
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
+import { HeaderStatusPill } from './components/HeaderStatusPill/HeaderStatusPill';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
@@ -40,6 +42,14 @@ export default function App() {
 
   useEffect(() => {
     useSettingsStore.getState().hydrate();
+  }, []);
+
+  useEffect(() => {
+    void useMobileBridgeStore.getState().refresh();
+    const unsub = window.office.mobile.onStatusChange(() => {
+      void useMobileBridgeStore.getState().refresh();
+    });
+    return () => { unsub(); };
   }, []);
 
   useEffect(() => {
@@ -214,6 +224,17 @@ export default function App() {
         )}
       </React.Suspense>
       <SettingsPanel />
+      <div
+        style={{
+          position: 'fixed',
+          top: 10,
+          right: 14,
+          zIndex: 90, // below SettingsPanel backdrop (100) but above most content
+          pointerEvents: 'auto',
+        }}
+      >
+        <HeaderStatusPill />
+      </div>
     </div>
   );
 }

@@ -108,6 +108,14 @@ export class WsServer {
     return n;
   }
 
+  getAuthenticatedDeviceIds(): Set<string> {
+    const ids = new Set<string>();
+    for (const c of this.connections.values()) {
+      if (c.state.kind === 'authenticated') ids.add(c.state.deviceId);
+    }
+    return ids;
+  }
+
   generatePairingQR(): { qrPayload: string; expiresAt: number } {
     this.activePairing = createPairingToken();
     const host = pickLanIP();

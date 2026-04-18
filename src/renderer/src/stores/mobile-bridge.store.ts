@@ -1,8 +1,25 @@
 import { create } from 'zustand';
 import type { PairedDevice } from '../../../../shared/types';
 
+interface MobileStatus {
+  running: boolean;
+  port: number | null;
+  connectedDevices: number;
+  pendingSas: string | null;
+  v1DeviceCount: number;
+  relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+  relayPausedUntil: number | null;
+  devices: Array<{
+    deviceId: string;
+    deviceName: string;
+    mode: 'lan' | 'relay' | 'offline';
+    lastSeenAt: number;
+    remoteAllowed: boolean;
+  }>;
+}
+
 interface MobileBridgeState {
-  status: { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null; v1DeviceCount: number } | null;
+  status: MobileStatus | null;
   devices: PairedDevice[];
   pendingQR: { qrPayload: string; expiresAt: number } | null;
   loading: boolean;
@@ -10,6 +27,10 @@ interface MobileBridgeState {
   generateQR: () => Promise<void>;
   clearQR: () => void;
   revoke: (deviceId: string) => Promise<void>;
+  // NEW actions (Plan 3 Task 6):
+  renameDevice: (deviceId: string, name: string) => Promise<void>;
+  setRemoteAccess: (deviceId: string, enabled: boolean) => Promise<void>;
+  pauseRelay: (until: number | null) => Promise<void>;
 }
 
 export const useMobileBridgeStore = create<MobileBridgeState>((set, get) => ({
@@ -36,6 +57,21 @@ export const useMobileBridgeStore = create<MobileBridgeState>((set, get) => ({
 
   revoke: async (deviceId: string) => {
     await window.office.mobile.revokeDevice(deviceId);
+    await get().refresh();
+  },
+
+  renameDevice: async (deviceId, name) => {
+    await window.office.mobile.renameDevice(deviceId, name);
+    await get().refresh();
+  },
+
+  setRemoteAccess: async (deviceId, enabled) => {
+    await window.office.mobile.setRemoteAccess(deviceId, enabled);
+    await get().refresh();
+  },
+
+  pauseRelay: async (until) => {
+    await window.office.mobile.pauseRelay(until);
     await get().refresh();
   },
 }));
