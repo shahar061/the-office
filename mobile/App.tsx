@@ -10,7 +10,7 @@ import { WelcomeScreen } from './src/pairing/WelcomeScreen';
 import { QRScanScreen } from './src/pairing/QRScanScreen';
 import { SasConfirmScreen } from './src/pairing/SasConfirmScreen';
 import { RemoteConsentScreen } from './src/pairing/RemoteConsentScreen';
-import { SessionScreen } from './src/screens/SessionScreen';
+import { SessionScreen } from './src/session/SessionScreen';
 import { loadDevice, saveDevice, clearDevice, type PairedDeviceCredentials } from './src/pairing/secure-store';
 
 import { deriveSessionKeys } from '@shared/crypto/noise';
