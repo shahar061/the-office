@@ -7,6 +7,14 @@ import { ToolBubble } from './ToolBubble';
 
 export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
 
+function lerp(a: number, b: number, t: number): number {
+  const tt = Math.min(Math.max(t, 0), 1);
+  return a + (b - a) * tt;
+}
+
+const SNAP_THRESHOLD_PX = 100;
+const LERP_WINDOW_S = 0.1; // reach target in ~100ms
+
 const SPEED = 48;
 
 interface WanderBounds {
@@ -85,6 +93,41 @@ export class Character {
       alpha: this.sprite.container.alpha,
       toolBubble: this.toolBubble.getPublicState(),
     };
+  }
+
+  applyDrivenState(target: CharacterState, dt: number): void {
+    const dx = target.x - this.px;
+    const dy = target.y - this.py;
+    const shouldSnap = Math.abs(dx) > SNAP_THRESHOLD_PX || Math.abs(dy) > SNAP_THRESHOLD_PX;
+    if (shouldSnap) {
+      this.px = target.x;
+      this.py = target.y;
+    } else {
+      const t = Math.min(1, dt / LERP_WINDOW_S);
+      this.px = lerp(this.px, target.x, t);
+      this.py = lerp(this.py, target.y, t);
+    }
+    this.sprite.setPosition(this.px, this.py);
+
+    // Alpha interpolation
+    const currentAlpha = this.sprite.container.alpha;
+    const alphaT = Math.min(1, dt / LERP_WINDOW_S);
+    this.sprite.setAlpha(lerp(currentAlpha, target.alpha, alphaT));
+
+    // Snap direction + animation — they're discrete transitions
+    if (this.direction !== target.direction) {
+      this.direction = target.direction;
+      this.sprite.setAnimation(this.state, this.direction);
+    }
+    if (this.state !== target.animation) {
+      this.state = target.animation;
+      this.sprite.setAnimation(this.state, this.direction);
+    }
+
+    // Visibility + tool bubble
+    this.isVisible = target.visible;
+    this.toolBubble.setTarget(target.toolBubble);
+    this.toolBubble.setPosition(this.px, this.py);
   }
 
   getTilePosition(): { x: number; y: number } {
