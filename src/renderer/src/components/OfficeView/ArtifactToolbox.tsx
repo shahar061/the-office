@@ -3,40 +3,9 @@ import { useArtifactStore, type ArtifactInfo } from '../../stores/artifact.store
 import { useWarTableStore } from '../../stores/war-table.store';
 import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
+import { DraggablePanel } from './DraggablePanel';
 
 // ── Shared styles ──
-
-const wrapperStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '12px',
-  right: '12px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  zIndex: 10,
-};
-
-const panelStyle: React.CSSProperties = {
-  background: 'rgba(15,15,26,0.92)',
-  backdropFilter: 'blur(8px)',
-  border: '1px solid #333',
-  borderRadius: '8px',
-  padding: '8px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-  minWidth: '140px',
-};
-
-const headerStyle: React.CSSProperties = {
-  fontSize: '9px',
-  color: '#64748b',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  padding: '0 4px 4px',
-  borderBottom: '1px solid #222',
-  fontWeight: 600,
-};
 
 function rowStyle(available: boolean, borderColor: string): React.CSSProperties {
   return {
@@ -81,8 +50,7 @@ function ImagineToolbox() {
   }
 
   return (
-    <div style={panelStyle}>
-      <div style={headerStyle}>Artifacts</div>
+    <DraggablePanel id="imagine-artifacts" title="Artifacts" defaultPosition={{ top: 12, right: 12 }}>
       {artifacts.map((a) => {
         const color = AGENT_COLORS[a.agentRole];
         return (
@@ -97,7 +65,7 @@ function ImagineToolbox() {
           </div>
         );
       })}
-    </div>
+    </DraggablePanel>
   );
 }
 
@@ -141,8 +109,7 @@ function WarRoomToolbox() {
   const borderColor = '#0ea5e9';
 
   return (
-    <div style={panelStyle}>
-      <div style={headerStyle}>War Room</div>
+    <DraggablePanel id="warroom-docs" title="War Room" defaultPosition={{ top: 12, right: 170 }}>
       {WAR_ROOM_DOCS.map((doc) => (
         <div
           key={doc.key}
@@ -158,21 +125,24 @@ function WarRoomToolbox() {
           </span>
         </div>
       ))}
-    </div>
+    </DraggablePanel>
   );
 }
 
 // ── Phase-Aware Wrapper ──
+// Each DraggablePanel positions itself absolutely, so no wrapping flex
+// container is needed — the panels can be dragged independently, and
+// localStorage remembers per-panel position + expanded state across sessions.
 
 export function ArtifactToolbox() {
   const phase = useProjectStore((s) => s.projectState?.currentPhase ?? 'idle');
 
-  if (phase === 'imagine') return <div style={wrapperStyle}><ImagineToolbox /></div>;
+  if (phase === 'imagine') return <ImagineToolbox />;
   if (phase === 'warroom') return (
-    <div style={wrapperStyle}>
+    <>
       <ImagineToolbox />
       <WarRoomToolbox />
-    </div>
+    </>
   );
   return null;
 }

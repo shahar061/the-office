@@ -7,9 +7,16 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',
-    padding: '8px 12px 0',
-    position: 'relative' as const,
+    // Float the snackbar stack over the canvas instead of consuming layout
+    // space at the top of the office pane. pointerEvents:none on the wrapper
+    // lets clicks fall through to the canvas; each banner re-enables pointer
+    // events so its dismiss button still works.
+    position: 'absolute' as const,
+    top: '8px',
+    left: '12px',
+    right: '12px',
     zIndex: 30,
+    pointerEvents: 'none' as const,
   },
   banner: {
     display: 'flex',
@@ -19,15 +26,19 @@ const styles = {
     borderRadius: '6px',
     fontSize: '11px',
     lineHeight: '1.4',
+    pointerEvents: 'auto' as const,
+    backdropFilter: 'blur(6px)',
   },
   bannerInfo: {
-    background: 'rgba(59,130,246,0.10)',
-    border: '1px solid rgba(59,130,246,0.35)',
+    // Higher background opacity so the banner is readable when overlaid on
+    // the animated canvas underneath.
+    background: 'rgba(15,23,42,0.85)',
+    border: '1px solid rgba(59,130,246,0.55)',
     color: '#93c5fd',
   },
   bannerWarning: {
-    background: 'rgba(245,158,11,0.10)',
-    border: '1px solid rgba(245,158,11,0.35)',
+    background: 'rgba(15,23,42,0.85)',
+    border: '1px solid rgba(245,158,11,0.55)',
     color: '#fcd34d',
   },
   message: {
