@@ -93,6 +93,7 @@ export const IPC_CHANNELS = {
   MOBILE_PAUSE_RELAY: 'office:mobile-pause-relay',
   MOBILE_SET_REMOTE_ACCESS: 'office:mobile-set-remote-access',
   MOBILE_RENAME_DEVICE: 'office:mobile-rename-device',
+  MOBILE_SET_LAN_HOST: 'office:mobile-set-lan-host',
   // Layouts
   GET_LAYOUTS: 'office:get-layouts',
   SAVE_LAYOUTS: 'office:save-layouts',
@@ -276,6 +277,7 @@ export interface OfficeAPI {
     renameDevice(deviceId: string, name: string): Promise<void>;
     setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
     pauseRelay(until: number | null): Promise<void>;
+    setLanHost: (host: string | null) => Promise<void>;
     getStatus(): Promise<{
       running: boolean;
       port: number | null;
@@ -284,6 +286,7 @@ export interface OfficeAPI {
       v1DeviceCount: number;
       relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
       relayPausedUntil: number | null;
+      lanHost: string | null;
       devices: Array<{
         deviceId: string;
         deviceName: string;
@@ -300,6 +303,7 @@ export interface OfficeAPI {
       v1DeviceCount: number;
       relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
       relayPausedUntil: number | null;
+      lanHost: string | null;
       devices: Array<{
         deviceId: string;
         deviceName: string;

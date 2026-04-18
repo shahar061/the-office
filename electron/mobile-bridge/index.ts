@@ -19,6 +19,7 @@ export interface MobileBridge {
   setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
   pauseRelay(until: number | null): void;
   isRelayPaused(): boolean;
+  setLanHost(host: string | null): Promise<void>;
   getStatus(): {
     running: boolean;
     port: number | null;
@@ -27,6 +28,7 @@ export interface MobileBridge {
     v1DeviceCount: number;
     relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
     relayPausedUntil: number | null;
+    lanHost: string | null;
     devices: Array<{
       deviceId: string;
       deviceName: string;
@@ -214,6 +216,15 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       notifyChange();
     },
     isRelayPaused() { return isPaused(); },
+    async setLanHost(host) {
+      const normalized = host === null ? null : host.trim() || null;
+      const current = opts.settings.get();
+      const mobile = current.mobile ?? { enabled: true, port: null, devices: [] };
+      opts.settings.update({
+        mobile: { ...mobile, lanHost: normalized ?? undefined },
+      });
+      notifyChange();
+    },
     getStatus() {
       const devices = deviceStore.list();
       const v1DeviceCount = devices.filter((d) => !d.phoneIdentityPub).length;
@@ -253,6 +264,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
         v1DeviceCount,
         relay,
         relayPausedUntil,
+        lanHost: opts.settings.get().mobile?.lanHost ?? null,
         devices: mappedDevices,
       };
     },
