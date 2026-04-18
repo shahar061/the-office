@@ -20,5 +20,5 @@ export function useCharStream(
       window.office.broadcastCharStates(states);
     }, 100);
     return () => clearInterval(id);
-  }, [sceneRef, mobileConnectedCount]);
+  }, [mobileConnectedCount]);
 }

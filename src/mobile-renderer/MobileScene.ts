@@ -4,7 +4,6 @@ import { Camera } from '../renderer/src/office/engine/camera';
 import { Character } from '../renderer/src/office/characters/Character';
 import { SpriteAdapter } from '../renderer/src/office/characters/SpriteAdapter';
 import { AGENT_CONFIGS } from '../renderer/src/office/characters/agents.config';
-import type { AgentRole } from '../../shared/types';
 import { useSessionStore } from '../../shared/stores/session.store';
 
 import officeTilesetUrl from '../renderer/src/assets/tilesets/office-tileset.png?url';
@@ -168,34 +167,5 @@ export class MobileScene {
 
   getCharacter(role: string): Character | undefined {
     return this.characters.get(role);
-  }
-
-  showCharacter(role: AgentRole): void {
-    const character = this.characters.get(role);
-    if (!character) {
-      console.log('[MobileScene] showCharacter: no Character for role', role, 'keys=', [...this.characters.keys()]);
-      return;
-    }
-    if (character.isVisible) {
-      console.log('[MobileScene] showCharacter: already visible', role);
-      return;
-    }
-    const entrance = this.getEntrancePosition();
-    console.log('[MobileScene] showCharacter', role, 'at', entrance);
-    character.repositionTo(entrance.x, entrance.y);
-    character.show(this.characterLayer);
-  }
-
-  hideCharacter(role: AgentRole): void {
-    const character = this.characters.get(role);
-    if (!character || !character.isVisible) return;
-    character.hide(3000);
-  }
-
-  private getEntrancePosition(): { x: number; y: number } {
-    const sp = this.mapRenderer.getSpawnPoint('entrance');
-    if (sp) return sp;
-    // Fallback: bottom-center of the map
-    return { x: Math.floor(this.mapRenderer.width / 2), y: this.mapRenderer.height - 2 };
   }
 }
