@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing, radius } from '../theme';
 
 interface Props {
   onDecide: (remoteAllowed: boolean) => void;
@@ -29,15 +30,15 @@ export function RemoteConsentScreen({ onDecide }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0a0a0e', padding: 24 },
-  content: { flex: 1, justifyContent: 'center', gap: 16 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '600' },
-  body: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
-  note: { backgroundColor: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.2)', borderWidth: 1, borderRadius: 8, padding: 12 },
+  root: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
+  content: { flex: 1, justifyContent: 'center', gap: spacing.lg },
+  title: { color: colors.text, fontSize: 22, fontWeight: '600' },
+  body: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
+  note: { backgroundColor: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.2)', borderWidth: 1, borderRadius: radius.lg, padding: spacing.md },
   noteText: { color: '#c4b5fd', fontSize: 12, lineHeight: 18 },
   actions: { gap: 10 },
-  primary: { backgroundColor: '#6366f1', paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  secondary: { borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  primary: { backgroundColor: colors.accent, paddingVertical: 14, borderRadius: radius.lg, alignItems: 'center' },
+  primaryText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  secondary: { borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, paddingVertical: 14, borderRadius: radius.lg, alignItems: 'center' },
   secondaryText: { color: '#e5e7eb', fontSize: 15, fontWeight: '600' },
 });
