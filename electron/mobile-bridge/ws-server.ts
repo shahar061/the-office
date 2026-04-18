@@ -1,7 +1,7 @@
-import { randomUUID } from 'crypto';
-import { networkInterfaces } from 'os';
+import { randomUUID, randomBytes } from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { MobileMessageV2, PairingQRPayloadV2 } from '../../shared/types';
+import type { MobileMessageV2, PairingQRPayloadV3 } from '../../shared/types';
+import type { AppSettings } from '../../shared/types';
 import { encodeV2, decodeV2 } from '../../shared/protocol/mobile';
 import { DeviceStore } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
@@ -41,6 +41,7 @@ export interface WsServerOptions {
   deviceStore: DeviceStore;
   snapshots: SnapshotBuilder;
   identity: Identity;
+  settings?: { get: () => AppSettings };
   onChange?: () => void;
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
@@ -94,18 +95,21 @@ export class WsServer {
     return ids;
   }
 
-  generatePairingQR(): { qrPayload: string; expiresAt: number } {
-    this.activePairing = createPairingToken();
-    const host = pickLanIP();
-    const payload: PairingQRPayloadV2 = {
-      v: 2,
-      host,
-      port: this.port ?? 0,
+  generatePairingQR(): { qrPayload: string; expiresAt: number; roomId: string; pairingToken: string } {
+    const token = createPairingToken();
+    this.activePairing = token;
+    const roomId = randomBytes(16).toString('base64url');
+    const lanHost = this.opts.settings?.get().mobile?.lanHost;
+    const payload: PairingQRPayloadV3 = {
+      v: 3,
+      mode: lanHost ? 'lan-direct' : 'relay',
+      roomId,
       desktopIdentityPub: Buffer.from(this.opts.identity.pub).toString('base64'),
-      pairingToken: this.activePairing.token,
-      expiresAt: this.activePairing.expiresAt,
+      pairingToken: token.token,
+      expiresAt: token.expiresAt,
+      ...(lanHost ? { host: lanHost, port: this.port ?? 0 } : {}),
     };
-    return { qrPayload: JSON.stringify(payload), expiresAt: this.activePairing.expiresAt };
+    return { qrPayload: JSON.stringify(payload), expiresAt: token.expiresAt, roomId, pairingToken: token.token };
   }
 
   revokeDevice(deviceId: string): void {
@@ -394,12 +398,3 @@ export class WsServer {
   }
 }
 
-function pickLanIP(): string {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] ?? []) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return '127.0.0.1';
-}
