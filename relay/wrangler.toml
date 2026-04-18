@@ -7,9 +7,17 @@ workers_dev = true
 tag = "v1"
 new_sqlite_classes = ["SessionDO"]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PairingRoomDO"]
+
 [[durable_objects.bindings]]
 name = "SESSION_DO"
 class_name = "SessionDO"
+
+[[durable_objects.bindings]]
+name = "PAIRING_ROOM_DO"
+class_name = "PairingRoomDO"
 
 [env.staging]
 name = "the-office-relay-staging"
@@ -19,6 +27,10 @@ workers_dev = true
 name = "SESSION_DO"
 class_name = "SessionDO"
 
+[[env.staging.durable_objects.bindings]]
+name = "PAIRING_ROOM_DO"
+class_name = "PairingRoomDO"
+
 [env.production]
 name = "the-office-relay"
 workers_dev = true
@@ -26,6 +38,10 @@ workers_dev = true
 [[env.production.durable_objects.bindings]]
 name = "SESSION_DO"
 class_name = "SessionDO"
+
+[[env.production.durable_objects.bindings]]
+name = "PAIRING_ROOM_DO"
+class_name = "PairingRoomDO"
 
 # When a custom domain is configured later, add:
 # routes = [{ pattern = "relay.example.com/*", zone_name = "example.com" }]
