@@ -12,6 +12,7 @@ import { SasConfirmScreen } from './src/pairing/SasConfirmScreen';
 import { RemoteConsentScreen } from './src/pairing/RemoteConsentScreen';
 import { SessionScreen } from './src/session/SessionScreen';
 import { loadDevice, saveDevice, clearDevice, type PairedDeviceCredentials } from './src/pairing/secure-store';
+import { colors } from './src/theme';
 
 import { deriveSessionKeys } from '@shared/crypto/noise';
 import { deriveSas } from '@shared/crypto/sas';
@@ -337,8 +338,8 @@ export default function App() {
   switch (screen.kind) {
     case 'loading':
       body = (
-        <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color="#6366f1" />
+        <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={colors.accent} />
         </View>
       );
       break;
@@ -356,8 +357,8 @@ export default function App() {
       break;
     case 'pairing':
       body = (
-        <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color="#6366f1" />
+        <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={colors.accent} />
         </View>
       );
       break;
