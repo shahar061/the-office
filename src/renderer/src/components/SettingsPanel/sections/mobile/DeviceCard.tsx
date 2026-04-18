@@ -45,7 +45,15 @@ export function DeviceCard({ device }: Props) {
           <input
             autoFocus value={name}
             onChange={e => setName(e.target.value)}
-            onBlur={() => { setEditing(false); if (name !== device.deviceName) renameDevice(device.deviceId, name); }}
+            onBlur={() => {
+              setEditing(false);
+              const trimmed = name.trim();
+              if (!trimmed) {
+                setName(device.deviceName);       // reject empty, restore previous
+                return;
+              }
+              if (trimmed !== device.deviceName) renameDevice(device.deviceId, trimmed);
+            }}
             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 14, fontWeight: 500, padding: 0 }}
           />

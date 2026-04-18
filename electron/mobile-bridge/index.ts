@@ -151,6 +151,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       syncRelayConnections();
     },
     async stop() {
+      if (pauseResumeTimer) { clearTimeout(pauseResumeTimer); pauseResumeTimer = null; }
       for (const conn of relayConnections.values()) conn.stop();
       relayConnections.clear();
       await server.stop();
