@@ -273,8 +273,41 @@ export interface OfficeAPI {
     getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
     listDevices(): Promise<PairedDevice[]>;
     revokeDevice(deviceId: string): Promise<void>;
-    getStatus(): Promise<{ running: boolean; port: number | null; connectedDevices: number }>;
-    onStatusChange(callback: (status: { running: boolean; port: number | null; connectedDevices: number }) => void): () => void;
+    renameDevice(deviceId: string, name: string): Promise<void>;
+    setRemoteAccess(deviceId: string, enabled: boolean): Promise<void>;
+    pauseRelay(until: number | null): Promise<void>;
+    getStatus(): Promise<{
+      running: boolean;
+      port: number | null;
+      connectedDevices: number;
+      pendingSas: string | null;
+      v1DeviceCount: number;
+      relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      relayPausedUntil: number | null;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        mode: 'lan' | 'relay' | 'offline';
+        lastSeenAt: number;
+        remoteAllowed: boolean;
+      }>;
+    }>;
+    onStatusChange(callback: (status: {
+      running: boolean;
+      port: number | null;
+      connectedDevices: number;
+      pendingSas: string | null;
+      v1DeviceCount: number;
+      relay: 'ready' | 'unreachable' | 'disabled' | 'paused';
+      relayPausedUntil: number | null;
+      devices: Array<{
+        deviceId: string;
+        deviceName: string;
+        mode: 'lan' | 'relay' | 'offline';
+        lastSeenAt: number;
+        remoteAllowed: boolean;
+      }>;
+    }) => void): () => void;
   };
 }
 
