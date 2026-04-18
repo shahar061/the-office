@@ -18,7 +18,6 @@ export function registerMobileHandlers(bridge: MobileBridge): void {
 
   // Canvas State Parity — 10Hz character-state broadcast from renderer
   _charStatesListener = (_e, states: CharacterState[]) => {
-    // @ts-expect-error Task 8 adds onCharStates to the MobileBridge interface
     bridge.onCharStates(states);
   };
   ipcMain.on(IPC_CHANNELS.OFFICE_CHAR_STATES, _charStatesListener);

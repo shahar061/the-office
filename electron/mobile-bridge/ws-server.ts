@@ -139,6 +139,18 @@ export class WsServer {
     }
   }
 
+  /**
+   * Broadcast a charState frame to all authenticated LAN connections.
+   * Relay fan-out is handled by the caller (MobileBridge.onCharStates).
+   */
+  broadcastCharState(msg: MobileMessageV2): void {
+    for (const c of this.connections.values()) {
+      if (c.state.kind === 'authenticated' && c.ws.readyState === WebSocket.OPEN) {
+        this.sendEncrypted(c, msg);
+      }
+    }
+  }
+
   private notifyChange(): void {
     try { this.opts.onChange?.(); } catch (err) {
       console.warn('[mobile-bridge] onChange listener failed', err);

@@ -1,7 +1,7 @@
 // electron/mobile-bridge/per-connection-queue.ts
 // Backpressure queue for a single outbound connection.
 // - Snapshots coalesce: only the latest pending snapshot is kept.
-// - Events, chatFeed, state, chatAck are bounded FIFO (default 256).
+// - Events, chatFeed, state, chatAck, charState are bounded FIFO (default 256).
 // - Control messages (heartbeat, tokenRefresh, authed, authFailed, paired) are
 //   classified as pass-through — callers should send them directly without
 //   passing through this queue.
@@ -9,7 +9,7 @@
 import type { MobileMessageV2 } from '../../shared/types';
 
 const BUFFERED_TYPES = new Set<MobileMessageV2['type']>([
-  'event', 'chatFeed', 'state', 'chatAck',
+  'event', 'chatFeed', 'state', 'chatAck', 'charState',
 ]);
 const SNAPSHOT_TYPES = new Set<MobileMessageV2['type']>(['snapshot']);
 

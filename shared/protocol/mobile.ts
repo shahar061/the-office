@@ -28,7 +28,7 @@ export function decode(raw: string): MobileMessage | null {
 
 const VALID_V2_TYPES = new Set([
   'pair', 'pairConfirm', 'pairRemoteConsent', 'auth', 'chat', 'heartbeat',
-  'paired', 'authed', 'authFailed', 'snapshot', 'event', 'chatFeed', 'chatAck', 'state', 'tokenRefresh',
+  'paired', 'authed', 'authFailed', 'snapshot', 'charState', 'event', 'chatFeed', 'chatAck', 'state', 'tokenRefresh',
 ]);
 
 export function isMobileMessageV2(x: unknown): x is MobileMessageV2 {
