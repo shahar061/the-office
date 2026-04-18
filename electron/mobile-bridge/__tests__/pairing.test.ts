@@ -5,6 +5,9 @@ import {
   generateDeviceToken,
   hashDeviceToken,
   verifyDeviceToken,
+  generatePairSignKeypair,
+  signPairToken,
+  verifyPairToken,
 } from '../pairing';
 
 describe('pairing module', () => {
@@ -64,5 +67,28 @@ describe('pairing module', () => {
       expect(await verifyDeviceToken(token, h1)).toBe(true);
       expect(await verifyDeviceToken(token, h2)).toBe(true);
     });
+  });
+});
+
+describe('v2 pairing helpers', () => {
+  it('generatePairSignKeypair returns Ed25519 keys', () => {
+    const kp = generatePairSignKeypair();
+    expect(kp.priv).toHaveLength(32);
+    expect(kp.pub).toHaveLength(32);
+  });
+
+  it('signPairToken + verifyPairToken round-trip', () => {
+    const kp = generatePairSignKeypair();
+    const token = signPairToken(kp.priv, { sid: 'S', role: 'phone', epoch: 1, exp: 9999 });
+    const claims = verifyPairToken(kp.pub, token);
+    expect(claims?.sid).toBe('S');
+    expect(claims?.role).toBe('phone');
+  });
+
+  it('verifyPairToken rejects tampered token', () => {
+    const kp = generatePairSignKeypair();
+    const token = signPairToken(kp.priv, { sid: 'S', role: 'phone', epoch: 1, exp: 9999 });
+    const tampered = token.slice(0, -4) + 'AAAA';
+    expect(verifyPairToken(kp.pub, tampered)).toBeNull();
   });
 });

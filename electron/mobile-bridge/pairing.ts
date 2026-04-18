@@ -59,3 +59,37 @@ export async function verifyDeviceToken(token: string, storedHash: string): Prom
   const actual = await scryptAsync(token, salt, SCRYPT_KEY_LEN);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
+
+import { ed25519 } from '@noble/curves/ed25519';
+
+export interface PairSignKeypair { priv: Uint8Array; pub: Uint8Array; }
+
+export function generatePairSignKeypair(): PairSignKeypair {
+  const priv = ed25519.utils.randomPrivateKey();
+  return { priv, pub: ed25519.getPublicKey(priv) };
+}
+
+export interface PairTokenClaims {
+  sid: string;
+  role: 'desktop' | 'phone';
+  epoch: number;
+  exp: number; // unix ms
+}
+
+export function signPairToken(priv: Uint8Array, claims: PairTokenClaims): string {
+  const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  const sig = ed25519.sign(Buffer.from(body), priv);
+  return `${body}.${Buffer.from(sig).toString('base64url')}`;
+}
+
+export function verifyPairToken(pub: Uint8Array, token: string): PairTokenClaims | null {
+  const [body, sigB64] = token.split('.');
+  if (!body || !sigB64) return null;
+  try {
+    const sig = Buffer.from(sigB64, 'base64url');
+    if (!ed25519.verify(sig, Buffer.from(body), pub)) return null;
+    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as PairTokenClaims;
+  } catch {
+    return null;
+  }
+}
