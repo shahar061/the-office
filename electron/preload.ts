@@ -10,6 +10,7 @@ import type {
   Request,
   RequestPlanReadyPayload, RequestPlanResponse,
   GitInitPromptPayload, GitRecoveryNote, GitIdentity,
+  CharacterState,
 } from '../shared/types';
 
 function onEvent<T>(channel: string, callback: (data: T) => void): () => void {
@@ -153,6 +154,10 @@ contextBridge.exposeInMainWorld('office', {
 
   // Logs
   flushLogs: (logText: string) => ipcRenderer.invoke(IPC_CHANNELS.FLUSH_LOGS, logText),
+
+  // Canvas State Parity
+  broadcastCharStates: (states: CharacterState[]) =>
+    ipcRenderer.send(IPC_CHANNELS.OFFICE_CHAR_STATES, states),
 
   // Mobile Bridge
   mobile: {

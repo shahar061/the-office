@@ -32,7 +32,7 @@ import type {
   UIDesignReviewResponse,
   DiffResult,
 } from './project';
-import type { PairedDevice } from './mobile';
+import type { PairedDevice, CharacterState } from './mobile';
 import type { AuthStatus, AppSettings, GitIdentity, StatsState } from './settings';
 
 export const IPC_CHANNELS = {
@@ -270,6 +270,9 @@ export interface OfficeAPI {
   runOnboardingScan(): Promise<{ success: boolean; error?: string }>;
   skipOnboardingScan(): Promise<void>;
   onProjectStateChanged(callback: (state: ProjectState) => void): () => void;
+
+  // Canvas State Parity
+  broadcastCharStates(states: CharacterState[]): void;
 
   // Mobile Bridge
   mobile: {
