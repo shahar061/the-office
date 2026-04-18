@@ -71,24 +71,35 @@ export default function App() {
   };
 
   const handleScanned = (payload: PairingQRPayloadV2 | PairingQRPayloadV3) => {
-    if (payload.v === 2) return handleLanScanned(payload);
+    if (payload.v === 2) return handleLanScanned(payload, null);
     // v3
     if (payload.mode === 'lan-direct' && payload.host && payload.port) {
-      // User configured LAN direct — use LAN path with v3 host/port
-      return handleLanScanned({
+      // User configured LAN direct — try LAN first. Carry the original v3 payload
+      // so we can fall back to relay if LAN is unreachable (e.g. the user's phone
+      // left home Wi-Fi after the desktop was configured).
+      const v2Synth: PairingQRPayloadV2 = {
         v: 2,
         host: payload.host,
         port: payload.port,
         desktopIdentityPub: payload.desktopIdentityPub,
         pairingToken: payload.pairingToken,
         expiresAt: payload.expiresAt,
-      });
+      };
+      return handleLanScanned(v2Synth, payload);
     }
     // relay mode
     return handleRelayScanned(payload);
   };
 
-  const handleLanScanned = (payload: PairingQRPayloadV2) => {
+  /**
+   * Run LAN pairing. If `relayFallback` is provided and the LAN attempt fails
+   * (error or 10-s timeout with no `onopen`), dispatch to the relay path
+   * instead of bouncing the user back to Welcome.
+   */
+  const handleLanScanned = (
+    payload: PairingQRPayloadV2,
+    relayFallback: PairingQRPayloadV3 | null,
+  ) => {
     const phonePriv = x25519.utils.randomPrivateKey();
     const phonePub = x25519.getPublicKey(phonePriv);
     const desktopPub = new Uint8Array(Buffer.from(payload.desktopIdentityPub, 'base64'));
@@ -97,13 +108,30 @@ export default function App() {
     const sas = deriveSas(desktopPub, phonePub, payload.pairingToken);
 
     const ws = new WebSocket(`ws://${payload.host}:${payload.port}/office`);
-    const timeout = setTimeout(() => {
+    let opened = false;
+    const fallbackOrFail = (reason: 'timeout' | 'error') => {
       try { ws.close(); } catch { /* ignore */ }
-      Alert.alert('Could not reach desktop', 'Make sure it is running and on the same Wi-Fi.');
+      // Clear any partial pairing state before re-dispatching.
+      pairingRef.current = null;
+      if (relayFallback) {
+        // Silent fallback — don't alert; user doesn't need to know LAN was attempted.
+        handleRelayScanned(relayFallback);
+        return;
+      }
+      const msg = reason === 'timeout'
+        ? 'Make sure it is running and on the same Wi-Fi.'
+        : 'Could not connect to the desktop.';
+      Alert.alert('Could not reach desktop', msg);
       cancelToWelcome();
+    };
+
+    const timeout = setTimeout(() => {
+      if (opened) return;
+      fallbackOrFail('timeout');
     }, 10_000);
 
     ws.onopen = () => {
+      opened = true;
       clearTimeout(timeout);
       const deviceName = Device.modelName ?? 'Phone';
       ws.send(JSON.stringify({
@@ -117,9 +145,9 @@ export default function App() {
     };
 
     ws.onerror = () => {
+      if (opened) return; // only treat pre-open errors as LAN failure
       clearTimeout(timeout);
-      Alert.alert('Connection error', 'Could not connect to the desktop.');
-      cancelToWelcome();
+      fallbackOrFail('error');
     };
 
     // Binary frames = encrypted (only `paired` is encrypted pre-session)

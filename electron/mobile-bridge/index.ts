@@ -50,8 +50,6 @@ export interface MobileBridgeOptions {
   desktopName: string;
 }
 
-let activeRendezvous: RendezvousClient | null = null;
-
 export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const deviceStore = new DeviceStore(opts.settings);
   const identity = getOrCreateIdentity(opts.settings);
@@ -62,6 +60,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   // Declared BEFORE `new WsServer(...)` so that the onBroadcastToRelay callback
   // (which captures this map) sees the live reference.
   const relayConnections = new Map<string, RelayConnection>();
+
+  // Per-bridge pairing-rendezvous client. Scoped to the closure so multiple
+  // bridges (e.g. in test harnesses) don't share state.
+  let activeRendezvous: RendezvousClient | null = null;
 
   let relayPausedUntil: number | null = null;
   let pauseResumeTimer: NodeJS.Timeout | null = null;
