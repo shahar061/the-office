@@ -84,12 +84,21 @@ export class RendezvousClient extends EventEmitter {
   stop(): void {
     this.running = false;
     this.fsm.close();
-    try {
-      this.ws?.close();
-    } catch {
-      // ignore
+    if (this.ws) {
+      // Detach our listeners before closing: if the socket is still in
+      // CONNECTING state, `ws` synchronously emits 'error' from within close(),
+      // and a forwarded 'error' on this EventEmitter with no external listeners
+      // would throw an uncaught exception. A silent swallower + terminate()
+      // cleanly tears down the connection without propagating.
+      this.ws.removeAllListeners();
+      this.ws.on('error', () => { /* swallow during teardown */ });
+      try {
+        this.ws.terminate();
+      } catch {
+        // ignore
+      }
+      this.ws = null;
     }
-    this.ws = null;
   }
 
   isConnected(): boolean {

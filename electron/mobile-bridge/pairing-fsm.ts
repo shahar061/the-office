@@ -18,6 +18,9 @@ import {
   generatePairSignKeypair,
   type PairingToken,
 } from './pairing';
+import { mintToken } from './token-minter';
+
+const RELAY_TOKEN_TTL_MS = 24 * 60 * 60_000;
 
 export interface PairingFSMOpts {
   identity: Identity;
@@ -136,9 +139,32 @@ export class PairingFSM {
     const recv = new RecvStream(s.sessionKeys.recvKey);
     this.state = { kind: 'authenticated', deviceId: s.deviceId, send, recv };
 
+    // If the user allowed remote access, mint an initial phone relay token so
+    // the phone can immediately connect to wss://.../s/<sid> without waiting
+    // for a subsequent tokenRefresh frame. This matters especially for the
+    // rendezvous pairing flow (Plan 4), where the WebSocket closes as soon
+    // as `paired` lands; a separate tokenRefresh would never arrive.
+    let relayToken: string | undefined;
+    let relayTokenExpiresAt: number | undefined;
+    if (device.remoteAllowed) {
+      relayTokenExpiresAt = Date.now() + RELAY_TOKEN_TTL_MS;
+      relayToken = mintToken(s.pairSign.priv, {
+        sid: s.sid,
+        role: 'phone',
+        epoch: 1,
+        ttlMs: RELAY_TOKEN_TTL_MS,
+      });
+    }
+
     this.opts.sendEncrypted(
-      { type: 'paired', v: 2, deviceId: s.deviceId, deviceToken: s.deviceToken,
-        desktopName: this.opts.desktopName, sid: s.sid },
+      {
+        type: 'paired', v: 2,
+        deviceId: s.deviceId,
+        deviceToken: s.deviceToken,
+        desktopName: this.opts.desktopName,
+        sid: s.sid,
+        ...(relayToken ? { relayToken, relayTokenExpiresAt } : {}),
+      },
       send,
     );
     this.opts.onAuthenticated?.({ deviceId: s.deviceId, send, recv });

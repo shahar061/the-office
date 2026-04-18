@@ -11,11 +11,13 @@ interface Props {
 }
 
 function applyCharacterStates(scene: MobileScene, characters: CharacterSnapshot[]): void {
+  console.log('[OfficeView] applyCharacterStates count=', characters.length);
   // OfficeScene.init() creates all 15 Character instances but leaves them invisible
   // until scene.showCharacter(role) adds them to the scene graph. The desktop flow
   // calls this from useSceneSync as characters become active; the mobile flow has
   // to do it here since the snapshot is our single source of truth.
   for (const c of characters) {
+    console.log('[OfficeView] show', c.agentRole, c.activity);
     scene.showCharacter(c.agentRole);
     const character = scene.getCharacter(c.agentRole);
     if (!character) continue;
@@ -118,6 +120,7 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
 
       // Hydrate from the current snapshot if one exists.
       const initialState = useSessionStore.getState();
+      console.log('[OfficeView] initial snapshot?', !!initialState.snapshot, initialState.snapshot ? `chars=${initialState.snapshot.characters.length}` : '');
       if (initialState.snapshot) {
         applyCharacterStates(scene, initialState.snapshot.characters);
       }

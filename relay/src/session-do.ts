@@ -6,6 +6,8 @@ import { verifyToken } from './auth';
 
 const MAX_MSG_PER_SEC = 100;
 const MAX_PAYLOAD_BYTES = 1_048_576; // 1 MB
+const PENDING_QUEUE_LIMIT = 32;
+const KICK_COOLDOWN_MS = 5_000;
 
 type Role = 'desktop' | 'phone';
 
@@ -26,6 +28,16 @@ export class SessionDO implements DurableObject {
   private peers: Partial<Record<Role, WebSocket>> = {};
   private lastSeq: Partial<Record<Role, number>> = {};
   private rate: Partial<Record<Role, { windowStart: number; count: number }>> = {};
+  // Frames destined for a peer that's currently disconnected. Drained when the
+  // missing role reconnects. Bounded so a permanently-absent peer can't make
+  // the DO hold unbounded memory.
+  private pending: Partial<Record<Role, string[]>> = {};
+  // Timestamp of the last time we closed a role with 'peerReconnect'. When the
+  // same role reconnects within the cooldown window, we treat it as the direct
+  // response to our kick and skip re-kicking the counterparty — otherwise the
+  // two peers kick each other in a loop and neither stays connected long
+  // enough to complete the AUTH handshake.
+  private recentKicks: Partial<Record<Role, number>> = {};
 
   constructor(private state: DurableObjectState, private env: Env) {}
 
@@ -83,6 +95,25 @@ export class SessionDO implements DurableObject {
       try { existing.close(1008, 'superseded'); } catch { /* ignore */ }
     }
 
+    // Also kick the peer of the OTHER role so their encryption streams reset
+    // in lockstep — unless we ourselves just kicked this role, in which case
+    // this connect IS the response to that kick and the counterparty is
+    // already fresh. Without this cooldown the two peers ping-pong forever.
+    const other: Role = role === 'desktop' ? 'phone' : 'desktop';
+    const myLastKick = this.recentKicks[role];
+    const wasJustKicked = myLastKick !== undefined && (Date.now() - myLastKick) < KICK_COOLDOWN_MS;
+    delete this.recentKicks[role];
+    if (!wasJustKicked) {
+      const existingOther = this.peers[other];
+      if (existingOther) {
+        try { existingOther.close(1000, 'peerReconnect'); } catch { /* ignore */ }
+        delete this.peers[other];
+        delete this.lastSeq[other];
+        delete this.rate[other];
+        this.recentKicks[other] = Date.now();
+      }
+    }
+
     // Upgrade.
     const pair = new WebSocketPair();
     const [clientSide, serverSide] = Object.values(pair);
@@ -90,6 +121,17 @@ export class SessionDO implements DurableObject {
     this.peers[role] = serverSide;
     this.lastSeq[role] = -1;
     this.rate[role] = { windowStart: Date.now(), count: 0 };
+
+    // Drain any frames buffered while this role was absent. Do this before
+    // wiring the message listener so the incoming peer sees queued traffic
+    // (typically the other side's AUTH / AUTHED handshake) before its own.
+    const queued = this.pending[role];
+    if (queued && queued.length > 0) {
+      delete this.pending[role];
+      for (const frame of queued) {
+        try { serverSide.send(frame); } catch { /* ignore */ }
+      }
+    }
 
     serverSide.addEventListener('message', (ev: MessageEvent) => this.onMessage(role, ev.data));
     serverSide.addEventListener('close', () => { delete this.peers[role]; });
@@ -140,11 +182,17 @@ export class SessionDO implements DurableObject {
     }
     this.lastSeq[role] = env.seq;
 
-    // Forward to the other peer.
+    // Forward to the other peer, or buffer if they're not connected.
     const other: Role = role === 'desktop' ? 'phone' : 'desktop';
     const dest = this.peers[other];
     if (dest) {
       try { dest.send(data); } catch { /* ignore */ }
+      return;
+    }
+    const queue = this.pending[other] ?? [];
+    if (queue.length < PENDING_QUEUE_LIMIT) {
+      queue.push(data);
+      this.pending[other] = queue;
     }
   }
 
@@ -161,6 +209,8 @@ export class SessionDO implements DurableObject {
       try { this.peers[role]?.close(1008, 'revoked'); } catch { /* ignore */ }
     }
     this.peers = {};
+    this.pending = {};
+    this.recentKicks = {};
     return new Response('ok');
   }
 }

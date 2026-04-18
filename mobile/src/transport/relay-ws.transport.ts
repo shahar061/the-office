@@ -84,16 +84,18 @@ export class RelayWsTransport implements Transport {
       // Phone uses the subprotocol to carry the auth token (RN WebSocket won't
       // send arbitrary Authorization headers).
       const protocol = `token.${this.opts.token}`;
-      this.ws = new WebSocket(`${RELAY_URL}/s/${this.opts.device.sid}`, protocol);
+      const wsUrl = `${RELAY_URL}/s/${this.opts.device.sid}`;
+      console.log('[relay-ws] opening', wsUrl);
+      this.ws = new WebSocket(wsUrl, protocol);
     } catch (err) {
+      console.log('[relay-ws] open threw', (err as Error).message);
       this.emitStatus({ state: 'error', error: err as Error });
       this.scheduleReconnect();
       return;
     }
 
     this.ws.onopen = () => {
-      // Send plain auth over the envelope wire — at this point we're encrypting
-      // but the AUTH payload goes through the envelope like everything else.
+      console.log('[relay-ws] open → sending auth');
       this.sendEnvelopedEncrypted({
         type: 'auth', v: 2,
         deviceId: this.opts.device.deviceId,
@@ -103,8 +105,9 @@ export class RelayWsTransport implements Transport {
 
     this.ws.onmessage = (ev: { data: unknown }) => this.handleRaw(ev.data);
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (ev: { code?: number; reason?: string } = {}) => {
       this.clearHeartbeat();
+      console.log('[relay-ws] close', ev.code, ev.reason ?? '');
       if (this.fatalReason) {
         this.emitStatus({ state: 'disconnected', reason: this.fatalReason });
         return;
@@ -113,7 +116,8 @@ export class RelayWsTransport implements Transport {
       if (this.shouldReconnect) this.scheduleReconnect();
     };
 
-    this.ws.onerror = () => {
+    this.ws.onerror = (ev: unknown) => {
+      console.log('[relay-ws] error', (ev as { message?: string })?.message ?? ev);
       this.emitStatus({ state: 'error', error: new Error('socket error') });
       try { this.ws?.close(); } catch { /* ignore */ }
     };
@@ -184,12 +188,14 @@ export class RelayWsTransport implements Transport {
       const ct = b64decode(env.ct);
       const plain = this.recvStream.decrypt(ct);
       msg = decodeV2(new TextDecoder().decode(plain));
-    } catch {
+    } catch (err) {
+      console.log('[relay-ws] decrypt failed', (err as Error).message);
       try { this.ws?.close(); } catch { /* ignore */ }
       return;
     }
     if (!msg) return;
 
+    console.log('[relay-ws] recv', msg.type);
     switch (msg.type) {
       case 'authed': this.onAuthed(msg.snapshot); break;
       case 'authFailed': this.onAuthFailed(msg.reason); break;

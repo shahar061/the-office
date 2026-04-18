@@ -29,7 +29,8 @@
         "backgroundColor": "#0a0a0a"
       },
       "usesCleartextTraffic": true,
-      "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"]
+      "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"],
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       ["expo-camera", { "cameraPermission": "Allow The Office to scan pairing QR codes" }],

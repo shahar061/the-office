@@ -7,7 +7,7 @@ import { WsServer } from './ws-server';
 import { getOrCreateIdentity } from './identity';
 import { RelayConnection } from './relay-connection';
 import { RendezvousClient } from './rendezvous-client';
-import type { PairingToken } from './pairing';
+import { verifyDeviceToken, type PairingToken } from './pairing';
 
 export interface MobileBridge {
   start(): Promise<void>;
@@ -134,21 +134,52 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       if (!wantedIds.has(d.deviceId) || relayConnections.has(d.deviceId)) continue;
       try {
         const conn = new RelayConnection({ desktop: identity, device: d });
-        conn.on('connect', baseNotifyChange);
-        conn.on('disconnect', baseNotifyChange);
+        conn.on('connect', () => { console.log('[relay]', d.deviceId, 'connect'); baseNotifyChange(); });
+        conn.on('disconnect', () => { console.log('[relay]', d.deviceId, 'disconnect'); baseNotifyChange(); });
         conn.on('error', (err) => console.warn('[relay]', d.deviceId, (err as Error).message));
         conn.on('message', (msg: import('../../shared/types').MobileMessageV2, deviceId: string) => {
+          console.log('[relay]', deviceId, 'recv', msg.type);
+          // Phone sends `auth` after (re)connecting to the relay. Validate
+          // the deviceToken and respond with an encrypted `authed` + snapshot
+          // so the transport can flip to the connected state. Without this
+          // handshake the phone sits on a black session screen indefinitely.
+          if (msg.type === 'auth') {
+            void (async () => {
+              const device = deviceStore.findById(msg.deviceId);
+              if (!device || device.deviceId !== deviceId) {
+                console.log('[relay]', deviceId, 'auth → unknownDevice');
+                conn.sendMessage({ type: 'authFailed', v: 2, reason: 'unknownDevice' });
+                return;
+              }
+              const ok = await verifyDeviceToken(msg.deviceToken, device.deviceTokenHash);
+              if (!ok) {
+                console.log('[relay]', deviceId, 'auth → revoked');
+                conn.sendMessage({ type: 'authFailed', v: 2, reason: 'revoked' });
+                return;
+              }
+              deviceStore.touch(device.deviceId, Date.now());
+              notifyChange();
+              console.log('[relay]', deviceId, 'auth → authed');
+              conn.sendMessage({ type: 'authed', v: 2, snapshot: snapshots.getSnapshot() });
+            })();
+            return;
+          }
           // Upstream chat from the phone comes over the relay path too.
           if (msg.type === 'chat') {
-            for (const h of phoneChatHandlers) {
+            void (async () => {
               try {
-                void h({ body: msg.body, agentId: msg.agentId, fromDeviceId: deviceId, clientMsgId: msg.clientMsgId });
+                for (const h of phoneChatHandlers) {
+                  await h({ body: msg.body, agentId: msg.agentId, fromDeviceId: deviceId, clientMsgId: msg.clientMsgId });
+                }
+                conn.sendMessage({ type: 'chatAck', v: 2, clientMsgId: msg.clientMsgId, ok: true });
               } catch (err) {
                 console.warn('[mobile-bridge] phone chat handler failed (relay)', err);
+                conn.sendMessage({
+                  type: 'chatAck', v: 2, clientMsgId: msg.clientMsgId, ok: false,
+                  error: (err as Error).message,
+                });
               }
-            }
-            // Ack handling on the relay path is a follow-up; the phone infers
-            // success from the eventual chatFeed echo.
+            })();
           }
         });
         conn.start();
@@ -173,6 +204,11 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     },
     async getPairingQR() {
       stopRendezvous();
+      // Clear any stale SAS from a prior attempt before spawning the new client —
+      // belt-and-suspenders for the renderer race, and covers the case where an
+      // old FSM was in awaiting-pair (which doesn't fire onPendingSas(null) on close).
+      currentPendingSas = null;
+      notifyChange();
       const { qrPayload, expiresAt, roomId, pairingToken } = server.generatePairingQR();
       const token: PairingToken = { token: pairingToken, expiresAt };
       activeRendezvous = new RendezvousClient({
@@ -191,6 +227,11 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
           // RendezvousClient closes itself ~100ms after onPaired
           setTimeout(() => { if (activeRendezvous) { activeRendezvous = null; } }, 500);
         },
+      });
+      // Defensive: RendezvousClient forwards ws errors via its own 'error' event.
+      // Without a listener, a forwarded EventEmitter 'error' would throw uncaught.
+      activeRendezvous.on('error', (err: Error) => {
+        console.warn('[mobile-bridge] rendezvous error', err.message);
       });
       activeRendezvous.start();
       return { qrPayload, expiresAt };

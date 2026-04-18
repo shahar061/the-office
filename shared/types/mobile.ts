@@ -86,7 +86,18 @@ export type MobileMessageV2 =
   | { type: 'chat'; v: 2; body: string; clientMsgId: string; agentId?: string }
   | { type: 'heartbeat'; v: 2 }
   // Desktop -> Phone
-  | { type: 'paired'; v: 2; deviceId: string; deviceToken: string; desktopName: string; sid: string }
+  | {
+      type: 'paired'; v: 2;
+      deviceId: string;
+      deviceToken: string;
+      desktopName: string;
+      sid: string;
+      /** Initial relay session token, set when remoteAllowed === true. Lets the
+       *  phone connect to the relay (wss://.../s/<sid>) without needing a
+       *  separate tokenRefresh frame during the one-shot pairing rendezvous. */
+      relayToken?: string;
+      relayTokenExpiresAt?: number;
+    }
   | { type: 'authed'; v: 2; snapshot: SessionSnapshot }
   | { type: 'authFailed'; v: 2; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' | 'sasAbort' }
   | { type: 'snapshot'; v: 2; snapshot: SessionSnapshot }

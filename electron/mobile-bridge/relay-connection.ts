@@ -18,13 +18,15 @@ function b64decode(s: string): Uint8Array {
 
 export class RelayConnection extends EventEmitter {
   private client: RelayClient;
-  private send: SendStream;
-  private recv: RecvStream;
+  private send!: SendStream;
+  private recv!: RecvStream;
   private seq = 0;
   private lastRecvSeq = -1;
   private readonly sid: string;
   private readonly deviceId: string;
   private readonly pairSignPriv: Uint8Array;
+  private readonly desktopPriv: Uint8Array;
+  private readonly phonePub: Uint8Array;
   private readonly epoch: number;
 
   constructor(opts: { desktop: Identity; device: PairedDevice }) {
@@ -42,10 +44,9 @@ export class RelayConnection extends EventEmitter {
     this.pairSignPriv = b64decode(opts.device.pairSignPriv);
     this.epoch = opts.device.epoch ?? 1;
 
-    const phonePub = b64decode(opts.device.phoneIdentityPub);
-    const keys = deriveSessionKeys(opts.desktop.priv, phonePub, 'responder');
-    this.send = new SendStream(keys.sendKey);
-    this.recv = new RecvStream(keys.recvKey);
+    this.desktopPriv = opts.desktop.priv;
+    this.phonePub = b64decode(opts.device.phoneIdentityPub);
+    this.resetStreams();
 
     this.client = new RelayClient({
       url: RELAY_URL,
@@ -60,10 +61,22 @@ export class RelayConnection extends EventEmitter {
       pairSignPub: b64decode(opts.device.pairSignPub),
     });
 
-    this.client.on('connect', () => this.emit('connect'));
+    // Recreate encryption state on every WS (re)connection. The phone also
+    // resets its streams on each connect, so without matching resets here the
+    // nonces drift apart after the first WS drop and every subsequent frame
+    // fails to decrypt silently.
+    this.client.on('connect', () => { this.resetStreams(); this.emit('connect'); });
     this.client.on('disconnect', () => this.emit('disconnect'));
     this.client.on('error', (err: Error) => this.emit('error', err));
     this.client.on('message', (raw: string) => this.onRawFrame(raw));
+  }
+
+  private resetStreams(): void {
+    const keys = deriveSessionKeys(this.desktopPriv, this.phonePub, 'responder');
+    this.send = new SendStream(keys.sendKey);
+    this.recv = new RecvStream(keys.recvKey);
+    this.seq = 0;
+    this.lastRecvSeq = -1;
   }
 
   start(): void {
@@ -114,8 +127,8 @@ export class RelayConnection extends EventEmitter {
       const plain = this.recv.decrypt(ct);
       const msg = decodeV2(new TextDecoder().decode(plain));
       if (msg) this.emit('message', msg, this.deviceId);
-    } catch {
-      /* MAC failure; ignore */
+    } catch (err) {
+      console.warn('[relay-conn]', this.deviceId, 'decrypt failed seq=', e.seq, (err as Error).message);
     }
   }
 }

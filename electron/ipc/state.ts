@@ -58,10 +58,13 @@ export const sessionStats: SessionStats = {
   activeAgents: 0,
 };
 
-// Pending AskUserQuestion promises, keyed by session ID
+// Pending AskUserQuestion promises, keyed by session ID. `questions` is kept
+// alongside the resolver so a non-renderer caller (e.g. the mobile bridge)
+// can answer without having to reconstruct the question text.
 export interface PendingQuestion {
   resolve: (answers: Record<string, string>) => void;
   reject: (error: Error) => void;
+  questions?: AskQuestion[];
 }
 export const pendingQuestions = new Map<string, PendingQuestion>();
 
@@ -259,7 +262,7 @@ export function onAgentEvent(event: AgentEvent): void {
 export function handleAgentWaiting(agentRole: AgentRole, questions: AskQuestion[]): Promise<Record<string, string>> {
   return new Promise<Record<string, string>>((resolve, reject) => {
     const sessionId = `session-${incrementSessionId()}`;
-    pendingQuestions.set(sessionId, { resolve, reject });
+    pendingQuestions.set(sessionId, { resolve, reject, questions });
 
     const payload: AgentWaitingPayload = { sessionId, agentRole, questions };
     send(IPC_CHANNELS.AGENT_WAITING, payload);

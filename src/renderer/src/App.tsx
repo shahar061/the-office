@@ -46,8 +46,11 @@ export default function App() {
 
   useEffect(() => {
     void useMobileBridgeStore.getState().refresh();
-    const unsub = window.office.mobile.onStatusChange(() => {
-      void useMobileBridgeStore.getState().refresh();
+    // Apply the status payload directly from the push event — avoids a race
+    // where multiple in-flight getStatus() calls resolve out of order and
+    // a stale status (e.g. old pendingSas) overwrites the fresh one.
+    const unsub = window.office.mobile.onStatusChange((status) => {
+      useMobileBridgeStore.getState().applyStatus(status);
     });
     return () => { unsub(); };
   }, []);

@@ -19,5 +19,22 @@ let installed = false;
 export function installBridge(): void {
   if (installed) return;
   installed = true;
-  window.addEventListener('message', (e: MessageEvent) => handleRawMessage(e.data));
+  console.log('[webview] installing bridge');
+  window.addEventListener('message', (e: MessageEvent) => {
+    console.log('[webview] msg event', typeof e.data === 'string' ? e.data.slice(0, 120) : typeof e.data);
+    handleRawMessage(e.data);
+  });
+  // Notify the React Native host that the bridge is ready so it can replay
+  // the current snapshot. Without this, a snapshot that arrived before the
+  // WebView finished loading is lost and the canvas never renders.
+  const host = (window as unknown as { ReactNativeWebView?: { postMessage: (s: string) => void } }).ReactNativeWebView;
+  console.log('[webview] ReactNativeWebView present?', !!host);
+  if (host) {
+    try {
+      host.postMessage(JSON.stringify({ type: 'ready' }));
+      console.log('[webview] posted ready');
+    } catch (err) {
+      console.log('[webview] post ready failed', (err as Error).message);
+    }
+  }
 }

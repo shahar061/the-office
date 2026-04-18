@@ -133,7 +133,7 @@ function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
   }
 }
 
-async function handleStartImagine(userIdea: string, resume = false): Promise<void> {
+export async function handleStartImagine(userIdea: string, resume = false): Promise<void> {
   setCurrentChatPhase('imagine');
   setCurrentChatAgentRole('ceo');
   setCurrentChatRunNumber(chatHistoryStore?.nextRunNumber('imagine', 'ceo') ?? 1);
@@ -1161,4 +1161,44 @@ export function initPhaseHandlers(): void {
       send(IPC_CHANNELS.STATS_STATE, statsCollector.getState());
     }
   }, 10_000);
+}
+
+/**
+ * Route a free-form user text message to the agent session, mirroring what the
+ * desktop ChatPanel does when its user types:
+ *   1. If an agent is waiting on AskUserQuestion, resolve it with this text
+ *      as the answer (keyed by the first question's text so the SDK tool sees
+ *      a normal answers object).
+ *   2. Else, if no phase is currently running, start /imagine with the text
+ *      as the user's initial idea.
+ *   3. Else, no-op — mid-phase chat without a pending question has no
+ *      wired-up injection path yet (matches the desktop's SEND_MESSAGE handler).
+ *
+ * Returns a short status string useful for logs.
+ */
+export async function routeUserChat(text: string): Promise<'answered' | 'started' | 'noop'> {
+  const body = text.trim();
+  if (!body) return 'noop';
+
+  // 1. Answer any pending AskUserQuestion.
+  for (const [sessionId, pending] of pendingQuestions) {
+    const key = pending.questions?.[0]?.question ?? body;
+    const answers: Record<string, string> = { [key]: body };
+    if (currentProjectDir) clearWaitingState(currentProjectDir);
+    pendingQuestions.delete(sessionId);
+    pending.resolve(answers);
+    return 'answered';
+  }
+
+  // 2. Nothing running? Start /imagine.
+  const idle = !phaseMachine || phaseMachine.currentPhase === 'idle';
+  if (idle && currentProjectDir && authManager.isAuthenticated()) {
+    void handleStartImagine(body).catch((err) => {
+      console.warn('[routeUserChat] startImagine failed:', err);
+    });
+    return 'started';
+  }
+
+  // 3. Mid-phase non-question chat — intentionally unhandled for now.
+  return 'noop';
 }

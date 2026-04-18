@@ -192,6 +192,7 @@ export default function App() {
             desktopIdentityPub: p.payload.desktopIdentityPub,
             sid: msg.sid,
             remoteAllowed: (p as any).remoteAllowed ?? true,
+            ...(msg.relayToken ? { relayToken: msg.relayToken } : {}),
           };
           await saveDevice(credentials);
           try { p.ws.close(); } catch { /* ignore */ }
@@ -282,6 +283,7 @@ export default function App() {
             desktopIdentityPub: payload.desktopIdentityPub,
             sid: msg.sid,
             remoteAllowed: (pairingRef.current as any).remoteAllowed ?? true,
+            ...(msg.relayToken ? { relayToken: msg.relayToken } : {}),
           };
           await saveDevice(credentials);
           try { ws.close(); } catch { /* ignore */ }

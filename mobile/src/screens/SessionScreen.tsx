@@ -62,6 +62,19 @@ export function SessionScreen({ device, onPairingLost }: Props) {
         })
       : null;
 
+    // Diagnostic: log what transport was actually built so we can diagnose
+    // cases where the phone lands on SessionScreen without a connectable
+    // channel (e.g. stale pairing credentials missing relayToken).
+    // eslint-disable-next-line no-console
+    console.log('[SessionScreen]', JSON.stringify({
+      deviceId: device.deviceId,
+      hasHost: device.host !== '',
+      remoteAllowed: device.remoteAllowed,
+      hasRelayToken: !!device.relayToken,
+      builtLan: lan !== null,
+      builtRelay: relay !== null,
+    }));
+
     const transport = new CompositeTransport(lan, relay);
     transportRef.current = transport;
 
@@ -161,7 +174,12 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       <ConnectionBanner status={status} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // iOS: pad the bottom of the view by the keyboard height so the
+        //   composer sits just above the keyboard.
+        // Android: shrink the view (`height`) so the flex:1 WebView shortens
+        //   and the bottom-anchored composer stays visible. `undefined` (old
+        //   behaviour) let the keyboard cover the composer on some devices.
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.webView}>
           <WebViewHost />

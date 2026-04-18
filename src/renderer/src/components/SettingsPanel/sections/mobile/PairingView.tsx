@@ -8,6 +8,14 @@ interface Props {
   onCancel: () => void;
 }
 
+function splitSas(sas: string): { left: string; right: string } {
+  const compact = sas.replace(/\s+/g, '');
+  if (compact.length >= 6) {
+    return { left: compact.slice(0, 3), right: compact.slice(3, 6) };
+  }
+  return { left: sas, right: '' };
+}
+
 export function PairingView({ qrPayload, expiresAt, sas, onCancel }: Props) {
   const [secondsLeft, setSecondsLeft] = useState(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)));
   useEffect(() => {
@@ -16,6 +24,7 @@ export function PairingView({ qrPayload, expiresAt, sas, onCancel }: Props) {
   }, [expiresAt]);
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
   const ss = String(secondsLeft % 60).padStart(2, '0');
+  const sasParts = sas ? splitSas(sas) : null;
 
   return (
     <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', marginTop: 12 }}>
@@ -27,14 +36,34 @@ export function PairingView({ qrPayload, expiresAt, sas, onCancel }: Props) {
         <div style={{ color: '#9ca3af', fontSize: 13, lineHeight: 1.5 }}>
           You'll confirm a 6-digit code on both devices before pairing completes.
         </div>
-        {sas && (
-          <div style={{
-            padding: '14px 20px', background: 'rgba(99,102,241,0.1)',
-            border: '1px solid rgba(99,102,241,0.3)', borderRadius: 12,
-            fontFamily: 'ui-monospace, Menlo, monospace',
-            fontSize: 28, fontWeight: 700, letterSpacing: '0.15em',
-            color: '#fff', textAlign: 'center',
-          }}>{sas}</div>
+        {sasParts && (
+          <div
+            // Force LTR: SAS must render left-to-right regardless of system
+            // locale so group order is consistent across devices.
+            dir="ltr"
+            style={{
+              padding: '14px 20px',
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              borderRadius: 12,
+              display: 'flex',
+              direction: 'ltr',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <span style={{
+              fontFamily: 'ui-monospace, Menlo, monospace',
+              fontSize: 28, fontWeight: 700, letterSpacing: '0.1em',
+              color: '#fff', textAlign: 'center',
+            }}>{sasParts.left}</span>
+            <span style={{
+              fontFamily: 'ui-monospace, Menlo, monospace',
+              fontSize: 28, fontWeight: 700, letterSpacing: '0.1em',
+              color: '#fff', textAlign: 'center',
+            }}>{sasParts.right}</span>
+          </div>
         )}
         <div style={{ color: '#9ca3af', fontSize: 12 }}>Code expires in {mm}:{ss}</div>
         <button onClick={onCancel} style={{

@@ -38,6 +38,7 @@ export class MobileScene {
   }
 
   async init(): Promise<void> {
+    console.log('[MobileScene] init: loading tilesets');
     // Load all tileset textures with nearest-neighbor for pixel art
     const officeTilesetTex = await Assets.load(officeTilesetUrl);
     officeTilesetTex.source.scaleMode = 'nearest';
@@ -83,6 +84,7 @@ export class MobileScene {
     this.worldContainer.addChild(this.mapRenderer.getContainer());
     this.characterLayer = this.mapRenderer.getCharacterContainer();
 
+    console.log('[MobileScene] loading character sheets');
     // Load character spritesheets
     const sheetTextures = new Map<string, Texture>();
     for (const [name, url] of Object.entries(CHARACTER_SHEETS)) {
@@ -90,11 +92,15 @@ export class MobileScene {
       tex.source.scaleMode = 'nearest';
       sheetTextures.set(name, tex);
     }
+    console.log('[MobileScene] character sheets loaded, keys=', [...sheetTextures.keys()]);
 
     // Create characters for all agents
     for (const config of Object.values(AGENT_CONFIGS)) {
       const sheetTex = sheetTextures.get(config.spriteVariant);
-      if (!sheetTex) continue;
+      if (!sheetTex) {
+        console.log('[MobileScene] no sheet for', config.role, 'variant=', config.spriteVariant);
+        continue;
+      }
 
       const frames = SpriteAdapter.extractFrames(sheetTex, {
         frameWidth: 16,
@@ -122,6 +128,7 @@ export class MobileScene {
 
       this.characters.set(config.role, character);
     }
+    console.log('[MobileScene] characters created:', this.characters.size, 'roles=', [...this.characters.keys()]);
 
     // Set up camera with zone data
     this.camera = new Camera(this.worldContainer, this.mapRenderer.getAllZones());
@@ -155,8 +162,16 @@ export class MobileScene {
 
   showCharacter(role: AgentRole): void {
     const character = this.characters.get(role);
-    if (!character || character.isVisible) return;
+    if (!character) {
+      console.log('[MobileScene] showCharacter: no Character for role', role, 'keys=', [...this.characters.keys()]);
+      return;
+    }
+    if (character.isVisible) {
+      console.log('[MobileScene] showCharacter: already visible', role);
+      return;
+    }
     const entrance = this.getEntrancePosition();
+    console.log('[MobileScene] showCharacter', role, 'at', entrance);
     character.repositionTo(entrance.x, entrance.y);
     character.show(this.characterLayer);
   }

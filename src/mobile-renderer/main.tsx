@@ -10,6 +10,21 @@ import { installBridge } from './bridge';
 // broken shader/context pair and an infinite PixiJS error loop that pegs the tab.
 // We trade StrictMode's debug benefit for a working renderer.
 
+console.log('[webview] main.tsx entry');
+
+window.addEventListener('error', (e) => {
+  console.log('[webview] window error', e.message, e.filename, e.lineno);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.log('[webview] unhandled rejection', String(e.reason));
+});
+
 installBridge();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<MobileApp />);
+try {
+  const root = document.getElementById('root');
+  console.log('[webview] root element?', !!root);
+  if (root) ReactDOM.createRoot(root).render(<MobileApp />);
+} catch (err) {
+  console.log('[webview] render crashed', (err as Error).message);
+}

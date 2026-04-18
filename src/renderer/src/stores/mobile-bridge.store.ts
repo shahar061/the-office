@@ -25,6 +25,9 @@ interface MobileBridgeState {
   pendingQR: { qrPayload: string; expiresAt: number } | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  /** Set status directly from a push event. Avoids async refresh races where
+   *  multiple in-flight getStatus() calls can resolve out of order. */
+  applyStatus: (status: MobileStatus) => void;
   generateQR: () => Promise<void>;
   clearQR: () => void;
   revoke: (deviceId: string) => Promise<void>;
@@ -49,6 +52,8 @@ export const useMobileBridgeStore = create<MobileBridgeState>((set, get) => ({
     ]);
     set({ status, devices, loading: false });
   },
+
+  applyStatus: (status) => set({ status }),
 
   generateQR: async () => {
     const qr = await window.office.mobile.getPairingQR();

@@ -20,7 +20,7 @@ import {
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
-import { initPhaseHandlers } from './ipc/phase-handlers';
+import { initPhaseHandlers, routeUserChat } from './ipc/phase-handlers';
 import { initSettingsHandlers } from './ipc/settings-handlers';
 import { hostname } from 'os';
 import { createMobileBridge } from './mobile-bridge';
@@ -209,6 +209,16 @@ app.whenReady().then(async () => {
     bridge.onChange(() => broadcastMobileStatus(bridge));
     bridge.onPhoneChat(async ({ body }) => {
       sendChat({ role: 'user', text: body });
+      // Feed the phone's text into the same routing the desktop chat uses,
+      // so the message actually drives the agent (answering pending questions
+      // or kicking off /imagine when nothing is running) instead of just
+      // appearing as inert chat text on the desktop.
+      try {
+        const outcome = await routeUserChat(body);
+        console.log('[mobile-bridge] phone chat routed:', outcome);
+      } catch (err) {
+        console.warn('[mobile-bridge] routeUserChat failed:', err);
+      }
     });
     console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
   } catch (err) {
