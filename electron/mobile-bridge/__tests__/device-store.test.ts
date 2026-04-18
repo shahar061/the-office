@@ -48,7 +48,7 @@ describe('DeviceStore', () => {
     };
     store.add(device);
     expect(store.list()).toHaveLength(1);
-    expect(store.list()[0]).toEqual(device);
+    expect(store.list()[0]).toMatchObject(device);
     expect(fake.update).toHaveBeenCalled();
   });
 
@@ -64,7 +64,7 @@ describe('DeviceStore', () => {
   it('findById returns the matching device or undefined', () => {
     const device: PairedDevice = { deviceId: 'd1', deviceName: 'iPhone', deviceTokenHash: 'h', pairedAt: 1, lastSeenAt: 1 };
     store.add(device);
-    expect(store.findById('d1')).toEqual(device);
+    expect(store.findById('d1')).toMatchObject(device);
     expect(store.findById('nope')).toBeUndefined();
   });
 
@@ -81,5 +81,56 @@ describe('DeviceStore', () => {
     store.touch('d1', 500);
     expect(store.findById('d1')?.lastSeenAt).toBe(500);
     expect(store.findById('d1')?.pairedAt).toBe(100);
+  });
+});
+
+describe('DeviceStore v2 fields', () => {
+  it('round-trips v2 fields via add() and list()', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add({
+      deviceId: 'd1',
+      deviceName: 'iPhone',
+      deviceTokenHash: 'hash',
+      pairedAt: 1,
+      lastSeenAt: 1,
+      phoneIdentityPub: 'PIP',
+      pairSignPriv: 'PSP',
+      pairSignPub: 'PSU',
+      sid: 'SID',
+      remoteAllowed: true,
+      epoch: 1,
+    });
+    const [d] = store.list();
+    expect(d.phoneIdentityPub).toBe('PIP');
+    expect(d.pairSignPub).toBe('PSU');
+    expect(d.sid).toBe('SID');
+    expect(d.remoteAllowed).toBe(true);
+    expect(d.epoch).toBe(1);
+  });
+
+  it('fills defaults when reading a v1 record (no v2 fields stored)', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    // Simulate a v1 record written before this plan landed:
+    store.add({
+      deviceId: 'legacy', deviceName: 'old', deviceTokenHash: 'h',
+      pairedAt: 1, lastSeenAt: 1,
+    });
+    const [d] = store.list();
+    expect(d.remoteAllowed).toBe(false);
+    expect(d.epoch).toBe(0);
+    expect(d.sid).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(d.phoneIdentityPub).toBe('');
+    expect(d.pairSignPriv).toBe('');
+    expect(d.pairSignPub).toBe('');
+  });
+
+  it('keeps an assigned sid stable across reads (does not re-roll)', () => {
+    const fake = makeFakeStore();
+    const store = new DeviceStore(fake as any);
+    store.add({ deviceId: 'd1', deviceName: 'n', deviceTokenHash: 'h', pairedAt: 1, lastSeenAt: 1, sid: 'FIXED' });
+    expect(store.list()[0].sid).toBe('FIXED');
+    expect(store.list()[0].sid).toBe('FIXED');
   });
 });

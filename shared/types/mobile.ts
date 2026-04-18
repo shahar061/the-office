@@ -9,6 +9,13 @@ export interface PairedDevice {
   deviceTokenHash: string;  // scrypt hash; never the raw token
   pairedAt: number;
   lastSeenAt: number;
+  // v2 fields — optional for backward compat with v1 records
+  phoneIdentityPub?: string;   // base64, phone's long-lived X25519 pubkey
+  pairSignPriv?: string;       // base64, desktop's Ed25519 priv for relay tokens
+  pairSignPub?: string;        // base64, corresponding pubkey
+  sid?: string;                // base64url, 128-bit relay session id
+  remoteAllowed?: boolean;
+  epoch?: number;              // bumped on revoke (used in Plan 2)
 }
 
 export interface PairingQRPayload {
@@ -33,3 +40,37 @@ export type MobileMessage =
   | { type: 'state'; v: 1; patch: SessionStatePatch }
   // Bidirectional
   | { type: 'heartbeat'; v: 1 };
+
+// -----------------------------------------------------------------------------
+// v2 additions — added alongside v1 for an incremental migration.
+// New components import MobileMessageV2 / PairingQRPayloadV2 directly.
+// -----------------------------------------------------------------------------
+
+export interface PairingQRPayloadV2 {
+  v: 2;
+  host: string;
+  port: number;
+  desktopIdentityPub: string;    // base64, desktop's long-lived X25519 pubkey
+  pairingToken: string;
+  expiresAt: number;
+}
+
+// v2 message union. Wire format is an encrypted envelope; these are the
+// plaintext shapes after envelope unwrap.
+export type MobileMessageV2 =
+  // Phone -> Desktop
+  | { type: 'pair'; v: 2; pairingToken: string; devicePub: string; deviceName: string }
+  | { type: 'pairConfirm'; v: 2 }                               // after SAS match
+  | { type: 'pairRemoteConsent'; v: 2; remoteAllowed: boolean }
+  | { type: 'auth'; v: 2; deviceId: string; deviceToken: string }
+  | { type: 'chat'; v: 2; body: string; clientMsgId: string; agentId?: string }
+  | { type: 'heartbeat'; v: 2 }
+  // Desktop -> Phone
+  | { type: 'paired'; v: 2; deviceId: string; deviceToken: string; desktopName: string; sid: string }
+  | { type: 'authed'; v: 2; snapshot: SessionSnapshot }
+  | { type: 'authFailed'; v: 2; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' | 'sasAbort' }
+  | { type: 'snapshot'; v: 2; snapshot: SessionSnapshot }
+  | { type: 'event'; v: 2; event: AgentEvent }
+  | { type: 'chatFeed'; v: 2; messages: ChatMessage[] }
+  | { type: 'chatAck'; v: 2; clientMsgId: string; ok: boolean; error?: string }
+  | { type: 'state'; v: 2; patch: SessionStatePatch };

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { PairedDevice } from '../../../../shared/types';
 
 interface MobileBridgeState {
-  status: { running: boolean; port: number | null; connectedDevices: number } | null;
+  status: { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null; v1DeviceCount: number } | null;
   devices: PairedDevice[];
   pendingQR: { qrPayload: string; expiresAt: number } | null;
   loading: boolean;

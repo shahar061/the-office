@@ -11,6 +11,7 @@ import {
   phaseMachine,
   projectManager,
   send,
+  sendChat,
   rejectPendingQuestions,
   setMainWindow,
   setActiveAbort,
@@ -206,6 +207,9 @@ app.whenReady().then(async () => {
     registerMobileHandlers(bridge);
     broadcastMobileStatus(bridge);
     bridge.onChange(() => broadcastMobileStatus(bridge));
+    bridge.onPhoneChat(async ({ body }) => {
+      sendChat({ role: 'user', text: body });
+    });
     console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
   } catch (err) {
     console.error('[mobile-bridge] failed to start:', err);

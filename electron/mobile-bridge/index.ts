@@ -3,6 +3,7 @@ import { DeviceStore, type SettingsStoreLike } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
 import { EventForwarder } from './event-forwarder';
 import { WsServer } from './ws-server';
+import { getOrCreateIdentity } from './identity';
 
 export interface MobileBridge {
   start(): Promise<void>;
@@ -10,12 +11,13 @@ export interface MobileBridge {
   getPairingQR(): Promise<{ qrPayload: string; expiresAt: number }>;
   listDevices(): Promise<PairedDevice[]>;
   revokeDevice(deviceId: string): Promise<void>;
-  getStatus(): { running: boolean; port: number | null; connectedDevices: number };
+  getStatus(): { running: boolean; port: number | null; connectedDevices: number; pendingSas: string | null; v1DeviceCount: number };
   // Event ingestion — call from main.ts wherever events are emitted
   onAgentEvent(event: AgentEvent): void;
   onChat(messages: ChatMessage[]): void;
   onStatePatch(patch: SessionStatePatch): void;
   onChange(handler: () => void): () => void;
+  onPhoneChat(handler: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>): () => void;
 }
 
 export interface MobileBridgeOptions {
@@ -25,19 +27,32 @@ export interface MobileBridgeOptions {
 
 export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const deviceStore = new DeviceStore(opts.settings);
+  const identity = getOrCreateIdentity(opts.settings);
   const snapshots = new SnapshotBuilder(opts.desktopName);
   const changeListeners = new Set<() => void>();
+  const phoneChatHandlers = new Set<(m: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>>();
   const notifyChange = () => {
     for (const h of changeListeners) {
       try { h(); } catch (err) { console.warn('[mobile-bridge] listener failed', err); }
     }
   };
+  let currentPendingSas: string | null = null;
   const server = new WsServer({
     port: opts.settings.get().mobile?.port ?? null,
     desktopName: opts.desktopName,
     deviceStore,
     snapshots,
+    identity,
     onChange: notifyChange,
+    onPendingSas: (sas) => {
+      currentPendingSas = sas;
+      notifyChange();
+    },
+    onPhoneChat: async (msg) => {
+      for (const h of phoneChatHandlers) {
+        try { await h(msg); } catch (err) { console.warn('[mobile-bridge] phone chat handler failed', err); }
+      }
+    },
   });
   const forwarder = new EventForwarder(snapshots, server);
 
@@ -48,10 +63,14 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     async listDevices()  { return deviceStore.list(); },
     async revokeDevice(deviceId) { server.revokeDevice(deviceId); },
     getStatus() {
+      const devices = deviceStore.list();
+      const v1DeviceCount = devices.filter((d) => !d.phoneIdentityPub).length;
       return {
         running: server.getPort() !== null,
         port: server.getPort(),
         connectedDevices: server.getConnectedCount(),
+        pendingSas: currentPendingSas,
+        v1DeviceCount,
       };
     },
     onAgentEvent: forwarder.onAgentEvent,
@@ -60,6 +79,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onChange(handler) {
       changeListeners.add(handler);
       return () => { changeListeners.delete(handler); };
+    },
+    onPhoneChat(handler) {
+      phoneChatHandlers.add(handler);
+      return () => { phoneChatHandlers.delete(handler); };
     },
   };
 }

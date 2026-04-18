@@ -1,4 +1,4 @@
-import type { MobileMessage } from '../types/shared';
+import type { MobileMessageV2 } from '../types/shared';
 
 export type TransportStatus =
   | { state: 'idle' }
@@ -9,11 +9,12 @@ export type TransportStatus =
 
 export type TransportEventMap = {
   status: (s: TransportStatus) => void;
-  message: (m: MobileMessage) => void;
+  message: (m: MobileMessageV2) => void;
 };
 
 export interface Transport {
   connect(): void;
   disconnect(): void;
+  send(msg: MobileMessageV2): void;
   on<K extends keyof TransportEventMap>(event: K, handler: TransportEventMap[K]): () => void;
 }

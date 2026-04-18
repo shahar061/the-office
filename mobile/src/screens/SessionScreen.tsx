@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, TextInput, Pressable, Text, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebViewHost } from '../webview-host/WebViewHost';
 import { ConnectionBanner } from '../webview-host/ConnectionBanner';
@@ -7,7 +7,7 @@ import { LanWsTransport } from '../transport/lan-ws.transport';
 import { useConnectionStore } from '../state/connection.store';
 import { useSessionStore } from '../types/shared';
 import { loadLastKnown, saveLastKnown } from '../state/cache';
-import type { MobileMessage } from '../types/shared';
+import type { MobileMessageV2 } from '../types/shared';
 import type { PairedDeviceCredentials } from '../pairing/secure-store';
 
 interface Props {
@@ -15,12 +15,16 @@ interface Props {
   onPairingLost: () => void;
 }
 
+interface PendingAck { resolve: (ok: boolean, error?: string) => void; timer: ReturnType<typeof setTimeout>; }
+
 export function SessionScreen({ device, onPairingLost }: Props) {
   const status = useConnectionStore((s) => s.status);
   const transportRef = useRef<LanWsTransport | null>(null);
+  const pendingAcksRef = useRef<Map<string, PendingAck>>(new Map());
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    // Hydrate from cache first so the WebView has something to render immediately.
     loadLastKnown().then((last) => {
       if (last) useSessionStore.getState().hydrateFromCache(last.snapshot);
     });
@@ -28,7 +32,12 @@ export function SessionScreen({ device, onPairingLost }: Props) {
     const transport = new LanWsTransport({
       host: device.host,
       port: device.port,
-      device: { deviceId: device.deviceId, deviceToken: device.deviceToken },
+      device: {
+        deviceId: device.deviceId,
+        deviceToken: device.deviceToken,
+        identityPriv: device.identityPriv,
+        desktopIdentityPub: device.desktopIdentityPub,
+      },
     });
     transportRef.current = transport;
 
@@ -39,7 +48,7 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       }
     });
 
-    const offMessage = transport.on('message', (m: MobileMessage) => {
+    const offMessage = transport.on('message', (m: MobileMessageV2) => {
       const store = useSessionStore.getState();
       switch (m.type) {
         case 'snapshot':
@@ -49,7 +58,7 @@ export function SessionScreen({ device, onPairingLost }: Props) {
         case 'event':
           store.appendEvent(m.event);
           break;
-        case 'chat':
+        case 'chatFeed':
           store.appendChat(m.messages);
           {
             const snapshot = useSessionStore.getState().snapshot;
@@ -63,6 +72,15 @@ export function SessionScreen({ device, onPairingLost }: Props) {
             if (snapshot) void saveLastKnown(snapshot);
           }
           break;
+        case 'chatAck': {
+          const pending = pendingAcksRef.current.get(m.clientMsgId);
+          if (pending) {
+            clearTimeout(pending.timer);
+            pending.resolve(m.ok, m.error);
+            pendingAcksRef.current.delete(m.clientMsgId);
+          }
+          break;
+        }
       }
     });
 
@@ -73,15 +91,73 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       offMessage();
       transport.disconnect();
       transportRef.current = null;
+      for (const { timer } of pendingAcksRef.current.values()) clearTimeout(timer);
+      pendingAcksRef.current.clear();
     };
   }, [device, onPairingLost]);
+
+  const submit = async () => {
+    if (!draft.trim() || sending) return;
+    const transport = transportRef.current;
+    if (!transport) return;
+    setSending(true);
+    const body = draft.trim();
+    const clientMsgId = `m_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    const ack = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      const timer = setTimeout(() => {
+        pendingAcksRef.current.delete(clientMsgId);
+        resolve({ ok: false, error: 'Timed out waiting for acknowledgment' });
+      }, 5000);
+      pendingAcksRef.current.set(clientMsgId, {
+        resolve: (ok, error) => resolve({ ok, error }),
+        timer,
+      });
+      transport.send({ type: 'chat', v: 2, body, clientMsgId });
+    });
+
+    if (ack.ok) {
+      setDraft('');
+    } else {
+      Alert.alert('Send failed', ack.error ?? 'Unknown error');
+    }
+    setSending(false);
+  };
+
+  const canSend = status.state === 'connected' && draft.trim().length > 0 && !sending;
 
   return (
     <SafeAreaView style={styles.root}>
       <ConnectionBanner status={status} />
-      <View style={styles.webView}>
-        <WebViewHost />
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.webView}>
+          <WebViewHost />
+        </View>
+        <View style={styles.composer}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Reply to active agent…"
+            placeholderTextColor="#6b7280"
+            style={styles.input}
+            editable={!sending && status.state === 'connected'}
+            multiline
+            maxLength={1000}
+          />
+          <Pressable
+            onPress={submit}
+            disabled={!canSend}
+            style={[styles.sendBtn, canSend ? styles.sendBtnActive : styles.sendBtnInactive]}
+          >
+            <Text style={canSend ? styles.sendBtnTextActive : styles.sendBtnTextInactive}>
+              {sending ? '…' : 'Send'}
+            </Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -89,4 +165,31 @@ export function SessionScreen({ device, onPairingLost }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0a0a0a' },
   webView: { flex: 1 },
+  composer: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    alignItems: 'flex-end',
+  },
+  input: {
+    flex: 1,
+    minHeight: 38,
+    maxHeight: 120,
+    color: '#f5f5f5',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  sendBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8, minWidth: 70, alignItems: 'center' },
+  sendBtnActive: { backgroundColor: '#6366f1' },
+  sendBtnInactive: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  sendBtnTextActive: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  sendBtnTextInactive: { color: '#6b7280', fontSize: 14 },
 });

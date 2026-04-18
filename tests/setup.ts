@@ -10,3 +10,9 @@ if (typeof localStorage === 'undefined') {
     key: (index: number) => Object.keys(store)[index] ?? null,
   } as Storage;
 }
+
+// PixiJS probes navigator.userAgent at module-load to detect Safari; satisfy it
+// with a minimal stub so tests that import pixi.js run under vitest's node env.
+if (typeof navigator === 'undefined') {
+  (global as any).navigator = { userAgent: 'node' };
+}

@@ -81,7 +81,7 @@ export interface PolygonObject {
 
 // --- Tile layer names we expect in every map ---
 
-const TILE_LAYERS = ['floor', 'walls', 'furniture-below', 'furniture-mid', 'furniture-above'] as const
+const TILE_LAYERS = ['floor', 'walls', 'furniture-below', 'furniture-above'] as const
 const COLLISION_LAYER = 'collision'
 const SPAWN_POINTS_LAYER = 'spawn-points'
 const ZONES_LAYER = 'zones'
@@ -421,10 +421,10 @@ export class TiledMapRenderer {
 
       this.layerContainers.set(layerName, container)
 
-      this.rootContainer.addChild(container)
       if (layerName === 'furniture-above') {
         this.rootContainer.addChild(this.characterContainer)
       }
+      this.rootContainer.addChild(container)
     }
 
     // Assemble extracted groups from collected tiles
