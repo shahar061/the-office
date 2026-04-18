@@ -6,7 +6,7 @@ import { DeviceStore } from '../device-store';
 import { SnapshotBuilder } from '../snapshot-builder';
 import type { AppSettings } from '../../../shared/types';
 import { deriveSessionKeys } from '../../../shared/crypto/noise';
-import { RecvStream } from '../../../shared/crypto/secretstream';
+import { RecvStream, SendStream } from '../../../shared/crypto/secretstream';
 import { decodeV2 } from '../../../shared/protocol/mobile';
 import { getOrCreateIdentity } from '../identity';
 
@@ -178,6 +178,42 @@ describe('WsServer v2 integration', () => {
     await new Promise((r) => setTimeout(r, 100));
     const parsed = decodeV2(frames[0]!) as any;
     expect(parsed?.reason).toBe('unknownDevice');
+    ws.close();
+  });
+
+  it('accepts upstream chat and echoes an encrypted chatAck', async () => {
+    const { qrPayload } = server.generatePairingQR();
+    const qr = JSON.parse(qrPayload);
+    const desktopPub = new Uint8Array(Buffer.from(qr.desktopIdentityPub, 'base64'));
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const keys = deriveSessionKeys(phonePriv, desktopPub, 'initiator');
+    const recv = new RecvStream(keys.recvKey);
+    const send = new SendStream(keys.sendKey);
+
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/office`);
+    await new Promise<void>((r) => ws.once('open', () => r()));
+    const frames: Buffer[] = [];
+    ws.on('message', (d) => { if (d instanceof Buffer) frames.push(d); });
+
+    ws.send(JSON.stringify({ type: 'pair', v: 2, pairingToken: qr.pairingToken, devicePub: Buffer.from(phonePub).toString('base64'), deviceName: 'P' }));
+    await new Promise((r) => setTimeout(r, 50));
+    ws.send(JSON.stringify({ type: 'pairConfirm', v: 2 }));
+    await new Promise((r) => setTimeout(r, 200));
+    ws.send(JSON.stringify({ type: 'pairRemoteConsent', v: 2, remoteAllowed: false }));
+    await new Promise((r) => setTimeout(r, 250));
+    const pairedPlain = decodeV2(new TextDecoder().decode(recv.decrypt(new Uint8Array(frames[0]))));
+    expect(pairedPlain?.type).toBe('paired');
+
+    const chatPlain = new TextEncoder().encode(JSON.stringify({ type: 'chat', v: 2, body: 'hi agent', clientMsgId: 'm1' }));
+    ws.send(send.encrypt(chatPlain));
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(frames.length).toBeGreaterThan(1);
+    const ackPlain = decodeV2(new TextDecoder().decode(recv.decrypt(new Uint8Array(frames[1])))) as any;
+    expect(ackPlain?.type).toBe('chatAck');
+    expect(ackPlain.ok).toBe(true);
+    expect(ackPlain.clientMsgId).toBe('m1');
     ws.close();
   });
 });

@@ -17,6 +17,7 @@ export interface MobileBridge {
   onChat(messages: ChatMessage[]): void;
   onStatePatch(patch: SessionStatePatch): void;
   onChange(handler: () => void): () => void;
+  onPhoneChat(handler: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>): () => void;
 }
 
 export interface MobileBridgeOptions {
@@ -29,6 +30,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const identity = getOrCreateIdentity(opts.settings);
   const snapshots = new SnapshotBuilder(opts.desktopName);
   const changeListeners = new Set<() => void>();
+  const phoneChatHandlers = new Set<(m: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>>();
   const notifyChange = () => {
     for (const h of changeListeners) {
       try { h(); } catch (err) { console.warn('[mobile-bridge] listener failed', err); }
@@ -41,6 +43,11 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     snapshots,
     identity,
     onChange: notifyChange,
+    onPhoneChat: async (msg) => {
+      for (const h of phoneChatHandlers) {
+        try { await h(msg); } catch (err) { console.warn('[mobile-bridge] phone chat handler failed', err); }
+      }
+    },
   });
   const forwarder = new EventForwarder(snapshots, server);
 
@@ -63,6 +70,10 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onChange(handler) {
       changeListeners.add(handler);
       return () => { changeListeners.delete(handler); };
+    },
+    onPhoneChat(handler) {
+      phoneChatHandlers.add(handler);
+      return () => { phoneChatHandlers.delete(handler); };
     },
   };
 }

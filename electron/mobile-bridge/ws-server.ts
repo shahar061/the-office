@@ -64,6 +64,7 @@ export interface WsServerOptions {
   onChange?: () => void;
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
+  onPhoneChat?: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => Promise<void>;
 }
 
 export class WsServer {
@@ -213,7 +214,8 @@ export class WsServer {
         if (msg.type === 'pairRemoteConsent') { await this.handlePairRemoteConsent(conn, msg); return; }
         break;
       case 'authenticated':
-        // Authenticated connections currently only send heartbeats. Upstream chat is added in a later task.
+        if (msg.type === 'chat') { await this.handleUpstreamChat(conn, msg); return; }
+        // Other authenticated-state messages (heartbeat is handled above) fall through
         break;
     }
     this.teardown(conn, 4400);
@@ -355,6 +357,27 @@ export class WsServer {
 
     this.sendEncrypted(conn, { type: 'authed', v: 2, snapshot: this.opts.snapshots.getSnapshot() });
     this.startHeartbeat(conn);
+  }
+
+  private async handleUpstreamChat(
+    conn: Connection,
+    msg: Extract<MobileMessageV2, { type: 'chat' }>,
+  ): Promise<void> {
+    if (conn.state.kind !== 'authenticated') return;
+    try {
+      await this.opts.onPhoneChat?.({
+        body: msg.body,
+        agentId: msg.agentId,
+        fromDeviceId: conn.state.deviceId,
+        clientMsgId: msg.clientMsgId,
+      });
+      this.sendEncrypted(conn, { type: 'chatAck', v: 2, clientMsgId: msg.clientMsgId, ok: true });
+    } catch (err) {
+      this.sendEncrypted(conn, {
+        type: 'chatAck', v: 2, clientMsgId: msg.clientMsgId, ok: false,
+        error: (err as Error).message,
+      });
+    }
   }
 
   private startHeartbeat(conn: Connection): void {
