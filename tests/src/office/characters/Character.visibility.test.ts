@@ -7,6 +7,9 @@ vi.mock('../../../../src/renderer/src/office/characters/CharacterSprite', () => 
       x: 0, y: 0, alpha: 1, zIndex: 0,
       destroy: vi.fn(),
       parent: null as any,
+      on: vi.fn(),
+      off: vi.fn(),
+      eventMode: 'static',
     };
     setAnimation = vi.fn();
     setPosition = vi.fn();
