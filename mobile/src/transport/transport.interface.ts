@@ -1,11 +1,11 @@
 import type { MobileMessageV2 } from '../types/shared';
 
 export type TransportStatus =
-  | { state: 'idle' }
-  | { state: 'connecting' }
-  | { state: 'connected'; desktopName: string }
-  | { state: 'disconnected'; reason: string }
-  | { state: 'error'; error: Error };
+  | { state: 'idle'; mode?: 'lan' | 'relay' }
+  | { state: 'connecting'; mode?: 'lan' | 'relay' }
+  | { state: 'connected'; desktopName: string; mode?: 'lan' | 'relay' }
+  | { state: 'disconnected'; reason: string; mode?: 'lan' | 'relay' }
+  | { state: 'error'; error: Error; mode?: 'lan' | 'relay' };
 
 export type TransportEventMap = {
   status: (s: TransportStatus) => void;
