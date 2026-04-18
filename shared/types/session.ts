@@ -69,8 +69,6 @@ export type CharacterActivity = 'idle' | 'walking' | 'reading' | 'typing' | 'wai
 export interface CharacterSnapshot {
   agentId: string;
   agentRole: AgentRole;
-  x: number;
-  y: number;
   activity: CharacterActivity;
 }
 

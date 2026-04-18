@@ -87,8 +87,6 @@ export class SnapshotBuilder {
       this.characters.set(event.agentId, {
         agentId: event.agentId,
         agentRole: event.agentRole,
-        x: 0,
-        y: 0,
         activity: 'idle',
       });
     }

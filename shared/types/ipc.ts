@@ -62,6 +62,8 @@ export const IPC_CHANNELS = {
   GET_CHAT_HISTORY: 'office:get-chat-history',
   // Agent Events
   AGENT_EVENT: 'office:agent-event',
+  // Canvas State Parity
+  OFFICE_CHAR_STATES: 'office:char-states',
   // Permissions
   PERMISSION_REQUEST: 'office:permission-request',
   RESPOND_PERMISSION: 'office:respond-permission',
