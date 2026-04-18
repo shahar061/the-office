@@ -3,6 +3,12 @@
 import type { AgentEvent } from './agent';
 import type { ChatMessage, SessionSnapshot, SessionStatePatch } from './session';
 
+/** Cloudflare Worker that forwards encrypted frames between desktop and phone.
+ *  Currently points at staging. Swap to a prod URL once a production worker
+ *  is deployed. The desktop opens one outbound WS per remoteAllowed device;
+ *  the phone falls back to this URL when LAN is unreachable. */
+export const RELAY_URL = 'wss://the-office-relay-staging.shahar061.workers.dev';
+
 export interface PairedDevice {
   deviceId: string;
   deviceName: string;
