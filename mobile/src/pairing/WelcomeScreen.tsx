@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing, radius, typography } from '../theme';
 
 interface Props {
   onStartPairing: () => void;
@@ -25,11 +26,11 @@ export function WelcomeScreen({ onStartPairing }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0a0a0a' },
-  content: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 40, fontWeight: '700', color: '#f5f5f5', marginBottom: 12 },
-  subtitle: { fontSize: 18, color: '#aaa', marginBottom: 24 },
-  body: { fontSize: 15, color: '#999', lineHeight: 22, marginBottom: 32 },
-  button: { backgroundColor: '#6366f1', padding: 16, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
+  title: { fontSize: 40, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  subtitle: { fontSize: 18, color: '#aaa', marginBottom: spacing.xl },
+  body: { fontSize: 15, color: '#999', lineHeight: 22, marginBottom: spacing.xxl },
+  button: { backgroundColor: colors.accent, padding: spacing.lg, borderRadius: radius.lg, alignItems: 'center' },
+  buttonText: { color: colors.text, fontSize: 17, fontWeight: '600' },
 });
