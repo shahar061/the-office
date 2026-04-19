@@ -2,9 +2,16 @@ import { decode } from '../../shared/protocol/mobile';
 import { useSessionStore } from '../../shared/stores/session.store';
 
 export function handleRawMessage(raw: unknown): void {
-  if (typeof raw !== 'string') return;
+  if (typeof raw !== 'string') {
+    console.log('[webview-bridge] drop: non-string', typeof raw);
+    return;
+  }
   const msg = decode(raw);
-  if (!msg) return;
+  if (!msg) {
+    console.log('[webview-bridge] drop: decode failed; raw head=', raw.slice(0, 60));
+    return;
+  }
+  console.log('[webview-bridge] recv', msg.type);
   const store = useSessionStore.getState();
   switch (msg.type) {
     case 'snapshot':

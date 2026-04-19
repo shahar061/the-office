@@ -13,6 +13,7 @@ export function ChatView(): React.JSX.Element {
   }, [snapshot?.chatTail.length]);
 
   const messages = snapshot?.chatTail ?? [];
+  console.log('[ChatView] render; snapshot?', !!snapshot, 'chatTail=', messages.length);
 
   if (messages.length === 0) {
     return <div className="chat-empty">No messages yet.</div>;
