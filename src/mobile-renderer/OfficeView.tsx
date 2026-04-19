@@ -10,6 +10,7 @@ interface Props {
 export function OfficeView({ active: _active }: Props): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
+  const sceneRef = useRef<MobileScene | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -57,15 +58,36 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
       scene.getCamera().setViewSize(canvas.clientWidth || 400, canvas.clientHeight || 600);
 
       appRef.current = app;
+      sceneRef.current = scene;
     })();
+
+    // Keep PixiJS renderer + camera viewport in sync with the canvas element.
+    // Without this, initial-layout race conditions and viewport changes
+    // (rotation, keyboard show/hide) leave the bitmap at stale dimensions
+    // while CSS stretches the canvas — content renders cut off.
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width === 0 || height === 0) continue;
+        if (appRef.current?.renderer) {
+          appRef.current.renderer.resize(width, height);
+        }
+        if (sceneRef.current) {
+          sceneRef.current.onResize(width, height);
+        }
+      }
+    });
+    resizeObserver.observe(canvas);
 
     return () => {
       cancelled = true;
+      resizeObserver.disconnect();
       const app = appRef.current;
       if (app) {
         app.destroy(true, { children: true });
         appRef.current = null;
       }
+      sceneRef.current = null;
     };
   }, []);
 

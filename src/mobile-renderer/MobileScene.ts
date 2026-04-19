@@ -165,6 +165,10 @@ export class MobileScene {
     return this.camera;
   }
 
+  onResize(width: number, height: number): void {
+    this.camera.setViewSize(width, height);
+  }
+
   getCharacter(role: string): Character | undefined {
     return this.characters.get(role);
   }
