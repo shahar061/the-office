@@ -20,10 +20,14 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
     (async () => {
       const app = new Application();
       try {
+        // Initialize at the current viewport dimensions, not the canvas's
+        // own clientWidth/Height — those can be 0 before the first layout
+        // and will later be pinned by Pixi's `autoDensity`-driven inline
+        // style, which shadows CSS `width: 100%`.
         await app.init({
           canvas,
-          width: canvas.clientWidth || 400,
-          height: canvas.clientHeight || 600,
+          width: window.innerWidth || 400,
+          height: window.innerHeight || 600,
           background: '#0a0a0a',
           antialias: false,
           preference: 'webgl',
@@ -54,56 +58,56 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
         return;
       }
 
-      // Adapt the existing Camera to the portrait viewport.
-      scene.getCamera().setViewSize(canvas.clientWidth || 400, canvas.clientHeight || 600);
+      // Adapt the Camera to the current viewport.
+      scene.getCamera().setViewSize(window.innerWidth || 400, window.innerHeight || 600);
 
       appRef.current = app;
       sceneRef.current = scene;
     })();
 
-    // Keep PixiJS renderer + camera viewport in sync with the canvas element.
-    // Without this, initial-layout race conditions and viewport changes
-    // (rotation, keyboard show/hide) leave the bitmap at stale dimensions
-    // while CSS stretches the canvas — content renders cut off.
-    const applyResize = (width: number, height: number) => {
-      if (width === 0 || height === 0) return;
+    // Keep PixiJS renderer + camera viewport in sync with the actual
+    // viewport dimensions. IMPORTANT: sample `window.innerWidth`/`innerHeight`
+    // rather than `canvas.clientWidth/Height` — Pixi's `autoDensity` sets
+    // explicit inline `style.width`/`style.height` on the canvas element,
+    // which "pins" its clientWidth/Height to the last Pixi-set value and
+    // shadows the CSS rule `.office-canvas { width: 100%; height: 100% }`.
+    // On rotation this traps the canvas at its portrait size in a landscape
+    // viewport until we explicitly resize.
+    const applyResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w === 0 || h === 0) return;
       if (appRef.current?.renderer) {
-        appRef.current.renderer.resize(width, height);
+        appRef.current.renderer.resize(w, h);
       }
       if (sceneRef.current) {
-        sceneRef.current.onResize(width, height);
+        sceneRef.current.onResize(w, h);
       }
     };
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        applyResize(entry.contentRect.width, entry.contentRect.height);
-      }
-    });
-    resizeObserver.observe(canvas);
+    // Observe the CANVAS'S PARENT (the `.tab-pane` container) rather than the
+    // canvas itself. The parent's size tracks the viewport correctly; the
+    // canvas's tracked size is whatever Pixi last set it to.
+    const resizeObserver = new ResizeObserver(() => applyResize());
+    const parent = canvas.parentElement;
+    if (parent) resizeObserver.observe(parent);
 
-    // Backup paths: Android WebView sometimes fails to notify ResizeObserver
-    // when the native orientation changes (the container clientWidth/Height
-    // DO update, but the observer miss-fires). `window.resize` and
-    // `orientationchange` reliably fire on rotation across platforms; sample
-    // the canvas dimensions and push them through the same applyResize path.
-    const handleWindowResize = () => {
-      applyResize(canvas.clientWidth, canvas.clientHeight);
+    // Window-level fallbacks — `resize` and `orientationchange` both fire on
+    // Android WebView rotation and give us the authoritative post-rotation
+    // dimensions. The rAF×2 delay on orientationchange lets the native
+    // rotation animation settle before we sample innerWidth/innerHeight.
+    const handleResize = () => applyResize();
+    const handleOrientation = () => {
+      requestAnimationFrame(() => requestAnimationFrame(applyResize));
     };
-    const handleOrientationChange = () => {
-      // Wait two animation frames so the rotated layout has actually settled
-      // before we sample canvas dimensions — querying too early returns the
-      // pre-rotation size on some Android builds.
-      requestAnimationFrame(() => requestAnimationFrame(handleWindowResize));
-    };
-    window.addEventListener('resize', handleWindowResize);
-    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientation);
 
     return () => {
       cancelled = true;
       resizeObserver.disconnect();
-      window.removeEventListener('resize', handleWindowResize);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientation);
       const app = appRef.current;
       if (app) {
         app.destroy(true, { children: true });
