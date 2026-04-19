@@ -94,6 +94,9 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
           }
           break;
         }
+        case 'charState':
+          store.applyCharState(m.ts, m.characters);
+          break;
         case 'tokenRefresh': {
           void saveDevice({ ...deviceRef.current, relayToken: m.token });
           break;

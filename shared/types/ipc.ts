@@ -32,7 +32,7 @@ import type {
   UIDesignReviewResponse,
   DiffResult,
 } from './project';
-import type { PairedDevice } from './mobile';
+import type { PairedDevice, CharacterState } from './mobile';
 import type { AuthStatus, AppSettings, GitIdentity, StatsState } from './settings';
 
 export const IPC_CHANNELS = {
@@ -62,6 +62,8 @@ export const IPC_CHANNELS = {
   GET_CHAT_HISTORY: 'office:get-chat-history',
   // Agent Events
   AGENT_EVENT: 'office:agent-event',
+  // Canvas State Parity
+  OFFICE_CHAR_STATES: 'office:char-states',
   // Permissions
   PERMISSION_REQUEST: 'office:permission-request',
   RESPOND_PERMISSION: 'office:respond-permission',
@@ -268,6 +270,9 @@ export interface OfficeAPI {
   runOnboardingScan(): Promise<{ success: boolean; error?: string }>;
   skipOnboardingScan(): Promise<void>;
   onProjectStateChanged(callback: (state: ProjectState) => void): () => void;
+
+  // Canvas State Parity
+  broadcastCharStates(states: CharacterState[]): void;
 
   // Mobile Bridge
   mobile: {

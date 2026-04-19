@@ -7,10 +7,11 @@ export function handleRawMessage(raw: unknown): void {
   if (!msg) return;
   const store = useSessionStore.getState();
   switch (msg.type) {
-    case 'snapshot': store.setSnapshot(msg.snapshot); break;
-    case 'event':    store.appendEvent(msg.event); break;
-    case 'chat':     store.appendChat(msg.messages); break;
-    case 'state':    store.applyStatePatch(msg.patch); break;
+    case 'snapshot':  store.setSnapshot(msg.snapshot); break;
+    case 'charState': store.applyCharState(msg.ts, msg.characters); break;
+    case 'event':     store.appendEvent(msg.event); break;
+    case 'chat':      store.appendChat(msg.messages); break;
+    case 'state':     store.applyStatePatch(msg.patch); break;
     default: break;
   }
 }

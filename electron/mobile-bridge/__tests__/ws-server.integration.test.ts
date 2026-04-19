@@ -220,4 +220,56 @@ describe('WsServer v2 integration', () => {
     expect(ackPlain.clientMsgId).toBe('m1');
     ws.close();
   });
+
+  it('forwards charState frames to the connected peer, encrypted', async () => {
+    const { qrPayload } = server.generatePairingQR();
+    const qr = JSON.parse(qrPayload);
+    const desktopPub = new Uint8Array(Buffer.from(qr.desktopIdentityPub, 'base64'));
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const keys = deriveSessionKeys(phonePriv, desktopPub, 'initiator');
+    const recv = new RecvStream(keys.recvKey);
+
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/office`);
+    await new Promise<void>((r) => ws.once('open', () => r()));
+    const frames: Buffer[] = [];
+    ws.on('message', (d) => { if (d instanceof Buffer) frames.push(d); });
+
+    // Complete the pairing handshake so the connection becomes authenticated
+    ws.send(JSON.stringify({ type: 'pair', v: 2, pairingToken: qr.pairingToken, devicePub: Buffer.from(phonePub).toString('base64'), deviceName: 'P' }));
+    await new Promise((r) => setTimeout(r, 50));
+    ws.send(JSON.stringify({ type: 'pairConfirm', v: 2 }));
+    await new Promise((r) => setTimeout(r, 200));
+    ws.send(JSON.stringify({ type: 'pairRemoteConsent', v: 2, remoteAllowed: false }));
+    await new Promise((r) => setTimeout(r, 250));
+    const pairedPlain = decodeV2(new TextDecoder().decode(recv.decrypt(new Uint8Array(frames[0]))));
+    expect(pairedPlain?.type).toBe('paired');
+
+    const framesBefore = frames.length;
+
+    // Broadcast a charState from the desktop side
+    server.broadcastCharState({
+      type: 'charState',
+      v: 2,
+      ts: 1000,
+      characters: [
+        {
+          agentId: 'ceo', x: 10, y: 20,
+          direction: 'down', animation: 'idle',
+          visible: true, alpha: 1, toolBubble: null,
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(frames.length).toBeGreaterThan(framesBefore);
+
+    // Decrypt the most recent frame; expect charState
+    const latest = frames[frames.length - 1];
+    const plain = decodeV2(new TextDecoder().decode(recv.decrypt(new Uint8Array(latest)))) as any;
+    expect(plain?.type).toBe('charState');
+    expect(plain.characters[0].agentId).toBe('ceo');
+
+    ws.close();
+  });
 });

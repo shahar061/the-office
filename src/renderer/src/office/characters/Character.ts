@@ -2,10 +2,18 @@ import { Texture } from 'pixi.js';
 import { CharacterSprite, type Direction, type AnimState } from './CharacterSprite';
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
-import type { AgentRole } from '../../../../shared/types';
-import { ToolBubble, toolIcon } from './ToolBubble';
+import type { AgentRole, CharacterState } from '@shared/types';
+import { ToolBubble } from './ToolBubble';
 
-export type CharacterState = 'idle' | 'walk' | 'type' | 'read';
+export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
+
+function lerp(a: number, b: number, t: number): number {
+  const tt = Math.min(Math.max(t, 0), 1);
+  return a + (b - a) * tt;
+}
+
+const SNAP_THRESHOLD_PX = 100;
+const LERP_WINDOW_S = 0.1; // reach target in ~100ms
 
 const SPEED = 48;
 
@@ -30,13 +38,13 @@ export class Character {
   readonly role: AgentRole;
   readonly sprite: CharacterSprite;
 
-  private state: CharacterState = 'idle';
+  private state: CharacterAnimation = 'idle';
   private mapRenderer: TiledMapRenderer;
   private deskTile: { x: number; y: number };
   private px: number;
   private py: number;
   private path: { x: number; y: number }[] = [];
-  private pendingWork: CharacterState | null = null;
+  private pendingWork: CharacterAnimation | null = null;
   private direction: Direction = 'down';
   private idleTimer = 0;
   private idleWanderDelay = 3 + Math.random() * 5;
@@ -70,8 +78,56 @@ export class Character {
     this.toolBubble = new ToolBubble();
   }
 
-  getState(): CharacterState {
+  getAnimation(): CharacterAnimation {
     return this.state;
+  }
+
+  getStateSnapshot(): CharacterState {
+    return {
+      agentId: this.agentId,
+      x: this.px,
+      y: this.py,
+      direction: this.direction,
+      animation: this.state,
+      visible: this.isVisible,
+      alpha: this.sprite.container.alpha,
+      toolBubble: this.toolBubble.getPublicState(),
+    };
+  }
+
+  applyDrivenState(target: CharacterState, dt: number): void {
+    const dx = target.x - this.px;
+    const dy = target.y - this.py;
+    const shouldSnap = Math.abs(dx) > SNAP_THRESHOLD_PX || Math.abs(dy) > SNAP_THRESHOLD_PX;
+    if (shouldSnap) {
+      this.px = target.x;
+      this.py = target.y;
+    } else {
+      const t = Math.min(1, dt / LERP_WINDOW_S);
+      this.px = lerp(this.px, target.x, t);
+      this.py = lerp(this.py, target.y, t);
+    }
+    this.sprite.setPosition(this.px, this.py);
+
+    // Alpha interpolation
+    const currentAlpha = this.sprite.container.alpha;
+    const alphaT = Math.min(1, dt / LERP_WINDOW_S);
+    this.sprite.setAlpha(lerp(currentAlpha, target.alpha, alphaT));
+
+    // Snap direction + animation — they're discrete transitions
+    if (this.direction !== target.direction) {
+      this.direction = target.direction;
+      this.sprite.setAnimation(this.state, this.direction);
+    }
+    if (this.state !== target.animation) {
+      this.state = target.animation;
+      this.sprite.setAnimation(this.state, this.direction);
+    }
+
+    // Visibility + tool bubble
+    this.isVisible = target.visible;
+    this.toolBubble.setTarget(target.toolBubble);
+    this.toolBubble.setPosition(this.px, this.py);
   }
 
   getTilePosition(): { x: number; y: number } {
@@ -150,7 +206,7 @@ export class Character {
   }
 
   showToolBubble(toolName: string, target: string): void {
-    this.toolBubble.show(toolIcon(toolName), target);
+    this.toolBubble.show(toolName, target);
   }
 
   hideToolBubble(): void {

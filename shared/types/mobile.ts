@@ -3,6 +3,17 @@
 import type { AgentEvent } from './agent';
 import type { ChatMessage, SessionSnapshot, SessionStatePatch } from './session';
 
+export interface CharacterState {
+  agentId: string;
+  x: number;
+  y: number;
+  direction: 'up' | 'down' | 'left' | 'right';
+  animation: 'idle' | 'walk' | 'read' | 'type';
+  visible: boolean;
+  alpha: number;
+  toolBubble: { toolName: string; target?: string } | null;
+}
+
 /** Cloudflare Worker that forwards encrypted frames between desktop and phone.
  *  Currently points at staging. Swap to a prod URL once a production worker
  *  is deployed. The desktop opens one outbound WS per remoteAllowed device;
@@ -41,6 +52,7 @@ export type MobileMessage =
   | { type: 'authed'; v: 1; snapshot: SessionSnapshot }
   | { type: 'authFailed'; v: 1; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' }
   | { type: 'snapshot'; v: 1; snapshot: SessionSnapshot }
+  | { type: 'charState'; v: 1; ts: number; characters: CharacterState[] }
   | { type: 'event'; v: 1; event: AgentEvent }
   | { type: 'chat'; v: 1; messages: ChatMessage[] }
   | { type: 'state'; v: 1; patch: SessionStatePatch }
@@ -101,6 +113,7 @@ export type MobileMessageV2 =
   | { type: 'authed'; v: 2; snapshot: SessionSnapshot }
   | { type: 'authFailed'; v: 2; reason: 'unknownDevice' | 'revoked' | 'expired' | 'malformed' | 'internal' | 'sasAbort' }
   | { type: 'snapshot'; v: 2; snapshot: SessionSnapshot }
+  | { type: 'charState'; v: 2; ts: number; characters: CharacterState[] }
   | { type: 'event'; v: 2; event: AgentEvent }
   | { type: 'chatFeed'; v: 2; messages: ChatMessage[] }
   | { type: 'chatAck'; v: 2; clientMsgId: string; ok: boolean; error?: string }

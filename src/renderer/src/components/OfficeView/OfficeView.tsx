@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useProjectStore } from '../../stores/project.store';
 import { useChatStore } from '../../stores/chat.store';
 import { useArtifactStore } from '../../stores/artifact.store';
@@ -20,6 +20,8 @@ import { useLogStore } from '../../stores/log.store';
 import { SplitLayout } from '../SplitLayout/PaneRenderer';
 import { useLayoutStore } from '../../stores/layout.store';
 import { findLeafByPanelId } from '../SplitLayout/layout-utils';
+import { useCharStream } from '../../hooks/useCharStream';
+import { useMobileBridgeStore } from '../../stores/mobile-bridge.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +121,16 @@ export default function OfficeView() {
     handleIntroComplete: handleWarRoomIntroComplete,
     handleHighlightChange: handleWarRoomHighlightChange,
   } = useWarRoomIntro(officeScene);
+
+  // Keep a stable ref to the current scene so useCharStream's interval
+  // closure always reads the live value without re-starting on each render.
+  const sceneRef = useRef<OfficeScene | null>(null);
+  useEffect(() => { sceneRef.current = officeScene; }, [officeScene]);
+
+  const mobileConnectedCount = useMobileBridgeStore(
+    (s) => s.status?.connectedDevices ?? 0,
+  );
+  useCharStream(sceneRef, mobileConnectedCount);
 
   const handleSceneReady = useCallback((scene: OfficeScene) => {
     setupIntroScene(scene);

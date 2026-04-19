@@ -48,6 +48,16 @@ export function WebViewHost({ style }: Props) {
     const pending = useSessionStore.getState().drainPendingEvents();
     console.log('[WebViewHost] replay events count', pending.length);
     for (const event of pending) post({ type: 'event', v: 1, event });
+    const initialStates = useSessionStore.getState().characterStates;
+    if (initialStates.size > 0) {
+      console.log('[WebViewHost] replay charState count=', initialStates.size);
+      post({
+        type: 'charState',
+        v: 1,
+        ts: useSessionStore.getState().lastCharStateTs,
+        characters: [...initialStates.values()],
+      });
+    }
 
     const unsub = useSessionStore.subscribe((state, prev) => {
       if (state.snapshot && state.snapshot !== prev.snapshot) {
@@ -58,6 +68,15 @@ export function WebViewHost({ style }: Props) {
         const events = useSessionStore.getState().drainPendingEvents();
         console.log('[WebViewHost] forward events', events.length);
         for (const event of events) post({ type: 'event', v: 1, event });
+      }
+      if (state.characterStates !== prev.characterStates) {
+        console.log('[WebViewHost] forward charState count=', state.characterStates.size);
+        post({
+          type: 'charState',
+          v: 1,
+          ts: state.lastCharStateTs,
+          characters: [...state.characterStates.values()],
+        });
       }
     });
     return unsub;

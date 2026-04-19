@@ -4,7 +4,7 @@ import { Camera } from '../renderer/src/office/engine/camera';
 import { Character } from '../renderer/src/office/characters/Character';
 import { SpriteAdapter } from '../renderer/src/office/characters/SpriteAdapter';
 import { AGENT_CONFIGS } from '../renderer/src/office/characters/agents.config';
-import type { AgentRole } from '../../shared/types';
+import { useSessionStore } from '../../shared/stores/session.store';
 
 import officeTilesetUrl from '../renderer/src/assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../renderer/src/assets/tilesets/a5-office-floors-walls.png?url';
@@ -109,21 +109,11 @@ export class MobileScene {
         framesPerDirection: 6,
       });
 
-      // Constrain wandering to the agent's idle zone (already in tile coords)
-      const zone = this.mapRenderer.getZone(config.idleZone);
-      const wanderBounds = zone ? {
-        tileX: zone.x,
-        tileY: zone.y,
-        tileW: zone.width,
-        tileH: zone.height,
-      } : undefined;
-
       const character = new Character({
         agentId: config.role,
         role: config.role,
         mapRenderer: this.mapRenderer,
         frames,
-        wanderBounds,
       });
 
       this.characters.set(config.role, character);
@@ -141,14 +131,33 @@ export class MobileScene {
     this.camera.fitToScreen();
     this.camera.focusOnPhase('imagine');
 
-    this.app.ticker.add(() => this.update());
+    this.app.ticker.add(() => this.driveFromStore());
   }
 
-  private update(): void {
+  private driveFromStore(): void {
     const dt = this.app.ticker.deltaMS / 1000;
     this.camera.update();
-    for (const character of this.characters.values()) {
-      character.update(dt);
+
+    const states = useSessionStore.getState().characterStates;
+
+    // Apply state to known characters; spawn if new-visible
+    for (const [agentId, target] of states) {
+      const character = this.characters.get(agentId);
+      if (!character) continue;
+      if (!character.isVisible && target.visible) {
+        const tileX = Math.floor(target.x / this.mapRenderer.tileSize);
+        const tileY = Math.floor(target.y / this.mapRenderer.tileSize);
+        character.repositionTo(tileX, tileY);
+        character.show(this.characterLayer);
+      }
+      character.applyDrivenState(target, dt);
+    }
+
+    // Fade out characters no longer in the stream
+    for (const [role, character] of this.characters) {
+      if (!states.has(role) && character.isVisible) {
+        character.hide(500);
+      }
     }
   }
 
@@ -158,34 +167,5 @@ export class MobileScene {
 
   getCharacter(role: string): Character | undefined {
     return this.characters.get(role);
-  }
-
-  showCharacter(role: AgentRole): void {
-    const character = this.characters.get(role);
-    if (!character) {
-      console.log('[MobileScene] showCharacter: no Character for role', role, 'keys=', [...this.characters.keys()]);
-      return;
-    }
-    if (character.isVisible) {
-      console.log('[MobileScene] showCharacter: already visible', role);
-      return;
-    }
-    const entrance = this.getEntrancePosition();
-    console.log('[MobileScene] showCharacter', role, 'at', entrance);
-    character.repositionTo(entrance.x, entrance.y);
-    character.show(this.characterLayer);
-  }
-
-  hideCharacter(role: AgentRole): void {
-    const character = this.characters.get(role);
-    if (!character || !character.isVisible) return;
-    character.hide(3000);
-  }
-
-  private getEntrancePosition(): { x: number; y: number } {
-    const sp = this.mapRenderer.getSpawnPoint('entrance');
-    if (sp) return sp;
-    // Fallback: bottom-center of the map
-    return { x: Math.floor(this.mapRenderer.width / 2), y: this.mapRenderer.height - 2 };
   }
 }
