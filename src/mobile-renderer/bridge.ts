@@ -7,10 +7,16 @@ export function handleRawMessage(raw: unknown): void {
   if (!msg) return;
   const store = useSessionStore.getState();
   switch (msg.type) {
-    case 'snapshot':  store.setSnapshot(msg.snapshot); break;
+    case 'snapshot':
+      console.log('[webview-bridge] snapshot chatTail=', msg.snapshot.chatTail.length);
+      store.setSnapshot(msg.snapshot);
+      break;
     case 'charState': store.applyCharState(msg.ts, msg.characters); break;
     case 'event':     store.appendEvent(msg.event); break;
-    case 'chat':      store.appendChat(msg.messages); break;
+    case 'chat':
+      console.log('[webview-bridge] chat got', msg.messages.length, 'msgs; snapshot?', !!store.snapshot);
+      store.appendChat(msg.messages);
+      break;
     case 'state':     store.applyStatePatch(msg.patch); break;
     default: break;
   }

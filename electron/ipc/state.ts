@@ -200,7 +200,13 @@ export function sendChat(msg: Omit<ChatMessage, 'id' | 'timestamp'>, persist: bo
     ...msg,
   };
   send(IPC_CHANNELS.CHAT_MESSAGE, chatMsg);
-  if (msg.role !== 'agent') mobileBridge?.onChat([chatMsg]);
+  // Forward every chat message (user / agent / system) to the mobile bridge.
+  // Mobile's snapshot.chatTail is how the phone renders history; the
+  // `agent:message` event path only drives canvas animations, not the chat
+  // view. Previously this was gated `msg.role !== 'agent'` and agent replies
+  // never reached the phone.
+  console.log('[sendChat] forwarding to mobile:', msg.role, msg.text.slice(0, 40));
+  mobileBridge?.onChat([chatMsg]);
 
   if (persist && chatHistoryStore && currentChatPhase && currentChatRunNumber > 0) {
     const agentRole = msg.agentRole ?? currentChatAgentRole;

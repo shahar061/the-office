@@ -68,13 +68,15 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
         case 'event':
           store.appendEvent(m.event);
           break;
-        case 'chatFeed':
+        case 'chatFeed': {
+          const pre = useSessionStore.getState().snapshot;
+          console.log('[useSession] chatFeed got', m.messages.length, 'msgs; snapshot?', !!pre, 'tailBefore=', pre?.chatTail.length ?? 'n/a');
           store.appendChat(m.messages);
-          {
-            const snap = useSessionStore.getState().snapshot;
-            if (snap) void saveLastKnown(snap);
-          }
+          const snap = useSessionStore.getState().snapshot;
+          console.log('[useSession] chatFeed after appendChat tailAfter=', snap?.chatTail.length ?? 'n/a');
+          if (snap) void saveLastKnown(snap);
           break;
+        }
         case 'state':
           store.applyStatePatch(m.patch);
           {
