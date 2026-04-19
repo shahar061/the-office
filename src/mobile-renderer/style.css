@@ -57,6 +57,16 @@ html, body, #root {
   color: var(--accent);
 }
 
+/* Fullscreen landscape mode: the RN host locks the canvas to landscape
+   and shows a floating chat FAB that returns to portrait. The in-WebView
+   Office/Chat tab switcher is redundant there and was eating the bottom
+   ~56px of canvas height, making the office map look "cut". MobileApp.tsx
+   hides the TabBar + forces the office tab when the viewport is landscape;
+   this keeps the body backgrounds consistent. */
+@media (orientation: landscape) {
+  body { overscroll-behavior: none; }
+}
+
 .office-canvas {
   width: 100%;
   height: 100%;
