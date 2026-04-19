@@ -20,14 +20,22 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
     (async () => {
       const app = new Application();
       try {
-        // Initialize at the current viewport dimensions, not the canvas's
-        // own clientWidth/Height — those can be 0 before the first layout
-        // and will later be pinned by Pixi's `autoDensity`-driven inline
-        // style, which shadows CSS `width: 100%`.
+        // Initialize Pixi at the CONTAINER's dimensions, not the whole
+        // viewport. The canvas lives inside `.tab-pane`, which is flex:1
+        // above a 56px `.tab-bar`. If we size Pixi to `window.innerHeight`
+        // the canvas is 56px taller than its container, overflows below it,
+        // and covers the tab-bar (hiding Office/Chat switcher).
+        //
+        // `canvas.clientWidth/Height` is unreliable here (0 before first
+        // layout), so use the parent element's clientWidth/Height — the
+        // tab-pane has correct dimensions by the time this effect runs.
+        const parent = canvas.parentElement;
+        const initW = parent?.clientWidth || window.innerWidth || 400;
+        const initH = parent?.clientHeight || window.innerHeight || 600;
         await app.init({
           canvas,
-          width: window.innerWidth || 400,
-          height: window.innerHeight || 600,
+          width: initW,
+          height: initH,
           background: '#0a0a0a',
           antialias: false,
           preference: 'webgl',
@@ -58,24 +66,35 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
         return;
       }
 
-      // Adapt the Camera to the current viewport.
-      scene.getCamera().setViewSize(window.innerWidth || 400, window.innerHeight || 600);
+      // Adapt the Camera to the container viewport (same dims Pixi init'd with).
+      const camParent = canvas.parentElement;
+      scene.getCamera().setViewSize(
+        camParent?.clientWidth || window.innerWidth || 400,
+        camParent?.clientHeight || window.innerHeight || 600,
+      );
 
       appRef.current = app;
       sceneRef.current = scene;
     })();
 
-    // Keep PixiJS renderer + camera viewport in sync with the actual
-    // viewport dimensions. IMPORTANT: sample `window.innerWidth`/`innerHeight`
-    // rather than `canvas.clientWidth/Height` — Pixi's `autoDensity` sets
-    // explicit inline `style.width`/`style.height` on the canvas element,
-    // which "pins" its clientWidth/Height to the last Pixi-set value and
-    // shadows the CSS rule `.office-canvas { width: 100%; height: 100% }`.
-    // On rotation this traps the canvas at its portrait size in a landscape
-    // viewport until we explicitly resize.
+    // Keep PixiJS renderer + camera viewport in sync with the canvas's
+    // PARENT element's dimensions — NOT the full viewport and NOT
+    // `canvas.clientWidth/Height`.
+    //   * Viewport (`window.innerWidth/Height`): too large — the canvas's
+    //     container (`.tab-pane`) is shorter by the 56px `.tab-bar` so
+    //     sizing to viewport makes the canvas overflow and cover the
+    //     tab-bar.
+    //   * `canvas.clientWidth/Height`: pinned by Pixi's `autoDensity`-
+    //     driven inline style, so reading it returns the last-Pixi-set
+    //     dimensions, not the container's true size.
+    //   * `parent.clientWidth/Height`: tab-pane's actual size, which
+    //     respects the flex layout and tab-bar's 56px. This is the right
+    //     source of truth.
     const applyResize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      const w = parent.clientWidth;
+      const h = parent.clientHeight;
       if (w === 0 || h === 0) return;
       if (appRef.current?.renderer) {
         appRef.current.renderer.resize(w, h);
