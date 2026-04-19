@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import React from 'react';
+import React, { act } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { useSessionStore } from '../../../shared/stores/session.store';
@@ -63,10 +63,12 @@ describe('ChatView', () => {
     // jsdom computes 0 for both values; force non-zero so the assertion is meaningful.
     Object.defineProperty(list, 'scrollHeight', { configurable: true, value: 500 });
     list.scrollTop = 0;
-    setSnapshot([
-      { id: 'm1', role: 'user', text: 'hi', timestamp: 10 },
-      { id: 'm2', role: 'agent', text: 'yo', timestamp: 20 },
-    ]);
+    act(() => {
+      setSnapshot([
+        { id: 'm1', role: 'user', text: 'hi', timestamp: 10 },
+        { id: 'm2', role: 'agent', text: 'yo', timestamp: 20 },
+      ]);
+    });
     rerender(<ChatView />);
     expect(list.scrollTop).toBe(500);
   });
