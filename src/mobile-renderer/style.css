@@ -102,3 +102,29 @@ html, body, #root {
   height: 100%;
   color: var(--muted);
 }
+
+/* Chat — mobile bubble adjustments for phone-width rendering ────────────── */
+
+/* Stack message bubbles with a uniform 8px gap. The list itself owns the
+   spacing (unlike desktop where ChatPanel's flex-gap parent handles it). */
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Code blocks and markdown tables routinely exceed a phone-width bubble.
+   Scroll horizontally inside the block instead of blowing out the page. */
+.chat-list pre,
+.chat-list table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Long URLs and identifiers in inline code break at character boundaries so
+   they don't push the bubble wider than the viewport. */
+.chat-list a,
+.chat-list code {
+  overflow-wrap: anywhere;
+}
