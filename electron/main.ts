@@ -208,7 +208,9 @@ app.whenReady().then(async () => {
     broadcastMobileStatus(bridge);
     bridge.onChange(() => broadcastMobileStatus(bridge));
     bridge.onPhoneChat(async ({ body }) => {
-      sendChat({ role: 'user', text: body });
+      // Tag mobile-sourced messages so the desktop chat panel can render a
+      // small "📱 Mobile" indicator next to the role/timestamp.
+      sendChat({ role: 'user', text: body, source: 'mobile' });
       // Feed the phone's text into the same routing the desktop chat uses,
       // so the message actually drives the agent (answering pending questions
       // or kicking off /imagine when nothing is running) instead of just

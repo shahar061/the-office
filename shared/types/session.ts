@@ -11,6 +11,14 @@ export interface ChatMessage {
   agentLabel?: string;
   text: string;
   timestamp: number;
+  /**
+   * Which device the message originated from. `'mobile'` marks messages
+   * typed on the paired phone so the desktop chat panel can render a
+   * small indicator next to the metadata. Omitted (undefined) for desktop
+   * input — absence carries meaning and keeps old persisted history
+   * forward-compatible.
+   */
+  source?: 'mobile' | 'desktop';
 }
 
 export interface ChatRun {
