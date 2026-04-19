@@ -65,23 +65,45 @@ export function OfficeView({ active: _active }: Props): React.JSX.Element {
     // Without this, initial-layout race conditions and viewport changes
     // (rotation, keyboard show/hide) leave the bitmap at stale dimensions
     // while CSS stretches the canvas — content renders cut off.
+    const applyResize = (width: number, height: number) => {
+      if (width === 0 || height === 0) return;
+      if (appRef.current?.renderer) {
+        appRef.current.renderer.resize(width, height);
+      }
+      if (sceneRef.current) {
+        sceneRef.current.onResize(width, height);
+      }
+    };
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (width === 0 || height === 0) continue;
-        if (appRef.current?.renderer) {
-          appRef.current.renderer.resize(width, height);
-        }
-        if (sceneRef.current) {
-          sceneRef.current.onResize(width, height);
-        }
+        applyResize(entry.contentRect.width, entry.contentRect.height);
       }
     });
     resizeObserver.observe(canvas);
 
+    // Backup paths: Android WebView sometimes fails to notify ResizeObserver
+    // when the native orientation changes (the container clientWidth/Height
+    // DO update, but the observer miss-fires). `window.resize` and
+    // `orientationchange` reliably fire on rotation across platforms; sample
+    // the canvas dimensions and push them through the same applyResize path.
+    const handleWindowResize = () => {
+      applyResize(canvas.clientWidth, canvas.clientHeight);
+    };
+    const handleOrientationChange = () => {
+      // Wait two animation frames so the rotated layout has actually settled
+      // before we sample canvas dimensions — querying too early returns the
+      // pre-rotation size on some Android builds.
+      requestAnimationFrame(() => requestAnimationFrame(handleWindowResize));
+    };
+    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
     return () => {
       cancelled = true;
       resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
       const app = appRef.current;
       if (app) {
         app.destroy(true, { children: true });
