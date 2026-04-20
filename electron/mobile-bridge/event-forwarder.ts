@@ -1,4 +1,10 @@
-import type { AgentEvent, ChatMessage, MobileMessageV2, SessionStatePatch } from '../../shared/types';
+import type {
+  AgentEvent,
+  AgentWaitingPayload,
+  ChatMessage,
+  MobileMessageV2,
+  SessionStatePatch,
+} from '../../shared/types';
 import { SnapshotBuilder } from './snapshot-builder';
 
 export interface Broadcaster {
@@ -35,6 +41,23 @@ export class EventForwarder {
       this.broadcaster.broadcastToAuthenticated({ type: 'state', v: 2, patch });
     } catch (err) {
       console.warn('[mobile-bridge] onStatePatch failed:', err);
+    }
+  };
+
+  /**
+   * Start / clear the waiting indicator. Called from desktop IPC:
+   *   - `handleAgentWaiting` → `onAgentWaiting(payload)`
+   *   - resolve / reject sites → `onAgentWaiting(null)`
+   * Propagates to mobile via the same patch channel as `onStatePatch`.
+   */
+  onAgentWaiting = (payload: AgentWaitingPayload | null): void => {
+    try {
+      this.snapshots.setWaiting(payload);
+      this.broadcaster.broadcastToAuthenticated({
+        type: 'state', v: 2, patch: { kind: 'waiting', payload },
+      });
+    } catch (err) {
+      console.warn('[mobile-bridge] onAgentWaiting failed:', err);
     }
   };
 }
