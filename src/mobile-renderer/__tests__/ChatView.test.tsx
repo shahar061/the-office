@@ -18,6 +18,21 @@ vi.mock('../../renderer/src/components/OfficeView/MessageBubble', () => ({
   ),
 }));
 
+vi.mock('../../renderer/src/components/OfficeView/QuestionBubble', () => ({
+  QuestionBubble: ({ question, onSelect }: {
+    question: { question: string; options: { label: string }[] };
+    onSelect: (label: string) => void;
+  }) => (
+    <div data-testid="qb" data-question={question.question}>
+      {question.options.map((o) => (
+        <button key={o.label} data-testid="qb-option" onClick={() => onSelect(o.label)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 import { ChatView } from '../ChatView';
 
 const BASE_SNAPSHOT: SessionSnapshot = {
@@ -121,5 +136,53 @@ describe('ChatView', () => {
     setSnapshot([]);
     const { getByText } = render(<ChatView />);
     expect(getByText('No messages yet.')).toBeTruthy();
+  });
+
+  it('renders QuestionBubble when snapshot.waiting has options', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [{ id: 'm1', role: 'agent', agentRole: 'ceo', text: 'which?', timestamp: 10 }],
+        waiting: {
+          sessionId: 's1', agentRole: 'ceo',
+          questions: [{
+            question: 'Pick one', header: 'h',
+            options: [{ label: 'A' }, { label: 'B' }],
+            multiSelect: false,
+          }],
+        },
+      },
+    });
+    const { getByText, getByTestId } = render(<ChatView />);
+    expect(getByTestId('qb').getAttribute('data-question')).toBe('Pick one');
+    expect(getByText('A')).toBeTruthy();
+    expect(getByText('B')).toBeTruthy();
+  });
+
+  it('suppresses last-bubble isWaiting italic when interactive bubble is shown', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [{ id: 'm1', role: 'agent', agentRole: 'ceo', text: 'hi', timestamp: 10 }],
+        waiting: {
+          sessionId: 's1', agentRole: 'ceo',
+          questions: [{ question: 'q', header: 'h', options: [{ label: 'A' }], multiSelect: false }],
+        },
+      },
+    });
+    const { getAllByTestId } = render(<ChatView />);
+    expect(getAllByTestId('mb')[0].getAttribute('data-waiting')).toBe('false');
+  });
+
+  it('keeps isWaiting=true on last bubble when waiting has no options', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [{ id: 'm1', role: 'agent', agentRole: 'ceo', text: 'hi', timestamp: 10 }],
+        waiting: { sessionId: 's1', agentRole: 'ceo', questions: [] },
+      },
+    });
+    const { getAllByTestId } = render(<ChatView />);
+    expect(getAllByTestId('mb')[0].getAttribute('data-waiting')).toBe('true');
   });
 });
