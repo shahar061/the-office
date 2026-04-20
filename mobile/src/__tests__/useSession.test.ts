@@ -170,4 +170,29 @@ describe('useSession', () => {
     expect(useSessionStore.getState().characterStates.get('ceo')?.x).toBe(10);
     expect(useSessionStore.getState().lastCharStateTs).toBe(1234);
   });
+
+  it('sendChat resolves ok=true when a matching chatAck arrives', async () => {
+    jest.useFakeTimers();
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+    act(() => useConnectionStore.getState().setStatus({ state: 'connected', desktopName: 'x' }));
+    let ackPromise!: Promise<{ ok: boolean; error?: string }>;
+    act(() => { ackPromise = result.current.sendChat('Option A'); });
+    const sent = fake.sent.find((m: any) => m.type === 'chat') as any;
+    expect(sent?.body).toBe('Option A');
+    act(() => fake.emitMessage({ type: 'chatAck', v: 2, clientMsgId: sent.clientMsgId, ok: true }));
+    await expect(ackPromise).resolves.toEqual({ ok: true });
+    jest.useRealTimers();
+  });
+
+  it('sendChat does NOT clear draft on success (only submit does)', async () => {
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+    act(() => useConnectionStore.getState().setStatus({ state: 'connected', desktopName: 'x' }));
+    act(() => result.current.setDraft('something the user typed'));
+    act(() => { void result.current.sendChat('Option A'); });
+    expect(result.current.draft).toBe('something the user typed');
+  });
 });

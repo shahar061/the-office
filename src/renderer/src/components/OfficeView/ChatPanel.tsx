@@ -8,7 +8,6 @@ import { agentDisplayName } from '../../utils';
 import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
 import { QuestionBubble } from './QuestionBubble';
-import { PhaseActionButton } from './PhaseActionButton';
 import { ActivityIndicator } from './ActivityIndicator';
 import { useOfficeStore } from '../../stores/office.store';
 import { audioManager } from '../../audio/AudioManager';
@@ -388,7 +387,6 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
             );
           })}
           {renderQuestionBubble()}
-          <PhaseActionButton />
           <div ref={messagesEndRef} />
         </div>
       )}

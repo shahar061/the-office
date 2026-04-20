@@ -69,7 +69,7 @@ export function SessionScreen({ device, onPairingLost }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.canvasArea}>
-        <WebViewHost />
+        <WebViewHost onPhoneAnswer={session.sendChat} />
         {mode === 'portrait'
           ? <PortraitOverlays status={session.status} onExpand={() => changeMode('landscape')} />
           : <LandscapeLayout status={session.status} onOpenChat={() => changeMode('portrait')} />}

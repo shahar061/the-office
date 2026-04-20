@@ -30,6 +30,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
+import { runAdvanceAfter } from '../orchestrator/phase-advance';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
 import { GitManager } from '../project/git-manager';
@@ -203,6 +204,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
+    void runAdvanceAfter('imagine', () => handleStartWarroom());   // NEW
   } catch (err: any) {
     console.error('[Main] Imagine failed:', err);
     const errMsg = err.stderr || err.message || 'Unknown error';
@@ -212,7 +214,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
   }
 }
 
-async function handleStartWarroom(): Promise<void> {
+export async function handleStartWarroom(): Promise<void> {
   setCurrentChatPhase('warroom');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
@@ -269,6 +271,11 @@ async function handleStartWarroom(): Promise<void> {
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
+    void runAdvanceAfter('warroom', () => handleStartBuild({        // NEW
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    }));
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
@@ -279,7 +286,7 @@ async function handleStartWarroom(): Promise<void> {
   }
 }
 
-async function handleStartBuild(config: BuildConfig): Promise<void> {
+export async function handleStartBuild(config: BuildConfig): Promise<void> {
   setCurrentChatPhase('build');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
@@ -484,6 +491,11 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
+    void runAdvanceAfter('warroom', () => handleStartBuild({        // NEW
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    }));
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom resume failed:', err);
