@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createTransportForDevice } from '../transport/create';
 import type { Transport } from '../transport/transport.interface';
 import { useConnectionStore } from '../state/connection.store';
@@ -24,6 +24,7 @@ export interface UseSessionReturn {
   sending: boolean;
   canSend: boolean;
   submit: () => Promise<{ ok: boolean; error?: string }>;
+  sendChat: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessionReturn {
@@ -119,14 +120,13 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const submit = (): Promise<{ ok: boolean; error?: string }> => {
-    const body = draft.trim();
-    if (!body || sending) return Promise.resolve({ ok: false, error: 'empty' });
+  const sendChat = useCallback((body: string): Promise<{ ok: boolean; error?: string }> => {
+    const trimmed = body.trim();
+    if (!trimmed || sending) return Promise.resolve({ ok: false, error: 'empty' });
     const transport = transportRef.current;
     if (!transport) return Promise.resolve({ ok: false, error: 'no transport' });
     setSending(true);
     const clientMsgId = `m_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
     return new Promise<{ ok: boolean; error?: string }>((resolve) => {
       const timer = setTimeout(() => {
         pendingAcksRef.current.delete(clientMsgId);
@@ -135,17 +135,23 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
       }, 5000);
       pendingAcksRef.current.set(clientMsgId, {
         resolve: (result) => {
-          if (result.ok) setDraft('');
           setSending(false);
           resolve(result);
         },
         timer,
       });
-      transport.send({ type: 'chat', v: 2, body, clientMsgId });
+      transport.send({ type: 'chat', v: 2, body: trimmed, clientMsgId });
+    });
+  }, [sending]);
+
+  const submit = (): Promise<{ ok: boolean; error?: string }> => {
+    return sendChat(draft).then((result) => {
+      if (result.ok) setDraft('');
+      return result;
     });
   };
 
   const canSend = status.state === 'connected' && draft.trim().length > 0 && !sending;
 
-  return { status, draft, setDraft, sending, canSend, submit };
+  return { status, draft, setDraft, sending, canSend, submit, sendChat };
 }
