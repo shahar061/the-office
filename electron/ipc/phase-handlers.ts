@@ -80,6 +80,7 @@ import {
   pendingGitInit,
   setPendingGitInit,
   settingsStore,
+  mobileBridge,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -755,6 +756,7 @@ export function initPhaseHandlers(): void {
 
       pendingQuestions.delete(sessionId);
       pending.resolve(answers);
+      mobileBridge?.onAgentWaiting(null);   // NEW
     }
   });
 
@@ -1187,6 +1189,7 @@ export async function routeUserChat(text: string): Promise<'answered' | 'started
     if (currentProjectDir) clearWaitingState(currentProjectDir);
     pendingQuestions.delete(sessionId);
     pending.resolve(answers);
+    mobileBridge?.onAgentWaiting(null);   // NEW
     return 'answered';
   }
 
