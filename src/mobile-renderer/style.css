@@ -128,3 +128,69 @@ html, body, #root {
 .chat-list code {
   overflow-wrap: anywhere;
 }
+
+/* Phase separator — interleaved between consecutive chat bubbles with
+   different phase tags. Dim horizontal lines with a small uppercase label
+   between them. */
+.phase-separator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin: 4px 0;
+}
+.phase-separator-line {
+  flex: 1;
+  height: 1px;
+  background: #2a2a2a;
+}
+.phase-separator-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* Activity footer — fixed strip above the tab bar showing the current
+   running tool on the first active character. */
+.activity-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(20, 20, 20, 0.92);
+  border-top: 1px solid #222;
+  font-size: 11px;
+  color: var(--fg);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+.activity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: activity-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.activity-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@keyframes activity-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+/* When the WebView is in landscape (fullscreen office canvas), hide the
+   Chat-tab overlay so it can't stack over the canvas. */
+@media (orientation: landscape) {
+  .activity-footer { display: none; }
+}
