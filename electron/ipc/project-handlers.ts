@@ -10,7 +10,8 @@ import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
 import { ProjectScanner } from '../project/project-scanner';
-import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, resolverForRestoredQuestion } from './phase-handlers';
+import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, handleStartWarroom, handleStartBuild } from './phase-handlers';
+import { resolverForRestoredQuestion } from '../orchestrator/phase-advance';
 import {
   mainWindow,
   currentProjectDir,
@@ -161,9 +162,16 @@ export function initProjectHandlers(): void {
         }
 
         // Register a pending entry that resumes the phase after the user answers
-        const savedPhase = saved.phase ?? 'imagine';
         pendingQuestions.set(saved.sessionId, {
-          resolve: resolverForRestoredQuestion(saved),
+          resolve: resolverForRestoredQuestion(saved, {
+            toWarroom: () => { void handleStartWarroom(); },
+            toBuild: () => { void handleStartBuild({
+              modelPreset: 'default',
+              retryLimit: 2,
+              permissionMode: 'auto-all',
+            }); },
+            fallback: (phase) => { resumePhase(phase); },
+          }),
           reject: () => {},
         });
 

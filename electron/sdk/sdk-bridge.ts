@@ -19,7 +19,7 @@ export interface SessionConfig {
   onWaiting?: (questions: Array<{
     question: string;
     header: string;
-    options: { label: string; description: string }[];
+    options: { label: string; description?: string }[];
     multiSelect: boolean;
   }>) => Promise<Record<string, string>>;
   // Tool permission callback for non-AskUserQuestion tools
