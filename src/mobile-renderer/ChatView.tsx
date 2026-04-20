@@ -5,6 +5,7 @@ import { MessageBubble } from '../renderer/src/components/OfficeView/MessageBubb
 import { QuestionBubble } from '../renderer/src/components/OfficeView/QuestionBubble';
 import { PhaseSeparator } from './PhaseSeparator';
 import { ActivityFooter } from './ActivityFooter';
+import { ArchivedRunsList } from './ArchivedRunsList';
 import { AGENT_COLORS } from '../../shared/types';
 import type { Phase } from '../../shared/types';
 import { sendAnswer } from './sendAnswer';
@@ -17,16 +18,20 @@ export function ChatView(): React.JSX.Element {
   const waiting = snapshot?.waiting ?? null;
   const firstQuestion = waiting?.questions?.[0];
   const showInteractive = !!firstQuestion && firstQuestion.options.length > 0;
+  const archived = snapshot?.archivedRuns ?? [];
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length, waiting]);
 
-  if (messages.length === 0 && !waiting) {
+  if (messages.length === 0 && !waiting && archived.length === 0) {
     return <div className="chat-empty">No messages yet.</div>;
   }
 
   const rendered: React.ReactNode[] = [];
+  if (archived.length > 0) {
+    rendered.push(<ArchivedRunsList key="archived-runs" runs={archived} />);
+  }
   let prevPhase: Phase | undefined;
   messages.forEach((m, i) => {
     if (m.phase && prevPhase !== undefined && m.phase !== prevPhase) {

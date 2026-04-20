@@ -8,7 +8,6 @@ import type {
   SessionStatePatch,
 } from '../types';
 
-const CHAT_TAIL_CAP = 50;
 
 interface SessionState {
   snapshot: SessionSnapshot | null;
@@ -46,9 +45,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   appendChat: (messages) => {
     const current = get().snapshot;
     if (!current) return;
-    const merged = [...current.chatTail, ...messages];
-    const trimmed = merged.length > CHAT_TAIL_CAP ? merged.slice(merged.length - CHAT_TAIL_CAP) : merged;
-    set({ snapshot: { ...current, chatTail: trimmed } });
+    set({ snapshot: { ...current, chatTail: [...current.chatTail, ...messages] } });
   },
 
   applyStatePatch: (patch) => {
@@ -65,6 +62,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           const { waiting: _removed, ...rest } = current;
           set({ snapshot: rest as typeof current });
         }
+        break;
+      }
+      case 'archivedRuns': {
+        const next: SessionSnapshot = { ...current, archivedRuns: patch.runs };
+        if (patch.resetTail) next.chatTail = [];
+        set({ snapshot: next });
         break;
       }
     }

@@ -34,6 +34,7 @@ import {
   setPendingReview,
   dataDir,
   settingsStore,
+  refreshMobileArchivedRuns,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -203,6 +204,11 @@ export function initProjectHandlers(): void {
           // plan.md missing — stale review state, ignore
         }
       }
+
+      // Push initial archivedRuns to any connected mobile client. resetTail
+      // false because sub-project 2's snapshot sync has already seeded the
+      // tail with live content; we don't want to clobber it.
+      refreshMobileArchivedRuns(false);
 
       return { success: true };
     } catch (err: unknown) {

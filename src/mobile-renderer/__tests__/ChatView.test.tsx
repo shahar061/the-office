@@ -33,6 +33,16 @@ vi.mock('../../renderer/src/components/OfficeView/QuestionBubble', () => ({
   ),
 }));
 
+vi.mock('../ArchivedRunsList', () => ({
+  ArchivedRunsList: ({ runs }: { runs: { runNumber: number }[] }) => (
+    runs.length === 0 ? null : (
+      <div className="archived-runs">
+        {runs.map((r) => (<span key={r.runNumber}>Run {r.runNumber}</span>))}
+      </div>
+    )
+  ),
+}));
+
 import { ChatView } from '../ChatView';
 
 const BASE_SNAPSHOT: SessionSnapshot = {
@@ -184,5 +194,40 @@ describe('ChatView', () => {
     });
     const { getAllByTestId } = render(<ChatView />);
     expect(getAllByTestId('mb')[0].getAttribute('data-waiting')).toBe('true');
+  });
+
+  it('renders ArchivedRunsList above the chatTail when snapshot.archivedRuns has entries', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [{ id: 'm1', role: 'user', text: 'hi', timestamp: 10 }],
+        archivedRuns: [
+          { agentRole: 'ceo', runNumber: 1,
+            messages: [{ id: 'a1', role: 'agent', text: 'old', timestamp: 5 }], timestamp: 5 },
+        ],
+      },
+    });
+    const { container, getByText } = render(<ChatView />);
+    const archivedEl = container.querySelector('.archived-runs');
+    const chatList = container.querySelector('.chat-list');
+    expect(archivedEl).not.toBeNull();
+    expect(chatList).not.toBeNull();
+    expect(getByText(/Run 1/)).toBeTruthy();
+  });
+
+  it('does NOT show empty-state when chatTail is empty but archivedRuns has entries', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [],
+        archivedRuns: [
+          { agentRole: 'ceo', runNumber: 1,
+            messages: [{ id: 'a1', role: 'agent', text: 'old', timestamp: 5 }], timestamp: 5 },
+        ],
+      },
+    });
+    const { container, queryByText } = render(<ChatView />);
+    expect(queryByText('No messages yet.')).toBeNull();
+    expect(container.querySelector('.archived-runs')).not.toBeNull();
   });
 });

@@ -194,3 +194,49 @@ html, body, #root {
 @media (orientation: landscape) {
   .activity-footer { display: none; }
 }
+
+/* Archived runs — collapsible older runs within the current phase.
+   Rendered above the current chatTail, matching desktop's ChatPanel. */
+.archived-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 8px;
+}
+.archived-run-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.archived-run-caret {
+  color: #666;
+  flex-shrink: 0;
+}
+.archived-run-label {
+  font-weight: 600;
+}
+.archived-run-meta {
+  color: #555;
+  margin-left: auto;
+}
+.archived-run-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+  opacity: 0.7;
+}
+.archived-runs-divider {
+  border-bottom: 1px solid #1f1f1f;
+  margin: 4px 0 8px;
+}

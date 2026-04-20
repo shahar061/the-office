@@ -171,6 +171,7 @@ export function setMobileBridge(bridge: MobileBridge | null): void {
 
 export function setCurrentChatPhase(phase: Phase | null): void {
   currentChatPhase = phase;
+  refreshMobileArchivedRuns(true);
 }
 
 export function setCurrentChatAgentRole(role: AgentRole | null): void {
@@ -179,6 +180,7 @@ export function setCurrentChatAgentRole(role: AgentRole | null): void {
 
 export function setCurrentChatRunNumber(n: number): void {
   currentChatRunNumber = n;
+  if (n > 0) refreshMobileArchivedRuns(true);
 }
 
 export function incrementSessionId(): number {
@@ -293,6 +295,25 @@ export function rejectPendingQuestions(reason: string, clearPersistedState = fal
   mobileBridge?.onAgentWaiting(null);   // NEW — always clear on reject
 
   if (clearPersistedState && currentProjectDir) clearWaitingState(currentProjectDir);
+}
+
+/**
+ * Recompute the current phase's archived runs and push them to the mobile
+ * bridge. `resetTail: true` clears the phone's chatTail (phase transition,
+ * new run, project switch). `false` leaves it intact (project open with a
+ * still-active run).
+ *
+ * No-op if the store or phase isn't ready yet — the first real trigger
+ * after setup will fire the refresh.
+ */
+export function refreshMobileArchivedRuns(resetTail: boolean): void {
+  if (!mobileBridge) return;
+  if (!chatHistoryStore || !currentChatPhase) {
+    mobileBridge.onArchivedRuns([], resetTail);
+    return;
+  }
+  const runs = chatHistoryStore.computeArchivedRuns(currentChatPhase);
+  mobileBridge.onArchivedRuns(runs, resetTail);
 }
 
 // ── Waiting-state persistence ──
@@ -416,4 +437,6 @@ export function resetSessionState(): void {
   sessionStats.totalTokens = 0;
   sessionStats.sessionTime = 0;
   sessionStats.activeAgents = 0;
+
+  mobileBridge?.onArchivedRuns([], true);
 }

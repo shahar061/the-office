@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SnapshotBuilder } from '../snapshot-builder';
-import type { AgentEvent, ChatMessage } from '../../../shared/types';
+import type { AgentEvent, ArchivedRun, ChatMessage } from '../../../shared/types';
 
 function mkEvent(partial: Partial<AgentEvent>): AgentEvent {
   return {
@@ -77,14 +77,6 @@ describe('SnapshotBuilder', () => {
     builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a2' }));
     builder.ingestEvent(mkEvent({ type: 'agent:tool:start', agentId: 'a2', toolName: 'Read', toolId: 't1' }));
     expect(builder.getSnapshot().activeAgentId).toBe('a2');
-  });
-
-  it('chat tail caps at 50 messages', () => {
-    for (let i = 0; i < 60; i++) builder.ingestChat([mkChat(`m${i}`, `hi${i}`)]);
-    const tail = builder.getSnapshot().chatTail;
-    expect(tail).toHaveLength(50);
-    expect(tail[0].id).toBe('m10');
-    expect(tail[49].id).toBe('m59');
   });
 
   it('applies state patches', () => {
@@ -169,5 +161,52 @@ describe('SnapshotBuilder', () => {
     builder.setWaiting({ sessionId: 's1', agentRole: 'ceo', questions: [] });
     builder.reset();
     expect(builder.getSnapshot().waiting).toBeUndefined();
+  });
+
+  // ── archivedRuns ──
+
+  it('setArchivedRuns populates snapshot.archivedRuns; empty omits the field', () => {
+    const runs: ArchivedRun[] = [
+      { agentRole: 'ceo', runNumber: 1, messages: [mkChat('m1', 'a')], timestamp: 100 },
+    ];
+    builder.setArchivedRuns(runs);
+    expect(builder.getSnapshot().archivedRuns).toEqual(runs);
+    builder.setArchivedRuns([]);
+    expect(builder.getSnapshot().archivedRuns).toBeUndefined();
+  });
+
+  it('applyStatePatch archivedRuns with resetTail:true replaces runs AND clears chatTail', () => {
+    builder.ingestChat([mkChat('m1', 'live1'), mkChat('m2', 'live2')]);
+    const runs: ArchivedRun[] = [
+      { agentRole: 'ceo', runNumber: 1, messages: [mkChat('old', 'old')], timestamp: 50 },
+    ];
+    builder.applyStatePatch({ kind: 'archivedRuns', runs, resetTail: true });
+    const snap = builder.getSnapshot();
+    expect(snap.archivedRuns).toEqual(runs);
+    expect(snap.chatTail).toEqual([]);
+  });
+
+  it('applyStatePatch archivedRuns with resetTail:false replaces runs but keeps chatTail', () => {
+    builder.ingestChat([mkChat('m1', 'live1')]);
+    const runs: ArchivedRun[] = [
+      { agentRole: 'ceo', runNumber: 1, messages: [mkChat('old', 'old')], timestamp: 50 },
+    ];
+    builder.applyStatePatch({ kind: 'archivedRuns', runs, resetTail: false });
+    const snap = builder.getSnapshot();
+    expect(snap.archivedRuns).toEqual(runs);
+    expect(snap.chatTail).toHaveLength(1);
+  });
+
+  it('reset clears archivedRuns', () => {
+    builder.setArchivedRuns([
+      { agentRole: 'ceo', runNumber: 1, messages: [mkChat('m', 'x')], timestamp: 1 },
+    ]);
+    builder.reset();
+    expect(builder.getSnapshot().archivedRuns).toBeUndefined();
+  });
+
+  it('ingestChat no longer caps at 50 — tail holds 60 messages', () => {
+    for (let i = 0; i < 60; i++) builder.ingestChat([mkChat(`m${i}`, `hi${i}`)]);
+    expect(builder.getSnapshot().chatTail).toHaveLength(60);
   });
 });

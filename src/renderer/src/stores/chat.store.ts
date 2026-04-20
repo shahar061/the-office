@@ -1,12 +1,5 @@
 import { create } from 'zustand';
-import type { ChatMessage, AgentRole, AgentWaitingPayload, AskQuestion, PhaseHistory } from '@shared/types';
-
-export interface ArchivedRun {
-  agentRole: AgentRole;
-  runNumber: number;
-  messages: ChatMessage[];
-  timestamp: number;
-}
+import type { ChatMessage, AgentRole, AgentWaitingPayload, AskQuestion, PhaseHistory, ArchivedRun } from '@shared/types';
 
 interface ChatStore {
   messages: ChatMessage[];

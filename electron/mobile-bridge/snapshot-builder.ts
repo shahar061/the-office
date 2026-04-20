@@ -1,6 +1,7 @@
 import type {
   AgentEvent,
   AgentWaitingPayload,
+  ArchivedRun,
   ChatMessage,
   SessionSnapshot,
   SessionStatePatch,
@@ -9,8 +10,6 @@ import type {
 } from '../../shared/types';
 import { classifyActivity } from '../../shared/core/event-reducer';
 import { extractToolTarget } from '../../shared/core/extract-tool-target';
-
-const CHAT_TAIL_CAP = 50;
 
 export class SnapshotBuilder {
   private sessionId = 'current';
@@ -22,6 +21,7 @@ export class SnapshotBuilder {
   private chatTail: ChatMessage[] = [];
   private sessionEnded = false;
   private waiting: AgentWaitingPayload | null = null;
+  private archivedRuns: ArchivedRun[] = [];
 
   constructor(desktopName: string) {
     this.desktopName = desktopName;
@@ -39,6 +39,7 @@ export class SnapshotBuilder {
       sessionEnded: this.sessionEnded,
     };
     if (this.waiting) snap.waiting = this.waiting;
+    if (this.archivedRuns.length > 0) snap.archivedRuns = [...this.archivedRuns];
     return snap;
   }
 
@@ -79,12 +80,14 @@ export class SnapshotBuilder {
     }
   }
 
+  setArchivedRuns(runs: ArchivedRun[]): void {
+    this.archivedRuns = runs;
+  }
+
   ingestChat(messages: ChatMessage[]): void {
     const stamped = messages.map((m) => ({ ...m, phase: m.phase ?? this.phase }));
     this.chatTail = [...this.chatTail, ...stamped];
-    if (this.chatTail.length > CHAT_TAIL_CAP) {
-      this.chatTail = this.chatTail.slice(this.chatTail.length - CHAT_TAIL_CAP);
-    }
+    // CAP REMOVED — tail grows with the current run; older runs live in archivedRuns
   }
 
   setWaiting(payload: AgentWaitingPayload | null): void {
@@ -97,6 +100,10 @@ export class SnapshotBuilder {
       case 'activeAgent': this.activeAgentId = patch.agentId; break;
       case 'ended': this.sessionEnded = patch.ended; break;
       case 'waiting': this.waiting = patch.payload; break;
+      case 'archivedRuns':
+        this.archivedRuns = patch.runs;
+        if (patch.resetTail) this.chatTail = [];
+        break;
     }
   }
 
@@ -107,6 +114,7 @@ export class SnapshotBuilder {
     this.chatTail = [];
     this.sessionEnded = false;
     this.waiting = null;
+    this.archivedRuns = [];
     this.startedAt = Date.now();
   }
 
