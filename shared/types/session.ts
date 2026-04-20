@@ -19,6 +19,14 @@ export interface ChatMessage {
    * forward-compatible.
    */
   source?: 'mobile' | 'desktop';
+  /**
+   * Phase at the time this message was appended to the snapshot's chatTail.
+   * Stamped by SnapshotBuilder.ingestChat. Used by the mobile renderer to
+   * interleave phase-transition separators between consecutive messages
+   * whose phase differs. Optional for forward-compatibility with old
+   * serialized histories.
+   */
+  phase?: Phase;
 }
 
 export interface ChatRun {
@@ -78,6 +86,13 @@ export interface CharacterSnapshot {
   agentId: string;
   agentRole: AgentRole;
   activity: CharacterActivity;
+  /**
+   * The tool this character is currently running, if any. Populated from
+   * agent:tool:start events (cleared on tool:done / tool:clear / closed).
+   * Drives the mobile Chat-tab ActivityFooter and the Pixi tool bubble
+   * over the character sprite.
+   */
+  currentTool?: { toolName: string; target?: string };
 }
 
 export interface SessionSnapshot {
@@ -89,9 +104,17 @@ export interface SessionSnapshot {
   characters: CharacterSnapshot[];
   chatTail: ChatMessage[];  // capped at 50 messages
   sessionEnded: boolean;
+  /**
+   * Populated while an agent is blocked on AskUserQuestion.
+   * Cleared when the user answers, the session resets, or the project
+   * switches. Single-value by design — the current orchestrator only
+   * has one question outstanding at a time.
+   */
+  waiting?: AgentWaitingPayload;
 }
 
 export type SessionStatePatch =
   | { kind: 'phase'; phase: Phase }
   | { kind: 'activeAgent'; agentId: string | null }
-  | { kind: 'ended'; ended: boolean };
+  | { kind: 'ended'; ended: boolean }
+  | { kind: 'waiting'; payload: AgentWaitingPayload | null };
