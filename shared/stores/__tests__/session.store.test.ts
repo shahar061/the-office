@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useSessionStore } from '../session.store';
-import type { CharacterState } from '../../types';
+import type { CharacterState, SessionSnapshot } from '../../types';
 
 const sample = (agentId: string, x: number, y: number): CharacterState => ({
   agentId, x, y,
@@ -46,5 +46,45 @@ describe('useSessionStore characterStates slice', () => {
     useSessionStore.getState().clearCharStates();
     expect(useSessionStore.getState().characterStates.size).toBe(0);
     expect(useSessionStore.getState().lastCharStateTs).toBe(0);
+  });
+});
+
+const BASE: SessionSnapshot = {
+  sessionId: 's',
+  desktopName: 'd',
+  phase: 'idle',
+  startedAt: 0,
+  activeAgentId: null,
+  characters: [],
+  chatTail: [],
+  sessionEnded: false,
+};
+
+describe('session.store applyStatePatch', () => {
+  beforeEach(() => {
+    useSessionStore.setState({ snapshot: { ...BASE }, pendingEvents: [] });
+  });
+
+  it('waiting patch with payload sets snapshot.waiting', () => {
+    useSessionStore.getState().applyStatePatch({
+      kind: 'waiting',
+      payload: { sessionId: 's1', agentRole: 'ceo', questions: [] },
+    });
+    expect(useSessionStore.getState().snapshot?.waiting).toEqual({
+      sessionId: 's1',
+      agentRole: 'ceo',
+      questions: [],
+    });
+  });
+
+  it('waiting patch with null clears snapshot.waiting', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE,
+        waiting: { sessionId: 's1', agentRole: 'ceo', questions: [] },
+      },
+    });
+    useSessionStore.getState().applyStatePatch({ kind: 'waiting', payload: null });
+    expect(useSessionStore.getState().snapshot?.waiting).toBeUndefined();
   });
 });
