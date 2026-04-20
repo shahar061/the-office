@@ -60,6 +60,14 @@ export interface AgentWaitingPayload {
   questions: AskQuestion[];
 }
 
+export interface ArchivedRun {
+  agentRole: AgentRole;
+  runNumber: number;
+  messages: ChatMessage[];
+  /** Timestamp of the first message in this run — used for sort + display date. */
+  timestamp: number;
+}
+
 export interface ArtifactAvailablePayload {
   key: string;
   filename: string;
@@ -102,7 +110,7 @@ export interface SessionSnapshot {
   startedAt: number;
   activeAgentId: string | null;
   characters: CharacterSnapshot[];
-  chatTail: ChatMessage[];  // capped at 50 messages
+  chatTail: ChatMessage[];  // no longer capped — archived runs hold older material
   sessionEnded: boolean;
   /**
    * Populated while an agent is blocked on AskUserQuestion.
@@ -111,10 +119,18 @@ export interface SessionSnapshot {
    * has one question outstanding at a time.
    */
   waiting?: AgentWaitingPayload;
+  /**
+   * Older completed runs within the current phase. Populated on project open
+   * and refreshed on phase transitions and new runs. Mobile renders these as
+   * collapsible buttons above the flat chatTail. Optional for forward
+   * compatibility with old persisted snapshots.
+   */
+  archivedRuns?: ArchivedRun[];
 }
 
 export type SessionStatePatch =
   | { kind: 'phase'; phase: Phase }
   | { kind: 'activeAgent'; agentId: string | null }
   | { kind: 'ended'; ended: boolean }
-  | { kind: 'waiting'; payload: AgentWaitingPayload | null };
+  | { kind: 'waiting'; payload: AgentWaitingPayload | null }
+  | { kind: 'archivedRuns'; runs: ArchivedRun[]; resetTail: boolean };

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat.store';
-import type { ArchivedRun } from '../../stores/chat.store';
+import type { ArchivedRun } from '@shared/types';
 import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
