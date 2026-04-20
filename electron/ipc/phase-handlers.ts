@@ -5,6 +5,7 @@ import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
 import type {
   AppSettings,
+  AskQuestion,
   BuildConfig,
   ChatMessage,
   Phase,
@@ -30,6 +31,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
+import { runAdvanceAfter, PHASE_ADVANCE_OPTIONS } from '../orchestrator/phase-advance';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
 import { GitManager } from '../project/git-manager';
@@ -203,6 +205,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
+    void runAdvanceAfter('imagine', () => handleStartWarroom());   // NEW
   } catch (err: any) {
     console.error('[Main] Imagine failed:', err);
     const errMsg = err.stderr || err.message || 'Unknown error';
@@ -269,6 +272,11 @@ export async function handleStartWarroom(): Promise<void> {
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
+    void runAdvanceAfter('warroom', () => handleStartBuild({        // NEW
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    }));
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
@@ -338,6 +346,36 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
     rejectPendingQuestions('Build phase failed', true);
     phaseMachine!.markFailed();
   }
+}
+
+/**
+ * On app restart, the persisted pending question is re-hydrated but the
+ * original in-process awaiter is gone. This factory returns the right
+ * resolver: if the question matches a phase-advance signature, answering
+ * dispatches to the next phase handler; otherwise, the default behavior
+ * re-runs the phase via `resumePhase` so the agent sees the conversation
+ * context.
+ */
+export function resolverForRestoredQuestion(
+  saved: { questions: AskQuestion[]; phase?: Phase },
+): () => void {
+  const q = saved.questions[0];
+  if (q) {
+    if (q.question === PHASE_ADVANCE_OPTIONS.imagine.question) {
+      return () => { void handleStartWarroom(); };
+    }
+    if (q.question === PHASE_ADVANCE_OPTIONS.warroom.question) {
+      return () => {
+        void handleStartBuild({
+          modelPreset: 'default',
+          retryLimit: 2,
+          permissionMode: 'auto-all',
+        });
+      };
+    }
+  }
+  const savedPhase = saved.phase ?? 'imagine';
+  return () => { resumePhase(savedPhase as Phase); };
 }
 
 /** Create a PhaseMachine from persisted project state (for app restart scenarios). */
@@ -484,6 +522,11 @@ export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewRes
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
+    void runAdvanceAfter('warroom', () => handleStartBuild({        // NEW
+      modelPreset: 'default',
+      retryLimit: 2,
+      permissionMode: 'auto-all',
+    }));
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom resume failed:', err);

@@ -10,7 +10,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
 import { ProjectScanner } from '../project/project-scanner';
-import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview } from './phase-handlers';
+import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, resolverForRestoredQuestion } from './phase-handlers';
 import {
   mainWindow,
   currentProjectDir,
@@ -163,7 +163,7 @@ export function initProjectHandlers(): void {
         // Register a pending entry that resumes the phase after the user answers
         const savedPhase = saved.phase ?? 'imagine';
         pendingQuestions.set(saved.sessionId, {
-          resolve: () => { resumePhase(savedPhase as Phase); },
+          resolve: resolverForRestoredQuestion(saved),
           reject: () => {},
         });
 
