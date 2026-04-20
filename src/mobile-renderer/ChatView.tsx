@@ -2,26 +2,41 @@ import { useEffect, useRef } from 'react';
 import type React from 'react';
 import { useSessionStore } from '../../shared/stores/session.store';
 import { MessageBubble } from '../renderer/src/components/OfficeView/MessageBubble';
+import { PhaseSeparator } from './PhaseSeparator';
+import { ActivityFooter } from './ActivityFooter';
 
 export function ChatView(): React.JSX.Element {
   const snapshot = useSessionStore((s) => s.snapshot);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive.
+  const messages = snapshot?.chatTail ?? [];
+  const waiting = snapshot?.waiting ?? null;
+
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [snapshot?.chatTail.length]);
+  }, [messages.length, waiting]);
 
-  const messages = snapshot?.chatTail ?? [];
-  if (messages.length === 0) {
+  if (messages.length === 0 && !waiting) {
     return <div className="chat-empty">No messages yet.</div>;
   }
 
+  const rendered: React.ReactNode[] = [];
+  let prevPhase: string | undefined;
+  messages.forEach((m, i) => {
+    if (m.phase && prevPhase !== undefined && m.phase !== prevPhase) {
+      rendered.push(<PhaseSeparator key={`sep-${m.id}`} phase={m.phase} />);
+    }
+    if (m.phase) prevPhase = m.phase;
+    const isLast = i === messages.length - 1;
+    rendered.push(
+      <MessageBubble key={m.id} msg={m} isWaiting={isLast && !!waiting} />,
+    );
+  });
+
   return (
-    <div className="chat-list" ref={listRef}>
-      {messages.map((m) => (
-        <MessageBubble key={m.id} msg={m} isWaiting={false} />
-      ))}
-    </div>
+    <>
+      <div className="chat-list" ref={listRef}>{rendered}</div>
+      <ActivityFooter />
+    </>
   );
 }
