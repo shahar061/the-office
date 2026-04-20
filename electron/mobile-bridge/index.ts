@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentWaitingPayload, ChatMessage, MobileMessageV2, PairedDevice, SessionStatePatch, CharacterState } from '../../shared/types';
+import type { AgentEvent, AgentWaitingPayload, ArchivedRun, ChatMessage, MobileMessageV2, PairedDevice, SessionStatePatch, CharacterState } from '../../shared/types';
 import { RELAY_URL } from '../../shared/types';
 import { DeviceStore, type SettingsStoreLike } from './device-store';
 import { SnapshotBuilder } from './snapshot-builder';
@@ -42,6 +42,7 @@ export interface MobileBridge {
   onChat(messages: ChatMessage[]): void;
   onStatePatch(patch: SessionStatePatch): void;
   onAgentWaiting(payload: AgentWaitingPayload | null): void;
+  onArchivedRuns(runs: ArchivedRun[], resetTail: boolean): void;
   onCharStates(states: CharacterState[]): void;
   onChange(handler: () => void): () => void;
   onPhoneChat(handler: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>): () => void;
@@ -317,6 +318,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onChat: forwarder.onChat,
     onStatePatch: forwarder.onStatePatch,
     onAgentWaiting: forwarder.onAgentWaiting,
+    onArchivedRuns: forwarder.onArchivedRuns,
     onCharStates(states) {
       const frame: MobileMessageV2 = {
         type: 'charState',

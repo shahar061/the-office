@@ -1,6 +1,7 @@
 import type {
   AgentEvent,
   AgentWaitingPayload,
+  ArchivedRun,
   ChatMessage,
   MobileMessageV2,
   SessionStatePatch,
@@ -58,6 +59,17 @@ export class EventForwarder {
       });
     } catch (err) {
       console.warn('[mobile-bridge] onAgentWaiting failed:', err);
+    }
+  };
+
+  onArchivedRuns = (runs: ArchivedRun[], resetTail: boolean): void => {
+    try {
+      this.snapshots.applyStatePatch({ kind: 'archivedRuns', runs, resetTail });
+      this.broadcaster.broadcastToAuthenticated({
+        type: 'state', v: 2, patch: { kind: 'archivedRuns', runs, resetTail },
+      });
+    } catch (err) {
+      console.warn('[mobile-bridge] onArchivedRuns failed:', err);
     }
   };
 }
