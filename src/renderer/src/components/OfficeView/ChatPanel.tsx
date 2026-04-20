@@ -387,6 +387,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
             );
           })}
           {renderQuestionBubble()}
+          <div ref={messagesEndRef} />
         </div>
       )}
 
