@@ -7,9 +7,10 @@ import type { MobileMessage } from '../types/shared';
 
 interface Props {
   style?: any;
+  onPhoneAnswer: (body: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function WebViewHost({ style }: Props) {
+export function WebViewHost({ style, onPhoneAnswer }: Props) {
   const webViewRef = useRef<WebView>(null);
   const [assetUri, setAssetUri] = useState<string | null>(null);
 
@@ -128,6 +129,13 @@ export function WebViewHost({ style }: Props) {
           if (data?.type === 'ready') {
             console.log('[WebViewHost] got ready');
             setReady(true);
+            return;
+          }
+          if (data?.type === 'sendChat' && typeof data.body === 'string') {
+            void onPhoneAnswer(data.body).then((result) => {
+              if (!result.ok) console.warn('[WebViewHost] sendChat failed', result.error);
+            });
+            return;
           }
         } catch { /* ignore non-JSON */ }
       }}
