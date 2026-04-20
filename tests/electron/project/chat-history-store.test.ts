@@ -195,4 +195,52 @@ describe('ChatHistoryStore', () => {
       expect(fs.existsSync(filePath)).toBe(false);
     });
   });
+
+  describe('computeArchivedRuns', () => {
+    it('returns empty when each role has only 1 run', () => {
+      store.appendMessage('imagine', 'ceo', 1, makeMsg({ text: 'only run', timestamp: 100 }));
+      store.flush();
+      expect(store.computeArchivedRuns('imagine')).toEqual([]);
+    });
+
+    it('excludes the latest run per role; includes earlier runs', () => {
+      store.appendMessage('imagine', 'ceo', 1, makeMsg({ text: 'run 1 msg', timestamp: 100 }));
+      store.appendMessage('imagine', 'ceo', 2, makeMsg({ text: 'run 2 msg', timestamp: 200 }));
+      store.flush();
+      const archived = store.computeArchivedRuns('imagine');
+      expect(archived).toHaveLength(1);
+      expect(archived[0].runNumber).toBe(1);
+      expect(archived[0].agentRole).toBe('ceo');
+      expect(archived[0].messages[0].text).toBe('run 1 msg');
+      expect(archived[0].timestamp).toBe(100);
+    });
+
+    it('returns multiple archived runs sorted by timestamp ascending', () => {
+      store.appendMessage('imagine', 'ceo', 1, makeMsg({ text: 'ceo run 1', timestamp: 300 }));
+      store.appendMessage('imagine', 'ceo', 2, makeMsg({ text: 'ceo run 2', timestamp: 500 }));
+      store.appendMessage('imagine', 'market-researcher', 1, makeMsg({
+        text: 'mr run 1', agentRole: 'market-researcher', timestamp: 100,
+      }));
+      store.appendMessage('imagine', 'market-researcher', 2, makeMsg({
+        text: 'mr run 2', agentRole: 'market-researcher', timestamp: 600,
+      }));
+      store.flush();
+      const archived = store.computeArchivedRuns('imagine');
+      expect(archived).toHaveLength(2);
+      // mr run 1 timestamp=100 before ceo run 1 timestamp=300
+      expect(archived[0].agentRole).toBe('market-researcher');
+      expect(archived[0].runNumber).toBe(1);
+      expect(archived[1].agentRole).toBe('ceo');
+      expect(archived[1].runNumber).toBe(1);
+    });
+
+    it('skips runs with empty messages arrays', () => {
+      // Only populate later runs; getPhaseHistory already omits zero-message files
+      // by not reading them, so this test guards the shape: if an empty run
+      // sneaks into the input, computeArchivedRuns still filters it.
+      store.appendMessage('imagine', 'ceo', 2, makeMsg({ text: 'run 2', timestamp: 200 }));
+      store.flush();
+      expect(store.computeArchivedRuns('imagine')).toEqual([]);
+    });
+  });
 });

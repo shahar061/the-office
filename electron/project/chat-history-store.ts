@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { Phase, AgentRole, ChatMessage, ChatRun, PhaseHistory } from '../../shared/types';
+import type { ArchivedRun, Phase, AgentRole, ChatMessage, ChatRun, PhaseHistory } from '../../shared/types';
 
 const CHAT_HISTORY_DIR = 'chat-history';
 const OFFICE_DIR = '.the-office';
@@ -231,5 +231,30 @@ export class ChatHistoryStore {
     });
 
     return result;
+  }
+
+  /**
+   * Compute archived-run metadata for a phase. Excludes the latest run per
+   * agent role — those messages are the live content in the snapshot's
+   * chatTail. Returns sorted ascending by first-message timestamp.
+   */
+  computeArchivedRuns(phase: Phase): ArchivedRun[] {
+    const history = this.getPhaseHistory(phase);
+    const archived: ArchivedRun[] = [];
+    for (const entry of history) {
+      if (entry.runs.length <= 1) continue;
+      for (let i = 0; i < entry.runs.length - 1; i++) {
+        const run = entry.runs[i];
+        if (run.messages.length === 0) continue;
+        archived.push({
+          agentRole: entry.agentRole,
+          runNumber: run.runNumber,
+          messages: run.messages,
+          timestamp: run.messages[0].timestamp,
+        });
+      }
+    }
+    archived.sort((a, b) => a.timestamp - b.timestamp);
+    return archived;
   }
 }
