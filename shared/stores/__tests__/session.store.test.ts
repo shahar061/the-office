@@ -87,4 +87,50 @@ describe('session.store applyStatePatch', () => {
     useSessionStore.getState().applyStatePatch({ kind: 'waiting', payload: null });
     expect(useSessionStore.getState().snapshot?.waiting).toBeUndefined();
   });
+
+  it('archivedRuns patch with resetTail:true updates both archivedRuns and clears chatTail', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE,
+        chatTail: [{ id: 'm1', role: 'user', text: 'hi', timestamp: 1 }],
+      },
+    });
+    const runs: import('../../types').ArchivedRun[] = [
+      { agentRole: 'ceo', runNumber: 1, messages: [], timestamp: 100 },
+    ];
+    useSessionStore.getState().applyStatePatch({
+      kind: 'archivedRuns', runs, resetTail: true,
+    });
+    const snap = useSessionStore.getState().snapshot!;
+    expect(snap.archivedRuns).toEqual(runs);
+    expect(snap.chatTail).toEqual([]);
+  });
+
+  it('archivedRuns patch with resetTail:false keeps chatTail', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE,
+        chatTail: [{ id: 'm1', role: 'user', text: 'hi', timestamp: 1 }],
+      },
+    });
+    useSessionStore.getState().applyStatePatch({
+      kind: 'archivedRuns', runs: [], resetTail: false,
+    });
+    const snap = useSessionStore.getState().snapshot!;
+    expect(snap.chatTail).toHaveLength(1);
+  });
+});
+
+describe('session.store appendChat', () => {
+  beforeEach(() => {
+    useSessionStore.setState({ snapshot: { ...BASE }, pendingEvents: [] });
+  });
+
+  it('appendChat does not cap — 60 messages stay in chatTail', () => {
+    const msgs = Array.from({ length: 60 }, (_, i) => ({
+      id: `m${i}`, role: 'user' as const, text: `hi${i}`, timestamp: i,
+    }));
+    useSessionStore.getState().appendChat(msgs);
+    expect(useSessionStore.getState().snapshot!.chatTail).toHaveLength(60);
+  });
 });
