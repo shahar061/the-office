@@ -58,6 +58,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       case 'phase':       set({ snapshot: { ...current, phase: patch.phase } }); break;
       case 'activeAgent': set({ snapshot: { ...current, activeAgentId: patch.agentId } }); break;
       case 'ended':       set({ snapshot: { ...current, sessionEnded: patch.ended } }); break;
+      case 'waiting': {
+        if (patch.payload) {
+          set({ snapshot: { ...current, waiting: patch.payload } });
+        } else {
+          const { waiting: _removed, ...rest } = current;
+          set({ snapshot: rest as typeof current });
+        }
+        break;
+      }
     }
   },
 

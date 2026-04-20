@@ -29,6 +29,7 @@ export class MobileScene {
   private mapRenderer!: TiledMapRenderer;
   private camera!: Camera;
   private characters: Map<string, Character> = new Map();
+  private lastToolByRole = new Map<string, string>();
   private characterLayer!: Container;
 
   constructor(app: Application) {
@@ -138,9 +139,11 @@ export class MobileScene {
     const dt = this.app.ticker.deltaMS / 1000;
     this.camera.update();
 
-    const states = useSessionStore.getState().characterStates;
+    const state = useSessionStore.getState();
+    const states = state.characterStates;
+    const snapshotChars = state.snapshot?.characters ?? [];
 
-    // Apply state to known characters; spawn if new-visible
+    // Apply movement/animation state to known characters; spawn if new-visible.
     for (const [agentId, target] of states) {
       const character = this.characters.get(agentId);
       if (!character) continue;
@@ -153,10 +156,40 @@ export class MobileScene {
       character.applyDrivenState(target, dt);
     }
 
-    // Fade out characters no longer in the stream
+    // Fade out characters no longer in the stream.
     for (const [role, character] of this.characters) {
       if (!states.has(role) && character.isVisible) {
         character.hide(500);
+      }
+    }
+
+    // Drive tool bubbles from snapshot.characters[].currentTool. We only
+    // call showToolBubble / hideToolBubble on state transitions (tracked
+    // via `lastToolByRole`) because ToolBubble.show() does non-trivial
+    // redraw work and we don't want that on every frame.
+    const currentByRole = new Map<string, string>();
+    for (const snap of snapshotChars) {
+      if (snap.currentTool) {
+        const sig = `${snap.currentTool.toolName}|${snap.currentTool.target ?? ''}`;
+        currentByRole.set(snap.agentRole, sig);
+      }
+    }
+    // Show / update
+    for (const [role, sig] of currentByRole) {
+      const character = this.characters.get(role);
+      if (!character) continue;
+      if (this.lastToolByRole.get(role) !== sig) {
+        const [toolName, target] = sig.split('|', 2);
+        character.showToolBubble(toolName, target);
+        this.lastToolByRole.set(role, sig);
+      }
+    }
+    // Hide for roles that had a bubble but no longer have one.
+    for (const [role] of this.lastToolByRole) {
+      if (!currentByRole.has(role)) {
+        const character = this.characters.get(role);
+        character?.hideToolBubble();
+        this.lastToolByRole.delete(role);
       }
     }
   }

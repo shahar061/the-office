@@ -93,4 +93,81 @@ describe('SnapshotBuilder', () => {
     builder.applyStatePatch({ kind: 'ended', ended: true });
     expect(builder.getSnapshot().sessionEnded).toBe(true);
   });
+
+  // ── currentTool preservation ──
+
+  it('populates currentTool on agent:tool:start with target extracted from message', () => {
+    builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a1' }));
+    builder.ingestEvent(mkEvent({
+      type: 'agent:tool:start', agentId: 'a1', toolName: 'Read', toolId: 't1',
+      message: '/Users/x/foo.ts',
+    }));
+    expect(builder.getSnapshot().characters[0].currentTool).toEqual({
+      toolName: 'Read', target: 'foo.ts',
+    });
+  });
+
+  it('clears currentTool on agent:tool:done', () => {
+    builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a1' }));
+    builder.ingestEvent(mkEvent({
+      type: 'agent:tool:start', agentId: 'a1', toolName: 'Read', toolId: 't1', message: 'foo.ts',
+    }));
+    builder.ingestEvent(mkEvent({ type: 'agent:tool:done', agentId: 'a1', toolId: 't1' }));
+    expect(builder.getSnapshot().characters[0].currentTool).toBeUndefined();
+  });
+
+  it('clears currentTool on agent:tool:clear', () => {
+    builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a1' }));
+    builder.ingestEvent(mkEvent({
+      type: 'agent:tool:start', agentId: 'a1', toolName: 'Read', toolId: 't1', message: 'foo.ts',
+    }));
+    builder.ingestEvent(mkEvent({ type: 'agent:tool:clear', agentId: 'a1' }));
+    expect(builder.getSnapshot().characters[0].currentTool).toBeUndefined();
+  });
+
+  it('does NOT populate currentTool for AskUserQuestion tool', () => {
+    builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a1' }));
+    builder.ingestEvent(mkEvent({
+      type: 'agent:tool:start', agentId: 'a1', toolName: 'AskUserQuestion', toolId: 't1',
+    }));
+    expect(builder.getSnapshot().characters[0].currentTool).toBeUndefined();
+  });
+
+  // ── chat phase stamping ──
+
+  it('stamps phase on each appended chat message from the current snapshot phase', () => {
+    builder.applyStatePatch({ kind: 'phase', phase: 'warroom' });
+    builder.ingestChat([mkChat('m1', 'hi')]);
+    expect(builder.getSnapshot().chatTail[0].phase).toBe('warroom');
+  });
+
+  it('preserves an already-tagged phase on incoming chat', () => {
+    builder.applyStatePatch({ kind: 'phase', phase: 'warroom' });
+    builder.ingestChat([{ id: 'm1', role: 'user', text: 'hi', timestamp: 1, phase: 'imagine' }]);
+    expect(builder.getSnapshot().chatTail[0].phase).toBe('imagine');
+  });
+
+  // ── waiting state ──
+
+  it('setWaiting populates and clears snapshot.waiting', () => {
+    const payload = { sessionId: 's1', agentRole: 'ceo' as const, questions: [] };
+    builder.setWaiting(payload);
+    expect(builder.getSnapshot().waiting).toEqual(payload);
+    builder.setWaiting(null);
+    expect(builder.getSnapshot().waiting).toBeUndefined();
+  });
+
+  it('applyStatePatch waiting sets and clears snapshot.waiting', () => {
+    const payload = { sessionId: 's1', agentRole: 'ceo' as const, questions: [] };
+    builder.applyStatePatch({ kind: 'waiting', payload });
+    expect(builder.getSnapshot().waiting).toEqual(payload);
+    builder.applyStatePatch({ kind: 'waiting', payload: null });
+    expect(builder.getSnapshot().waiting).toBeUndefined();
+  });
+
+  it('reset clears waiting', () => {
+    builder.setWaiting({ sessionId: 's1', agentRole: 'ceo', questions: [] });
+    builder.reset();
+    expect(builder.getSnapshot().waiting).toBeUndefined();
+  });
 });

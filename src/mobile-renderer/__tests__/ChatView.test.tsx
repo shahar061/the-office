@@ -11,8 +11,10 @@ import type { ChatMessage, SessionSnapshot } from '../../../shared/types';
 // render, map-over-messages render, auto-scroll effect) from
 // react-markdown's DOM output.
 vi.mock('../../renderer/src/components/OfficeView/MessageBubble', () => ({
-  MessageBubble: ({ msg }: { msg: ChatMessage; isWaiting: boolean }) => (
-    <div data-testid="mb" data-msg-id={msg.id}>{msg.text}</div>
+  MessageBubble: ({ msg, isWaiting }: { msg: ChatMessage; isWaiting: boolean }) => (
+    <div data-testid="mb" data-msg-id={msg.id} data-waiting={String(isWaiting)}>
+      {msg.text}
+    </div>
   ),
 }));
 
@@ -71,5 +73,53 @@ describe('ChatView', () => {
     });
     rerender(<ChatView />);
     expect(list.scrollTop).toBe(500);
+  });
+
+  it('passes isWaiting=true to the last bubble when snapshot.waiting is set', () => {
+    useSessionStore.setState({
+      snapshot: {
+        ...BASE_SNAPSHOT,
+        chatTail: [
+          { id: 'm1', role: 'user', text: 'hi', timestamp: 10 },
+          { id: 'm2', role: 'agent', text: 'yo', timestamp: 20 },
+        ],
+        waiting: { sessionId: 's1', agentRole: 'ceo', questions: [] },
+      },
+    });
+    const { getAllByTestId } = render(<ChatView />);
+    const bubbles = getAllByTestId('mb');
+    expect(bubbles[0].getAttribute('data-waiting')).toBe('false');
+    expect(bubbles[1].getAttribute('data-waiting')).toBe('true');
+  });
+
+  it('passes isWaiting=false to all bubbles when waiting is unset', () => {
+    setSnapshot([{ id: 'm1', role: 'user', text: 'hi', timestamp: 10 }]);
+    const { getAllByTestId } = render(<ChatView />);
+    expect(getAllByTestId('mb')[0].getAttribute('data-waiting')).toBe('false');
+  });
+
+  it('renders a PhaseSeparator between two messages with different phase', () => {
+    setSnapshot([
+      { id: 'm1', role: 'user', text: 'a', timestamp: 10, phase: 'imagine' },
+      { id: 'm2', role: 'agent', text: 'b', timestamp: 20, phase: 'warroom' },
+    ]);
+    const { container } = render(<ChatView />);
+    const sep = container.querySelector('.phase-separator');
+    expect(sep).not.toBeNull();
+    expect(sep!.textContent).toContain('War Room');
+  });
+
+  it('does NOT render a separator above the very first message', () => {
+    setSnapshot([
+      { id: 'm1', role: 'user', text: 'a', timestamp: 10, phase: 'imagine' },
+    ]);
+    const { container } = render(<ChatView />);
+    expect(container.querySelectorAll('.phase-separator')).toHaveLength(0);
+  });
+
+  it('keeps the empty-state branch when chatTail is empty and no waiting', () => {
+    setSnapshot([]);
+    const { getByText } = render(<ChatView />);
+    expect(getByText('No messages yet.')).toBeTruthy();
   });
 });

@@ -272,6 +272,7 @@ export function handleAgentWaiting(agentRole: AgentRole, questions: AskQuestion[
 
     const payload: AgentWaitingPayload = { sessionId, agentRole, questions };
     send(IPC_CHANNELS.AGENT_WAITING, payload);
+    mobileBridge?.onAgentWaiting(payload);   // NEW
 
     // Persist so the question survives app restart
     if (currentProjectDir) {
@@ -289,6 +290,7 @@ export function rejectPendingQuestions(reason: string, clearPersistedState = fal
     pending.reject(new Error(reason));
   }
   pendingQuestions.clear();
+  mobileBridge?.onAgentWaiting(null);   // NEW — always clear on reject
 
   if (clearPersistedState && currentProjectDir) clearWaitingState(currentProjectDir);
 }

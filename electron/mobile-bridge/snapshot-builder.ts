@@ -1,5 +1,6 @@
 import type {
   AgentEvent,
+  AgentWaitingPayload,
   ChatMessage,
   SessionSnapshot,
   SessionStatePatch,
@@ -7,6 +8,7 @@ import type {
   Phase,
 } from '../../shared/types';
 import { classifyActivity } from '../../shared/core/event-reducer';
+import { extractToolTarget } from '../../shared/core/extract-tool-target';
 
 const CHAT_TAIL_CAP = 50;
 
@@ -19,13 +21,14 @@ export class SnapshotBuilder {
   private characters = new Map<string, CharacterSnapshot>();
   private chatTail: ChatMessage[] = [];
   private sessionEnded = false;
+  private waiting: AgentWaitingPayload | null = null;
 
   constructor(desktopName: string) {
     this.desktopName = desktopName;
   }
 
   getSnapshot(): SessionSnapshot {
-    return {
+    const snap: SessionSnapshot = {
       sessionId: this.sessionId,
       desktopName: this.desktopName,
       phase: this.phase,
@@ -35,6 +38,8 @@ export class SnapshotBuilder {
       chatTail: [...this.chatTail],
       sessionEnded: this.sessionEnded,
     };
+    if (this.waiting) snap.waiting = this.waiting;
+    return snap;
   }
 
   ingestEvent(event: AgentEvent): void {
@@ -51,6 +56,22 @@ export class SnapshotBuilder {
     const c = this.characters.get(event.agentId);
     if (!c) return;
     c.activity = result.activity;
+
+    // Preserve / clear currentTool based on tool lifecycle. AskUserQuestion
+    // is filtered because it's the mechanism behind the waiting indicator,
+    // not a user-visible "running a tool" action.
+    if (event.type === 'agent:tool:start' && event.toolName !== 'AskUserQuestion') {
+      c.currentTool = {
+        toolName: event.toolName ?? 'Tool',
+        target: extractToolTarget(event) || undefined,
+      };
+    } else if (
+      event.type === 'agent:tool:done' ||
+      event.type === 'agent:tool:clear'
+    ) {
+      c.currentTool = undefined;
+    }
+
     this.characters.set(event.agentId, c);
 
     if (event.type === 'agent:tool:start') {
@@ -59,10 +80,15 @@ export class SnapshotBuilder {
   }
 
   ingestChat(messages: ChatMessage[]): void {
-    this.chatTail = [...this.chatTail, ...messages];
+    const stamped = messages.map((m) => ({ ...m, phase: m.phase ?? this.phase }));
+    this.chatTail = [...this.chatTail, ...stamped];
     if (this.chatTail.length > CHAT_TAIL_CAP) {
       this.chatTail = this.chatTail.slice(this.chatTail.length - CHAT_TAIL_CAP);
     }
+  }
+
+  setWaiting(payload: AgentWaitingPayload | null): void {
+    this.waiting = payload;
   }
 
   applyStatePatch(patch: SessionStatePatch): void {
@@ -70,6 +96,7 @@ export class SnapshotBuilder {
       case 'phase': this.phase = patch.phase; break;
       case 'activeAgent': this.activeAgentId = patch.agentId; break;
       case 'ended': this.sessionEnded = patch.ended; break;
+      case 'waiting': this.waiting = patch.payload; break;
     }
   }
 
@@ -79,6 +106,7 @@ export class SnapshotBuilder {
     this.characters.clear();
     this.chatTail = [];
     this.sessionEnded = false;
+    this.waiting = null;
     this.startedAt = Date.now();
   }
 
