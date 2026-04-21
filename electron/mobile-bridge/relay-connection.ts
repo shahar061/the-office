@@ -77,10 +77,15 @@ export class RelayConnection extends EventEmitter {
   }
 
   private resetStreams(): void {
+    this.resetCryptoStreams();
+    this.seq = 0;
+    this.lastRecvSeq = -1;
+  }
+
+  private resetCryptoStreams(): void {
     const keys = deriveSessionKeys(this.desktopPriv, this.phonePub, 'responder');
     this.send = new SendStream(keys.sendKey);
     this.recv = new RecvStream(keys.recvKey);
-    this.seq = 0;
     this.lastRecvSeq = -1;
   }
 
@@ -130,7 +135,7 @@ export class RelayConnection extends EventEmitter {
     // seqs means the peer's WS dropped and reconnected, so its send stream
     // is fresh. Reset our streams in lockstep before attempting to decrypt.
     if (e.seq === 0 && this.lastRecvSeq >= 0) {
-      this.resetStreams();
+      this.resetCryptoStreams();
     }
 
     if (e.seq <= this.lastRecvSeq) return; // replay / out-of-order
