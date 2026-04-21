@@ -752,9 +752,14 @@ export function initPhaseHandlers(): void {
 
     const pending = pendingQuestions.get(sessionId);
     if (pending) {
+      // Extract question / answer text once; reused for local persistence
+      // AND for the mobile echo below. Both are newline-joined to match the
+      // convention already used by the chatHistoryStore persist branch.
+      const questionText = Object.keys(answers).join('\n');
+      const answerText = Object.values(answers).join('\n');
+
       if (chatHistoryStore && currentChatPhase && currentChatAgentRole && currentChatRunNumber > 0) {
         // Persist the question text as an agent message
-        const questionText = Object.keys(answers).join('\n');
         if (questionText) {
           const questionMsg: ChatMessage = {
             id: randomUUID(),
@@ -767,7 +772,6 @@ export function initPhaseHandlers(): void {
         }
 
         // Persist user's answer
-        const answerText = Object.values(answers).join('\n');
         if (answerText) {
           const userMsg: ChatMessage = {
             id: randomUUID(),
@@ -777,6 +781,35 @@ export function initPhaseHandlers(): void {
           };
           chatHistoryStore.appendMessage(currentChatPhase, currentChatAgentRole, currentChatRunNumber, userMsg);
         }
+      }
+
+      // Forward the Q&A pair to the mobile bridge so the phone's chat tail
+      // mirrors what desktop users see after answering a QuestionBubble.
+      // Direct `mobileBridge.onChat()` — mirrors SEND_MESSAGE echo pattern —
+      // rather than `sendChat()`, which would also re-emit to the desktop
+      // renderer and double-render Q&A that desktop already renders via
+      // QuestionBubble. When no phone is paired this block is skipped.
+      if (mobileBridge) {
+        const msgs: ChatMessage[] = [];
+        if (questionText) {
+          msgs.push({
+            id: randomUUID(),
+            role: 'agent',
+            agentRole: currentChatAgentRole ?? undefined,
+            text: questionText,
+            timestamp: Date.now(),
+          });
+        }
+        if (answerText) {
+          msgs.push({
+            id: randomUUID(),
+            role: 'user',
+            text: answerText,
+            timestamp: Date.now(),
+            source: 'desktop',
+          });
+        }
+        if (msgs.length > 0) mobileBridge.onChat(msgs);
       }
 
       pendingQuestions.delete(sessionId);
