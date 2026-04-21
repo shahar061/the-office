@@ -47,12 +47,11 @@ Create `shared/crypto/__tests__/aead.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
+import { randomBytes } from '@noble/hashes/utils';
 import { aeadEncrypt, aeadDecrypt } from '../aead';
 
 function randomKey(): Uint8Array {
-  const k = new Uint8Array(32);
-  crypto.getRandomValues(k);
-  return k;
+  return randomBytes(32);
 }
 
 describe('aead', () => {
@@ -117,6 +116,7 @@ Create `shared/crypto/aead.ts`:
 // negligible (<2^-72 over a session lifetime).
 
 import { chacha20poly1305 } from '@noble/ciphers/chacha';
+import { randomBytes } from '@noble/hashes/utils';
 
 const NONCE_LEN = 12;
 
@@ -124,8 +124,7 @@ export function aeadEncrypt(
   key: Uint8Array,
   plaintext: Uint8Array,
 ): { nonce: Uint8Array; ct: Uint8Array } {
-  const nonce = new Uint8Array(NONCE_LEN);
-  crypto.getRandomValues(nonce);
+  const nonce = randomBytes(NONCE_LEN);
   const ct = chacha20poly1305(key, nonce).encrypt(plaintext);
   return { nonce, ct };
 }
