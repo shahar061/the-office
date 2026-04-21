@@ -169,3 +169,61 @@ describe('session.store scope fields pass through setSnapshot', () => {
     expect(result.projectRoot).toBe('/Users/me/projects/foo');
   });
 });
+
+describe('session.store — viewedPhase + phase history cache', () => {
+  beforeEach(() => {
+    useSessionStore.setState({
+      snapshot: null,
+      viewedPhase: null,
+      phaseHistoryCache: {},
+      lastVisitedAtByPhase: {},
+    });
+  });
+
+  it('setViewedPhase updates state and records lastVisitedAt', () => {
+    useSessionStore.getState().setViewedPhase('warroom');
+    const state = useSessionStore.getState();
+    expect(state.viewedPhase).toBe('warroom');
+    expect(typeof state.lastVisitedAtByPhase.warroom).toBe('number');
+  });
+
+  it('setPhaseHistory populates the cache', () => {
+    const stub = [{ agentRole: 'ceo' as const, runs: [{ runNumber: 1, messages: [] }] }];
+    useSessionStore.getState().setPhaseHistory('imagine', stub);
+    expect(useSessionStore.getState().phaseHistoryCache.imagine).toBe(stub);
+  });
+
+  it('auto-follows when viewedPhase equals old currentPhase in setSnapshot', () => {
+    const initial = { ...BASE, phase: 'imagine' as const, sessionActive: true, sessionId: 's' };
+    useSessionStore.getState().setSnapshot(initial);
+    useSessionStore.getState().setViewedPhase('imagine');
+
+    const next = { ...BASE, phase: 'warroom' as const, sessionActive: true, sessionId: 's' };
+    useSessionStore.getState().setSnapshot(next);
+    expect(useSessionStore.getState().viewedPhase).toBe('warroom');
+  });
+
+  it('does NOT auto-follow when viewedPhase was already a past phase', () => {
+    const initial = { ...BASE, phase: 'warroom' as const, sessionActive: true, sessionId: 's' };
+    useSessionStore.getState().setSnapshot(initial);
+    useSessionStore.getState().setViewedPhase('imagine'); // user browsing past
+
+    const next = { ...BASE, phase: 'build' as const, sessionActive: true, sessionId: 's' };
+    useSessionStore.getState().setSnapshot(next);
+    expect(useSessionStore.getState().viewedPhase).toBe('imagine');
+  });
+
+  it('clears viewedPhase + phaseHistoryCache when snapshot flips to sessionActive=false', () => {
+    const initial = { ...BASE, phase: 'warroom' as const, sessionActive: true, sessionId: 's' };
+    useSessionStore.getState().setSnapshot(initial);
+    useSessionStore.getState().setViewedPhase('imagine');
+    useSessionStore.getState().setPhaseHistory('imagine', []);
+
+    const idle = { ...BASE, phase: 'idle' as const, sessionActive: false, sessionId: null };
+    useSessionStore.getState().setSnapshot(idle);
+    const state = useSessionStore.getState();
+    expect(state.viewedPhase).toBeNull();
+    expect(state.phaseHistoryCache).toEqual({});
+    expect(state.lastVisitedAtByPhase).toEqual({});
+  });
+});
