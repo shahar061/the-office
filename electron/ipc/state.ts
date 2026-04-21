@@ -135,6 +135,26 @@ export function setMainWindow(w: BrowserWindow | null): void {
 
 export function setCurrentProjectDir(dir: string | null): void {
   currentProjectDir = dir;
+  if (!mobileBridge) return;
+  if (dir) {
+    // `getProjectState` reads .the-office/config.json; returns a sensible
+    // default if the file isn't there yet (e.g. mid-createProject before
+    // the config is written). Fall back to path basename in that case.
+    let projectName: string;
+    try {
+      projectName = projectManager.getProjectState(dir).name || path.basename(dir);
+    } catch {
+      projectName = path.basename(dir);
+    }
+    mobileBridge.onSessionScopeChanged({
+      active: true,
+      sessionId: dir,
+      projectName,
+      projectRoot: dir,
+    });
+  } else {
+    mobileBridge.onSessionScopeChanged({ active: false });
+  }
 }
 
 export function setArtifactStore(store: ArtifactStore | null): void {
