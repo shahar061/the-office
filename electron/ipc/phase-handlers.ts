@@ -728,9 +728,22 @@ export function initPhaseHandlers(): void {
 
   // ── Chat ──
 
-  ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, _message: string) => {
-    // User messages are added to the chat store locally by the renderer.
-    // This handler exists for future use (routing messages to active SDK sessions).
+  ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, message: string) => {
+    // Forward desktop-typed user input to the mobile bridge so the phone's
+    // chat tail mirrors desktop input. We intentionally do NOT call sendChat()
+    // here — that path also emits CHAT_MESSAGE to the renderer, which would
+    // double-render (ChatPanel already adds an optimistic local message on
+    // input). This handler is a mobile-only side-effect; desktop UI is
+    // unaffected. If an SDK routing body is added later, chain on top of this
+    // forward rather than replacing it.
+    if (!mobileBridge) return;
+    mobileBridge.onChat([{
+      id: randomUUID(),
+      role: 'user',
+      text: message,
+      timestamp: Date.now(),
+      source: 'desktop',
+    }]);
   });
 
   ipcMain.handle(IPC_CHANNELS.USER_RESPONSE, async (_event, sessionId: string, answers: Record<string, string>) => {
