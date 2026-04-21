@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('office', {
   pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PICK_DIRECTORY),
   getProjectState: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROJECT_STATE),
   markIntroSeen: () => ipcRenderer.invoke(IPC_CHANNELS.MARK_INTRO_SEEN),
+  closeProject: () => ipcRenderer.invoke(IPC_CHANNELS.CLOSE_PROJECT),
   checkProjectExists: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.CHECK_PROJECT_EXISTS, projectPath),
   openDirectoryAsWorkshop: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_DIRECTORY_AS_WORKSHOP, projectPath),
   runOnboardingScan: () => ipcRenderer.invoke(IPC_CHANNELS.RUN_ONBOARDING_SCAN),
