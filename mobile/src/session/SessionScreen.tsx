@@ -93,6 +93,14 @@ export function SessionScreen({ device, onPairingLost }: Props) {
         <WebViewHost
           onPhoneAnswer={session.sendChat}
           onActiveTabChange={setActiveTab}
+          onRequestPhaseHistory={(phase, _requestId) => {
+            // Fire-and-forget: useSession handles the Promise internally; the
+            // cache populates via the phaseHistory message handler, and
+            // WebViewHost's subscribe forwards the cache entry into the webview.
+            void session.requestPhaseHistory(phase).catch((err) => {
+              console.warn('[session] phase-history request failed', err);
+            });
+          }}
         />
         {mode === 'portrait'
           ? <PortraitOverlays

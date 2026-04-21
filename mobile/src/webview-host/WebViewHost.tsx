@@ -12,9 +12,14 @@ interface Props {
   /** Fired whenever the webview tells the shell which tab is active.
    *  Used by SessionScreen to gate the expand-to-landscape button. */
   onActiveTabChange?: (tab: 'chat' | 'office') => void;
+  /** Fired when the webview asks for past-phase history. The callback
+   *  should trigger session.requestPhaseHistory(phase) on the shell side;
+   *  the response populates the shared store's phaseHistoryCache, which
+   *  this component's subscribe handler forwards into the webview. */
+  onRequestPhaseHistory?: (phase: 'imagine' | 'warroom' | 'build' | 'complete', requestId: string) => void;
 }
 
-export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange }: Props) {
+export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange, onRequestPhaseHistory }: Props) {
   const webViewRef = useRef<WebView>(null);
   const [assetUri, setAssetUri] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -79,6 +84,19 @@ export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange }: Props) 
         characters: [...initialStates.values()],
       });
     }
+    const initialCache = useSessionStore.getState().phaseHistoryCache;
+    for (const phase of ['imagine', 'warroom', 'build', 'complete'] as const) {
+      const history = initialCache[phase];
+      if (history) {
+        post({
+          type: 'phaseHistory',
+          v: 1,
+          requestId: 'cache-push',
+          phase,
+          history,
+        });
+      }
+    }
 
     const unsub = useSessionStore.subscribe((state, prev) => {
       if (state.snapshot && state.snapshot !== prev.snapshot) {
@@ -98,6 +116,20 @@ export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange }: Props) 
           ts: state.lastCharStateTs,
           characters: [...state.characterStates.values()],
         });
+      }
+      if (state.phaseHistoryCache !== prev.phaseHistoryCache) {
+        for (const phase of ['imagine', 'warroom', 'build', 'complete'] as const) {
+          if (prev.phaseHistoryCache[phase] !== state.phaseHistoryCache[phase]
+              && state.phaseHistoryCache[phase] !== undefined) {
+            post({
+              type: 'phaseHistory',
+              v: 1,
+              requestId: 'cache-push',
+              phase,
+              history: state.phaseHistoryCache[phase]!,
+            });
+          }
+        }
       }
     });
     return unsub;
@@ -180,6 +212,12 @@ export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange }: Props) 
           }
           if (data?.type === 'activeTab' && (data.tab === 'chat' || data.tab === 'office')) {
             onActiveTabChange?.(data.tab);
+            return;
+          }
+          if (data?.type === 'requestPhaseHistory' && typeof data.requestId === 'string'
+              && (data.phase === 'imagine' || data.phase === 'warroom'
+                  || data.phase === 'build' || data.phase === 'complete')) {
+            onRequestPhaseHistory?.(data.phase, data.requestId);
             return;
           }
         } catch { /* ignore non-JSON */ }
