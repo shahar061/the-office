@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { x25519, ed25519 } from '@noble/curves/ed25519';
 import { RelayConnection } from '../relay-connection';
 import { deriveSessionKeys } from '../../../shared/crypto/noise';
-import { SendStream } from '../../../shared/crypto/secretstream';
+import { aeadEncrypt } from '../../../shared/crypto/aead';
 import { encodeV2 } from '../../../shared/protocol/mobile';
 import type { MobileMessageV2, PairedDevice, PhaseHistory } from '../../../shared/types';
 
@@ -55,12 +55,12 @@ describe('RelayConnection — getPhaseHistory routing', () => {
 
     // Encrypt a getPhaseHistory frame from the phone side.
     const phoneKeys = deriveSessionKeys(keys.phonePriv, keys.desktopPub, 'initiator');
-    const phoneSend = new SendStream(phoneKeys.sendKey);
     function encFrame(msg: MobileMessageV2): string {
       const plain = new TextEncoder().encode(encodeV2(msg));
-      const ct = phoneSend.encrypt(plain);
+      const { nonce, ct } = aeadEncrypt(phoneKeys.sendKey, plain);
       return JSON.stringify({
         v: 2, sid: device.sid!, seq: 0, kind: 'data',
+        nonce: Buffer.from(nonce).toString('base64'),
         ct: Buffer.from(ct).toString('base64'),
       });
     }
