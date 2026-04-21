@@ -118,7 +118,7 @@ export function MobileSection() {
 
       <details style={{ marginTop: 24, color: '#9ca3af' }}>
         <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          Advanced: LAN direct connection
+          Advanced: direct local connection
         </summary>
         <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
