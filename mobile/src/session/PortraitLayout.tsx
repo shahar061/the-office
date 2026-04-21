@@ -12,7 +12,7 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ConnectionBanner } from '../webview-host/ConnectionBanner';
+import { ConnectionPill } from '../webview-host/ConnectionPill';
 import { colors, spacing, radius, hitTarget, typography } from '../theme';
 import type { UseSessionReturn } from './useSession';
 
@@ -34,7 +34,7 @@ export function PortraitOverlays({ status, onExpand, activeTab = 'office' }: Ove
   return (
     <View style={overlayStyles.root} pointerEvents="box-none">
       <View style={[overlayStyles.bannerSlot, { paddingTop: insets.top }]} pointerEvents="box-none">
-        <ConnectionBanner status={status} />
+        <ConnectionPill status={status} />
       </View>
       {activeTab === 'office' && (
         <Pressable
