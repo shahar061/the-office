@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { x25519, ed25519 } from '@noble/curves/ed25519';
 import { RelayConnection } from '../relay-connection';
 import { deriveSessionKeys } from '../../../shared/crypto/noise';
-import { SendStream } from '../../../shared/crypto/secretstream';
+import { aeadEncrypt } from '../../../shared/crypto/aead';
 import { encodeV2 } from '../../../shared/protocol/mobile';
 import type { MobileMessageV2, PairedDevice } from '../../../shared/types';
 
@@ -36,19 +36,22 @@ function makeDevice(keys: ReturnType<typeof makeKeys>): PairedDevice {
   };
 }
 
-function freshPhoneSend(keys: ReturnType<typeof makeKeys>) {
-  const sessionKeys = deriveSessionKeys(keys.phonePriv, keys.desktopPub, 'initiator');
-  return new SendStream(sessionKeys.sendKey);
-}
-
-function encEnvelope(sid: string, seq: number, msg: MobileMessageV2, sendStream: SendStream): string {
+function encEnvelope(
+  sendKey: Uint8Array,
+  sid: string,
+  seq: number,
+  msg: MobileMessageV2,
+): string {
   const plain = new TextEncoder().encode(encodeV2(msg));
-  const ct = sendStream.encrypt(plain);
-  return JSON.stringify({ v: 2, sid, seq, kind: 'data', ct: b64(ct) });
+  const { nonce, ct } = aeadEncrypt(sendKey, plain);
+  return JSON.stringify({
+    v: 2, sid, seq, kind: 'data',
+    nonce: b64(nonce), ct: b64(ct),
+  });
 }
 
-describe('RelayConnection — production bug regression', () => {
-  it('recovers from a phone WS drop+reconnect without a second reconnect loop', () => {
+describe('RelayConnection — production bug regression (stateless AEAD)', () => {
+  it('handles asymmetric reconnect — desktop resets but phone keeps sending without decrypt failures', () => {
     const keys = makeKeys();
     const device = makeDevice(keys);
 
@@ -60,35 +63,75 @@ describe('RelayConnection — production bug regression', () => {
     const received: MobileMessageV2[] = [];
     conn.on('message', (m: MobileMessageV2) => received.push(m));
 
-    // Drive the session by emitting 'message' events on the underlying
-    // RelayClient — this is exactly what the `ws` library would do in
-    // production after a frame arrives off the wire. Bypassing the WebSocket
-    // keeps the test free of networking concerns.
+    const sessionKeys = deriveSessionKeys(keys.phonePriv, keys.desktopPub, 'initiator');
     const client: any = (conn as any).client;
 
-    // Initial connect also fires resetStreams on desktop side (matches
-    // production behavior when the ws handshake completes).
+    // Simulate initial connect — desktop's WS came up for the first time.
     client.emit('connect');
 
-    // Steady-state phone→desktop traffic with a stable SendStream.
-    let phoneSend = freshPhoneSend(keys);
-    client.emit('message', encEnvelope(device.sid!, 0, { type: 'heartbeat', v: 2 }, phoneSend));
-    client.emit('message', encEnvelope(device.sid!, 1, { type: 'heartbeat', v: 2 }, phoneSend));
+    // Steady-state phone→desktop traffic at seq 0..4.
+    for (let seq = 0; seq <= 4; seq++) {
+      client.emit('message', encEnvelope(
+        sessionKeys.sendKey, device.sid!, seq, { type: 'heartbeat', v: 2 },
+      ));
+    }
+    expect(received).toHaveLength(5);
+    expect((conn as any).lastRecvSeq).toBe(4);
+
+    // Simulate the production-bug scenario: desktop's WS flaps and reconnects.
+    // RelayClient re-emits 'connect'; RelayConnection resets its seq counters
+    // (but there's no crypto state to reset anymore — nonces are stateless).
+    client.emit('connect');
+    expect((conn as any).lastRecvSeq).toBe(-1);
+
+    // Phone never noticed the desktop flap, so it keeps sending under the
+    // same session key but with fresh random nonces per envelope. We pick
+    // up its seq counter past the (former) 8-wide sliding window boundary
+    // to demonstrate the bug is fixed — previously frames 9+ would fail.
+    for (let seq = 5; seq <= 24; seq++) {
+      client.emit('message', encEnvelope(
+        sessionKeys.sendKey, device.sid!, seq, { type: 'heartbeat', v: 2 },
+      ));
+    }
+
+    // Every single frame decoded: 5 from the first round + 20 from after
+    // the desktop reset.
+    expect(received).toHaveLength(5 + 20);
+    expect((conn as any).lastRecvSeq).toBe(24);
+
+    conn.stop();
+  });
+
+  it('handles phone reconnect — phone resets its seq back to 0, desktop still decrypts everything', () => {
+    const keys = makeKeys();
+    const device = makeDevice(keys);
+
+    const conn = new RelayConnection({
+      desktop: { priv: keys.desktopPriv, pub: keys.desktopPub },
+      device,
+    });
+
+    const received: MobileMessageV2[] = [];
+    conn.on('message', (m: MobileMessageV2) => received.push(m));
+
+    const sessionKeys = deriveSessionKeys(keys.phonePriv, keys.desktopPub, 'initiator');
+    const client: any = (conn as any).client;
+    client.emit('connect');
+
+    // Phone sends a few envelopes.
+    client.emit('message', encEnvelope(sessionKeys.sendKey, device.sid!, 0, { type: 'heartbeat', v: 2 }));
+    client.emit('message', encEnvelope(sessionKeys.sendKey, device.sid!, 1, { type: 'heartbeat', v: 2 }));
     expect(received).toHaveLength(2);
     expect((conn as any).lastRecvSeq).toBe(1);
 
-    // Simulate phone's WS drop + reconnect: fresh SendStream, seq back to 0.
-    // Note the desktop's WS is NOT re-emitting 'connect' here — we're
-    // explicitly testing the case where ONLY the phone reconnected, which
-    // is the scenario from the production bug log.
-    phoneSend = freshPhoneSend(keys);
-    client.emit('message', encEnvelope(device.sid!, 0, { type: 'heartbeat', v: 2 }, phoneSend));
+    // Phone reconnects — its seq counter goes back to 0. Under the old
+    // stream-cipher design this would collide with replay dedup. With
+    // stateless AEAD + the desktop's own 'connect' event resetting
+    // lastRecvSeq, the replay of seq=0 is accepted cleanly.
+    client.emit('connect');
+    client.emit('message', encEnvelope(sessionKeys.sendKey, device.sid!, 0, { type: 'heartbeat', v: 2 }));
+    client.emit('message', encEnvelope(sessionKeys.sendKey, device.sid!, 1, { type: 'heartbeat', v: 2 }));
 
-    expect(received).toHaveLength(3);
-    expect((conn as any).lastRecvSeq).toBe(0);
-
-    // Subsequent frames under the fresh stream still decode.
-    client.emit('message', encEnvelope(device.sid!, 1, { type: 'heartbeat', v: 2 }, phoneSend));
     expect(received).toHaveLength(4);
     expect((conn as any).lastRecvSeq).toBe(1);
 
