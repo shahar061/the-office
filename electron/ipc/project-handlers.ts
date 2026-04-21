@@ -386,4 +386,13 @@ export function initProjectHandlers(): void {
     const layoutsPath = path.join(dataDir, 'layouts.json');
     fs.writeFileSync(layoutsPath, JSON.stringify(layouts, null, 2), 'utf-8');
   });
+
+  ipcMain.handle(IPC_CHANNELS.CLOSE_PROJECT, async () => {
+    // Intentionally does NOT call resetSessionState — if the user reopens the
+    // same project, we want their desktop-side chat history, artifacts, etc.
+    // to still be there. Only the mobile snapshot is reset, and that's driven
+    // by setCurrentProjectDir(null) → bridge.onSessionScopeChanged({active:false}).
+    setCurrentProjectDir(null);
+    return { success: true };
+  });
 }
