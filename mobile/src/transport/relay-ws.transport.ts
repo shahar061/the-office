@@ -68,17 +68,8 @@ export class RelayWsTransport implements Transport {
   connect(): void {
     if (this.fatalReason) return;
     this.clearReconnect();
-    this.sendStream = null;
-    this.recvStream = null;
-    this.seq = 0;
-    this.lastRecvSeq = -1;
+    this.resetCryptoStreams();
     this.emitStatus({ state: 'connecting' });
-
-    const priv = b64decode(this.opts.device.identityPriv);
-    const desktopPub = b64decode(this.opts.device.desktopIdentityPub);
-    const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
-    this.sendStream = new SendStream(keys.sendKey);
-    this.recvStream = new RecvStream(keys.recvKey);
 
     try {
       // Phone uses the subprotocol to carry the auth token (RN WebSocket won't
@@ -140,6 +131,16 @@ export class RelayWsTransport implements Transport {
     return () => { this.listeners[event].delete(handler as any); };
   }
 
+  private resetCryptoStreams(): void {
+    const priv = b64decode(this.opts.device.identityPriv);
+    const desktopPub = b64decode(this.opts.device.desktopIdentityPub);
+    const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
+    this.sendStream = new SendStream(keys.sendKey);
+    this.recvStream = new RecvStream(keys.recvKey);
+    this.seq = 0;
+    this.lastRecvSeq = -1;
+  }
+
   private emitStatus(s: TransportStatus) {
     for (const h of this.listeners.status) (h as (s: TransportStatus) => void)(s);
   }
@@ -180,6 +181,13 @@ export class RelayWsTransport implements Transport {
     try { env = JSON.parse(text); } catch { return; }
     if (env?.v !== 2 || env.sid !== this.opts.device.sid
         || typeof env.seq !== 'number' || typeof env.ct !== 'string') return;
+    // Peer-reconnect signal: seq=0 after we've already received non-negative
+    // seqs means the desktop's WS dropped and reconnected, so its send stream
+    // is fresh. Reset our streams in lockstep before attempting to decrypt.
+    if (env.seq === 0 && this.lastRecvSeq >= 0) {
+      this.resetCryptoStreams();
+    }
+
     if (env.seq <= this.lastRecvSeq) return; // dedup
     this.lastRecvSeq = env.seq;
 
