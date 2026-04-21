@@ -244,3 +244,42 @@ html, body, #root {
   border-bottom: 1px solid #1f1f1f;
   margin: 4px 0 8px;
 }
+
+.phase-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 15, 26, 0.6);
+  flex-shrink: 0;
+}
+.phase-tab {
+  flex: 1;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+}
+.phase-tab.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-bottom-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+}
+.phase-tab.disabled {
+  color: #475569;
+  cursor: not-allowed;
+}
+.phase-tab-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+}
