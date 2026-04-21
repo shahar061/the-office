@@ -26,4 +26,17 @@ describe('PortraitOverlays — expand button gating', () => {
     renderWith({ activeTab: 'chat' });
     expect(screen.queryByLabelText('Expand canvas to landscape')).toBeNull();
   });
+
+  it('renders the Local/Remote pill when connected (pill visible in portrait)', () => {
+    render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 300, height: 600 }, insets: { top: 0, right: 0, bottom: 0, left: 0 } }}>
+        <PortraitOverlays
+          status={{ state: 'connected', desktopName: 'D', mode: 'relay' }}
+          onExpand={() => {}}
+          activeTab="office"
+        />
+      </SafeAreaProvider>,
+    );
+    expect(screen.queryByText('Remote')).not.toBeNull();
+  });
 });
