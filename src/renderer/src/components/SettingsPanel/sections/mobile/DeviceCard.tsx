@@ -12,7 +12,7 @@ interface Props {
 }
 
 function formatLastSeen(ts: number, mode: string): string {
-  if (mode === 'lan') return 'Active now · LAN';
+  if (mode === 'lan') return 'Active now · Local';
   if (mode === 'relay') return 'Active now · Remote';
   const secs = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (secs < 60) return `Just now · Idle`;

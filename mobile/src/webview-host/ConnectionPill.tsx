@@ -5,13 +5,28 @@ import type { TransportStatus } from '../transport/transport.interface';
 interface Props { status: TransportStatus }
 
 export function ConnectionPill({ status }: Props) {
-  if (status.state === 'connected') return null;
+  let dot: string;
+  let label: string;
 
-  let dot = colors.warning;
-  let label = 'Connecting';
-  if (status.state === 'disconnected') { dot = colors.error; label = `Offline — ${status.reason}`; }
-  else if (status.state === 'error') { dot = colors.error; label = 'Error'; }
-  else if (status.state === 'idle') { dot = colors.textDim; label = 'Idle'; }
+  switch (status.state) {
+    case 'connected':
+      if (status.mode === 'lan') { dot = colors.success; label = 'Local'; break; }
+      if (status.mode === 'relay') { dot = colors.accent; label = 'Remote'; break; }
+      dot = colors.info; label = 'Connected';
+      break;
+    case 'connecting':
+      dot = colors.warning; label = 'Connecting';
+      break;
+    case 'disconnected':
+      dot = colors.error; label = `Offline — ${status.reason}`;
+      break;
+    case 'error':
+      dot = colors.error; label = 'Error';
+      break;
+    case 'idle':
+      dot = colors.textDim; label = 'Idle';
+      break;
+  }
 
   return (
     <View style={styles.pill}>

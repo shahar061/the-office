@@ -3,6 +3,7 @@ import type React from 'react';
 import { OfficeView } from './OfficeView';
 import { ChatView } from './ChatView';
 import { TabBar } from './TabBar';
+import { emitActiveTab } from './emitActiveTab';
 
 /**
  * `true` when the WebView viewport is wider than tall. The RN host locks
@@ -33,6 +34,9 @@ export function MobileApp(): React.JSX.Element {
   // office tab to be visible. Without this the in-WebView tab bar steals
   // ~56px at the bottom and the canvas appears cut off.
   const activeTab = landscape ? 'office' : tab;
+  useEffect(() => {
+    emitActiveTab(activeTab);
+  }, [activeTab]);
   return (
     <div className="mobile-root">
       <div className={`tab-pane ${activeTab === 'office' ? '' : 'hidden'}`}>

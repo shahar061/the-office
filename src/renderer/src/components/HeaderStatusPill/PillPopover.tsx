@@ -70,7 +70,7 @@ export function PillPopover({ onClose }: Props) {
             }} />
             <span style={{ color: '#fff', fontSize: 13, fontWeight: 500, flex: 1 }}>{d.deviceName}</span>
             <span style={{ color: '#9ca3af', fontSize: 11 }}>
-              {d.mode === 'lan' ? 'LAN' : d.mode === 'relay' ? 'Remote' : 'Idle'}
+              {d.mode === 'lan' ? 'Local' : d.mode === 'relay' ? 'Remote' : 'Idle'}
             </span>
           </div>
         ))

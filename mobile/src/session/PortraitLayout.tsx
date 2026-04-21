@@ -23,26 +23,32 @@ import type { UseSessionReturn } from './useSession';
 interface OverlaysProps {
   status: UseSessionReturn['status'];
   onExpand: () => void;
+  /** Tab currently active inside the WebView. Only the Office tab gets the
+   *  expand-to-landscape button; the Chat tab has no use for fullscreen.
+   *  Optional for transitional compilation — Task 4 passes the real value. */
+  activeTab?: 'chat' | 'office';
 }
 
-export function PortraitOverlays({ status, onExpand }: OverlaysProps) {
+export function PortraitOverlays({ status, onExpand, activeTab = 'office' }: OverlaysProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={overlayStyles.root} pointerEvents="box-none">
       <View style={[overlayStyles.bannerSlot, { paddingTop: insets.top }]} pointerEvents="box-none">
         <ConnectionBanner status={status} />
       </View>
-      <Pressable
-        onPress={onExpand}
-        style={[
-          overlayStyles.expandBtn,
-          { top: insets.top + spacing.xxl, right: spacing.md },
-        ]}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityLabel="Expand canvas to landscape"
-      >
-        <Text style={overlayStyles.expandGlyph}>⤢</Text>
-      </Pressable>
+      {activeTab === 'office' && (
+        <Pressable
+          onPress={onExpand}
+          style={[
+            overlayStyles.expandBtn,
+            { top: insets.top + spacing.xxl, right: spacing.md },
+          ]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Expand canvas to landscape"
+        >
+          <Text style={overlayStyles.expandGlyph}>⤢</Text>
+        </Pressable>
+      )}
     </View>
   );
 }

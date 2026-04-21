@@ -28,10 +28,10 @@ export function MobileSection() {
   const relay = status?.relay ?? 'disabled';
 
   const relayLabel = {
-    ready: '● Relay ready',
-    unreachable: '○ Relay unreachable · LAN still works',
-    disabled: '● Relay disabled (no remote devices)',
-    paused: '⏸ Relay paused',
+    ready: '● Remote ready',
+    unreachable: '○ Remote unreachable · Local still works',
+    disabled: '● Remote disabled (no remote devices)',
+    paused: '⏸ Remote paused',
   }[relay];
 
   const relayColor = {
@@ -118,7 +118,7 @@ export function MobileSection() {
 
       <details style={{ marginTop: 24, color: '#9ca3af' }}>
         <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          Advanced: LAN direct connection
+          Advanced: direct local connection
         </summary>
         <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
