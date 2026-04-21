@@ -4,6 +4,8 @@ import type {
   AgentEvent,
   CharacterState,
   ChatMessage,
+  Phase,
+  PhaseHistory,
   SessionSnapshot,
   SessionStatePatch,
 } from '../types';
@@ -14,6 +16,9 @@ interface SessionState {
   pendingEvents: AgentEvent[];
   characterStates: Map<string, CharacterState>;
   lastCharStateTs: number;
+  viewedPhase: Phase | null;
+  phaseHistoryCache: Partial<Record<Phase, PhaseHistory[]>>;
+  lastVisitedAtByPhase: Partial<Record<Phase, number>>;
   setSnapshot: (s: SessionSnapshot) => void;
   hydrateFromCache: (s: SessionSnapshot) => void;
   appendEvent: (e: AgentEvent) => void;
@@ -23,6 +28,8 @@ interface SessionState {
   applyCharState: (ts: number, states: CharacterState[]) => void;
   clearCharStates: () => void;
   clear: () => void;
+  setViewedPhase: (phase: Phase) => void;
+  setPhaseHistory: (phase: Phase, history: PhaseHistory[]) => void;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -30,8 +37,36 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   pendingEvents: [],
   characterStates: new Map<string, CharacterState>(),
   lastCharStateTs: 0,
+  viewedPhase: null,
+  phaseHistoryCache: {},
+  lastVisitedAtByPhase: {},
 
-  setSnapshot: (snapshot) => set({ snapshot, pendingEvents: [] }),
+  setSnapshot: (snapshot) => set((state) => {
+    const oldPhase = state.snapshot?.phase ?? null;
+    const newPhase = snapshot.phase;
+
+    // Scope change to inactive clears all view state.
+    if (!snapshot.sessionActive) {
+      return {
+        snapshot,
+        pendingEvents: [],
+        viewedPhase: null,
+        phaseHistoryCache: {},
+        lastVisitedAtByPhase: {},
+      };
+    }
+
+    // Auto-follow rule: if user was on the old current phase, advance.
+    let viewedPhase = state.viewedPhase;
+    if (viewedPhase === null) {
+      viewedPhase = newPhase;
+    } else if (oldPhase !== null && viewedPhase === oldPhase && oldPhase !== newPhase) {
+      viewedPhase = newPhase;
+    }
+
+    return { snapshot, pendingEvents: [], viewedPhase };
+  }),
+
   hydrateFromCache: (snapshot) => set({ snapshot }),
 
   appendEvent: (event) => set((state) => ({ pendingEvents: [...state.pendingEvents, event] })),
@@ -82,5 +117,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   clearCharStates: () => set({ characterStates: new Map(), lastCharStateTs: 0 }),
 
-  clear: () => set({ snapshot: null, pendingEvents: [] }),
+  clear: () => set({
+    snapshot: null,
+    pendingEvents: [],
+    viewedPhase: null,
+    phaseHistoryCache: {},
+    lastVisitedAtByPhase: {},
+  }),
+
+  setViewedPhase: (phase) => set((state) => ({
+    viewedPhase: phase,
+    lastVisitedAtByPhase: { ...state.lastVisitedAtByPhase, [phase]: Date.now() },
+  })),
+
+  setPhaseHistory: (phase, history) => set((state) => ({
+    phaseHistoryCache: { ...state.phaseHistoryCache, [phase]: history },
+  })),
 }));

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ChatMessage, AgentRole, AgentWaitingPayload, AskQuestion, PhaseHistory, ArchivedRun } from '@shared/types';
+import type { ChatMessage, AgentRole, AgentWaitingPayload, AskQuestion, PhaseHistory, ArchivedRun, Phase } from '@shared/types';
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -8,10 +8,16 @@ interface ChatStore {
   waitingAgentRole: AgentRole | null;
   waitingSessionId: string | null;
   waitingQuestions: AskQuestion[];
+  viewedPhase: Phase | null;
+  pastPhaseHistoryCache: Partial<Record<Phase, PhaseHistory[]>>;
+  lastVisitedAtByPhase: Partial<Record<Phase, number>>;
   addMessage: (msg: ChatMessage) => void;
   clearMessages: () => void;
   loadHistory: (history: PhaseHistory[]) => void;
   setWaiting: (payload: AgentWaitingPayload | null) => void;
+  setViewedPhase: (phase: Phase) => void;
+  setPastPhaseHistory: (phase: Phase, history: PhaseHistory[]) => void;
+  handleCurrentPhaseChange: (oldPhase: Phase, newPhase: Phase) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -21,10 +27,14 @@ export const useChatStore = create<ChatStore>((set) => ({
   waitingAgentRole: null,
   waitingSessionId: null,
   waitingQuestions: [],
+  viewedPhase: null,
+  pastPhaseHistoryCache: {},
+  lastVisitedAtByPhase: {},
   addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
   clearMessages: () => set({
     messages: [], archivedRuns: [],
     waitingForResponse: false, waitingAgentRole: null, waitingSessionId: null, waitingQuestions: [],
+    viewedPhase: null, pastPhaseHistoryCache: {}, lastVisitedAtByPhase: {},
   }),
   loadHistory: (history: PhaseHistory[]) => {
     const allLatestMessages: ChatMessage[] = [];
@@ -67,4 +77,17 @@ export const useChatStore = create<ChatStore>((set) => ({
           waitingSessionId: null,
           waitingQuestions: [],
         }),
+  setViewedPhase: (phase) => set((state) => ({
+    viewedPhase: phase,
+    lastVisitedAtByPhase: { ...state.lastVisitedAtByPhase, [phase]: Date.now() },
+  })),
+  setPastPhaseHistory: (phase, history) => set((state) => ({
+    pastPhaseHistoryCache: { ...state.pastPhaseHistoryCache, [phase]: history },
+  })),
+  handleCurrentPhaseChange: (oldPhase, newPhase) => set((state) => {
+    if (state.viewedPhase === oldPhase && oldPhase !== newPhase) {
+      return { viewedPhase: newPhase };
+    }
+    return state;
+  }),
 }));

@@ -1,6 +1,6 @@
 import { randomUUID, randomBytes } from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { MobileMessageV2, PairingQRPayloadV3 } from '../../shared/types';
+import type { MobileMessageV2, PairingQRPayloadV3, Phase, PhaseHistory } from '../../shared/types';
 import type { AppSettings } from '../../shared/types';
 import { encodeV2, decodeV2 } from '../../shared/protocol/mobile';
 import { DeviceStore } from './device-store';
@@ -46,6 +46,7 @@ export interface WsServerOptions {
   /** Fired whenever the pending SAS becomes available so the Settings UI can display it. */
   onPendingSas?: (sas: string | null) => void;
   onPhoneChat?: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => Promise<void>;
+  onPhoneGetPhaseHistory?: (phase: Phase) => Promise<PhaseHistory[]>;
   /** Fan-out to relay connections alongside LAN connections. Invoked from broadcastToAuthenticated. */
   onBroadcastToRelay?: (msg: MobileMessageV2) => void;
 }
@@ -271,6 +272,14 @@ export class WsServer {
       }
       case 'authenticated':
         if (msg.type === 'chat') { await this.handleUpstreamChat(conn, msg); return; }
+        if (msg.type === 'getPhaseHistory') {
+          const history = await this.opts.onPhoneGetPhaseHistory?.(msg.phase) ?? [];
+          this.sendEncrypted(conn, {
+            type: 'phaseHistory', v: 2,
+            requestId: msg.requestId, phase: msg.phase, history,
+          });
+          return;
+        }
         // Other authenticated-state messages (heartbeat is handled above) fall through
         break;
     }

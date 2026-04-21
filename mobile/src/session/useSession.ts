@@ -5,6 +5,7 @@ import { useConnectionStore } from '../state/connection.store';
 import { useSessionStore } from '../types/shared';
 import { loadLastKnown, saveLastKnown } from '../state/cache';
 import type { MobileMessageV2 } from '../types/shared';
+import type { Phase, PhaseHistory } from '../types/shared';
 import { saveDevice, type PairedDeviceCredentials } from '../pairing/secure-store';
 
 interface PendingAck {
@@ -26,6 +27,7 @@ export interface UseSessionReturn {
   canSend: boolean;
   submit: () => Promise<{ ok: boolean; error?: string }>;
   sendChat: (body: string) => Promise<{ ok: boolean; error?: string }>;
+  requestPhaseHistory: (phase: Phase) => Promise<PhaseHistory[]>;
 }
 
 export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessionReturn {
@@ -33,6 +35,11 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
   const sessionActive = useSessionStore((s) => s.snapshot?.sessionActive ?? false);
   const transportRef = useRef<Transport | null>(null);
   const pendingAcksRef = useRef<Map<string, PendingAck>>(new Map());
+  const pendingHistoryReqsRef = useRef<Map<string, {
+    resolve: (h: PhaseHistory[]) => void;
+    reject: (err: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }>>(new Map());
   // Use a ref for the callback so the effect doesn't need to re-run when the
   // caller passes a new function identity on every render (e.g. inline arrow).
   const onPairingLostRef = useRef(onPairingLost);
@@ -106,6 +113,18 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
           void saveDevice({ ...deviceRef.current, relayToken: m.token });
           break;
         }
+        case 'phaseHistory': {
+          const pending = pendingHistoryReqsRef.current.get(m.requestId);
+          if (pending) {
+            clearTimeout(pending.timer);
+            pending.resolve(m.history);
+            pendingHistoryReqsRef.current.delete(m.requestId);
+          }
+          // Populate the shared cache so the webview receives the data via
+          // WebViewHost's subscribe path.
+          useSessionStore.getState().setPhaseHistory(m.phase, m.history);
+          break;
+        }
       }
     });
 
@@ -118,6 +137,8 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
       transportRef.current = null;
       for (const { timer } of pendingAcksRef.current.values()) clearTimeout(timer);
       pendingAcksRef.current.clear();
+      for (const { timer } of pendingHistoryReqsRef.current.values()) clearTimeout(timer);
+      pendingHistoryReqsRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -153,7 +174,21 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
     });
   };
 
+  const requestPhaseHistory = useCallback((phase: Phase): Promise<PhaseHistory[]> => {
+    const transport = transportRef.current;
+    if (!transport) return Promise.reject(new Error('no transport'));
+    const requestId = `h_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    return new Promise<PhaseHistory[]>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pendingHistoryReqsRef.current.delete(requestId);
+        reject(new Error('timeout'));
+      }, 10_000);
+      pendingHistoryReqsRef.current.set(requestId, { resolve, reject, timer });
+      transport.send({ type: 'getPhaseHistory', v: 2, phase, requestId });
+    });
+  }, []);
+
   const canSend = status.state === 'connected' && draft.trim().length > 0 && !sending;
 
-  return { status, sessionActive, draft, setDraft, sending, canSend, submit, sendChat };
+  return { status, sessionActive, draft, setDraft, sending, canSend, submit, sendChat, requestPhaseHistory };
 }

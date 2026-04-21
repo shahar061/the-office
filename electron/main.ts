@@ -17,6 +17,7 @@ import {
   setActiveAbort,
   settingsStore,
   setMobileBridge,
+  getPhaseHistoryForMobile,
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
@@ -222,6 +223,7 @@ app.whenReady().then(async () => {
         console.warn('[mobile-bridge] routeUserChat failed:', err);
       }
     });
+    bridge.onPhoneGetPhaseHistory((phase) => getPhaseHistoryForMobile(phase));
     console.log('[mobile-bridge] listening on port', bridge.getStatus().port);
   } catch (err) {
     console.error('[mobile-bridge] failed to start:', err);

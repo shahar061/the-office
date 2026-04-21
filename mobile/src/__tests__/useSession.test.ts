@@ -197,6 +197,53 @@ describe('useSession', () => {
     expect(result.current.draft).toBe('something the user typed');
   });
 
+  it('requestPhaseHistory sends getPhaseHistory and resolves on matching phaseHistory', async () => {
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+
+    let resolved: any = null;
+    const promise = result.current.requestPhaseHistory('imagine').then((h) => { resolved = h; });
+
+    expect(fake.sent).toHaveLength(1);
+    const sent = fake.sent[0] as any;
+    expect(sent.type).toBe('getPhaseHistory');
+    expect(sent.phase).toBe('imagine');
+    expect(typeof sent.requestId).toBe('string');
+
+    const stubHistory = [{ agentRole: 'ceo' as const, runs: [{ runNumber: 1, messages: [] }] }];
+    act(() => {
+      fake.emitMessage({
+        type: 'phaseHistory', v: 2,
+        requestId: sent.requestId,
+        phase: 'imagine',
+        history: stubHistory,
+      });
+    });
+
+    await promise;
+    expect(resolved).toEqual(stubHistory);
+  });
+
+  it('requestPhaseHistory rejects after 10 s if no response arrives', async () => {
+    jest.useFakeTimers();
+    try {
+      const fake = makeFakeTransport();
+      (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+      const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+
+      const promise = result.current.requestPhaseHistory('imagine');
+      // Swallow the rejection immediately so the test's await doesn't race with
+      // the timer advance.
+      const caught = promise.catch((err) => err);
+      jest.advanceTimersByTime(10_001);
+      const err = await caught;
+      expect((err as Error).message).toMatch(/timeout/i);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('sessionActive defaults to false until a snapshot arrives, then reflects snapshot.sessionActive', () => {
     const fake = makeFakeTransport();
     (createTransportForDevice as jest.Mock).mockReturnValue(fake);

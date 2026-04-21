@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat.store';
-import type { ArchivedRun } from '@shared/types';
+import type { ArchivedRun, Phase } from '@shared/types';
 import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
+import { PhaseTabs } from './PhaseTabs';
 import { agentDisplayName } from '../../utils';
 import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
@@ -132,6 +133,13 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
     loadHistory,
   } = useChatStore();
 
+  const viewedPhase = useChatStore((s) => s.viewedPhase);
+  const pastPhaseHistoryCache = useChatStore((s) => s.pastPhaseHistoryCache);
+  const lastVisitedAtByPhase = useChatStore((s) => s.lastVisitedAtByPhase);
+  const setViewedPhase = useChatStore((s) => s.setViewedPhase);
+  const setPastPhaseHistory = useChatStore((s) => s.setPastPhaseHistory);
+  const handleCurrentPhaseChange = useChatStore((s) => s.handleCurrentPhaseChange);
+
   const projectState = useProjectStore((s) => s.projectState);
   const agentActive = useOfficeStore((s) => s.agentActivity.isActive);
 
@@ -160,9 +168,23 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-follow current phase when it changes
+  const currentPhaseRef = useRef<Phase | null>(null);
+  useEffect(() => {
+    const cp = projectState?.currentPhase ?? null;
+    if (currentPhaseRef.current !== null && cp !== null && currentPhaseRef.current !== cp) {
+      handleCurrentPhaseChange(currentPhaseRef.current, cp);
+    }
+    currentPhaseRef.current = cp;
+  }, [projectState?.currentPhase, handleCurrentPhaseChange]);
+
   // Load chat history when returning to a project with existing phases
   useEffect(() => {
     if (!projectState || projectState.currentPhase === 'idle') return;
+
+    if (viewedPhase === null) {
+      setViewedPhase(projectState.currentPhase);
+    }
 
     let cancelled = false;
     window.office.getChatHistory(projectState.currentPhase).then((history) => {
@@ -173,6 +195,18 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
 
     return () => { cancelled = true; };
   }, [projectState?.path, projectState?.currentPhase]);
+
+  // Fetch past-phase history on demand
+  useEffect(() => {
+    if (!projectState || viewedPhase === null) return;
+    if (viewedPhase === projectState.currentPhase) return;
+    if (pastPhaseHistoryCache[viewedPhase]) return;
+    let cancelled = false;
+    window.office.getChatHistory(viewedPhase).then((history) => {
+      if (!cancelled) setPastPhaseHistory(viewedPhase, history);
+    });
+    return () => { cancelled = true; };
+  }, [projectState?.path, projectState?.currentPhase, viewedPhase, pastPhaseHistoryCache, setPastPhaseHistory]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -351,48 +385,105 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  const unreadByPhase: Record<Phase, boolean> = {
+    idle: false,
+    imagine: false,
+    warroom: false,
+    build: false,
+    complete: false,
+  };
+  if (projectState?.currentPhase && projectState.currentPhase !== viewedPhase) {
+    const latest = messages[messages.length - 1]?.timestamp ?? 0;
+    const lastVisit = lastVisitedAtByPhase[projectState.currentPhase] ?? 0;
+    if (latest > lastVisit) unreadByPhase[projectState.currentPhase] = true;
+  }
+
   const panelStyle = isExpanded ? styles.expandedChatPanel : styles.chatPanel;
   const inputRowStyle = isExpanded ? styles.expandedInputRow : styles.inputRow;
   const messageListStyle = isExpanded
     ? { ...styles.messageList, paddingTop: '48px' }
     : styles.messageList;
 
+  const isLive = viewedPhase === null || !projectState || viewedPhase === projectState.currentPhase;
+
   return (
     <div
       className={highlightClassName}
       style={{ ...panelStyle, zIndex: 1, position: 'relative' as const }}
     >
-      {showEmpty ? (
-        <div style={styles.emptyState}>
-          <div style={styles.emptyTitle}>The Office</div>
-          <div style={styles.emptySubtitle}>
-            {isIdle
-              ? 'Describe what you want to build and the team will get to work.'
-              : 'No messages yet.'}
+      <PhaseTabs
+        currentPhase={projectState?.currentPhase ?? 'idle'}
+        viewedPhase={viewedPhase ?? projectState?.currentPhase ?? 'idle'}
+        completedPhases={projectState?.completedPhases ?? []}
+        unreadByPhase={unreadByPhase}
+        onSelect={setViewedPhase}
+      />
+
+      {isLive ? (
+        showEmpty ? (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyTitle}>The Office</div>
+            <div style={styles.emptySubtitle}>
+              {isIdle
+                ? 'Describe what you want to build and the team will get to work.'
+                : 'No messages yet.'}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div style={messageListStyle}>
-          {renderArchivedRuns()}
-          {messages.map((msg, i) => {
-            const isLast = i === messages.length - 1;
-            const isWaiting = isLast && waitingForResponse;
-            const hasQuestionBubble = isWaiting && waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0;
-            return (
-              <MessageBubble
-                key={msg.id}
-                msg={msg}
-                isWaiting={isWaiting && !hasQuestionBubble}
-              />
-            );
-          })}
-          {renderQuestionBubble()}
-          <div ref={messagesEndRef} />
-        </div>
-      )}
+        ) : (
+          <div style={messageListStyle}>
+            {renderArchivedRuns()}
+            {messages.map((msg, i) => {
+              const isLast = i === messages.length - 1;
+              const isWaiting = isLast && waitingForResponse;
+              const hasQuestionBubble = isWaiting && waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0;
+              return (
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  isWaiting={isWaiting && !hasQuestionBubble}
+                />
+              );
+            })}
+            {renderQuestionBubble()}
+            <div ref={messagesEndRef} />
+          </div>
+        )
+      ) : !pastPhaseHistoryCache[viewedPhase!] ? (
+        <div style={styles.emptyState}>Loading…</div>
+      ) : (() => {
+          const cached = pastPhaseHistoryCache[viewedPhase!]!;
+          const flattened: ChatMessage[] = [];
+          for (const entry of cached) {
+            for (const run of entry.runs) flattened.push(...run.messages);
+          }
+          flattened.sort((a, b) => a.timestamp - b.timestamp);
+          if (flattened.length === 0) {
+            return <div style={styles.emptyState}>No messages in {viewedPhase}.</div>;
+          }
+          return (
+            <div style={styles.messageList}>
+              {flattened.map((m) => <MessageBubble key={m.id} msg={m} isWaiting={false} />)}
+            </div>
+          );
+        })()}
 
       {/* Input area / Activity indicator */}
-      {agentActive && !waitingForResponse ? (
+      {(viewedPhase && projectState && viewedPhase !== projectState.currentPhase) ? (
+        <div style={styles.inputArea}>
+          <div style={{ color: '#9ca3af', fontSize: 11, marginBottom: 6 }}>
+            Viewing {viewedPhase} history — read-only.
+          </div>
+          <button
+            onClick={() => setViewedPhase(projectState.currentPhase)}
+            style={{
+              width: '100%', padding: 8, background: '#6366f1', color: '#fff',
+              border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Return to {projectState.currentPhase}
+          </button>
+        </div>
+      ) : agentActive && !waitingForResponse ? (
         <ActivityIndicator />
       ) : (
         <div style={styles.inputArea}>
