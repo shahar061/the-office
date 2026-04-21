@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encode, decode, isMobileMessage } from '../mobile';
+import { encode, decode, isMobileMessage, isMobileMessageV2 } from '../mobile';
 import type { MobileMessage } from '../../types';
 
 describe('protocol', () => {
@@ -38,5 +38,25 @@ describe('protocol', () => {
     expect(isMobileMessage(null)).toBe(false);
     expect(isMobileMessage(42)).toBe(false);
     expect(isMobileMessage('str')).toBe(false);
+  });
+});
+
+describe('isMobileMessageV2 — new phase-history message types', () => {
+  it('accepts getPhaseHistory messages', () => {
+    expect(isMobileMessageV2({
+      type: 'getPhaseHistory', v: 2, phase: 'imagine', requestId: 'r1',
+    })).toBe(true);
+  });
+
+  it('accepts phaseHistory messages', () => {
+    expect(isMobileMessageV2({
+      type: 'phaseHistory', v: 2, requestId: 'r1', phase: 'imagine', history: [],
+    })).toBe(true);
+  });
+
+  it('rejects malformed bogus types at v=2', () => {
+    expect(isMobileMessageV2({
+      type: 'notARealType', v: 2,
+    })).toBe(false);
   });
 });

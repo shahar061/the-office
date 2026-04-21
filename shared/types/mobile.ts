@@ -1,7 +1,7 @@
 // shared/types/mobile.ts — Mobile bridge protocol types
 
 import type { AgentEvent } from './agent';
-import type { ChatMessage, SessionSnapshot, SessionStatePatch } from './session';
+import type { ChatMessage, Phase, PhaseHistory, SessionSnapshot, SessionStatePatch } from './session';
 
 export interface CharacterState {
   agentId: string;
@@ -57,7 +57,9 @@ export type MobileMessage =
   | { type: 'chat'; v: 1; messages: ChatMessage[] }
   | { type: 'state'; v: 1; patch: SessionStatePatch }
   // Bidirectional
-  | { type: 'heartbeat'; v: 1 };
+  | { type: 'heartbeat'; v: 1 }
+  // Desktop → Phone
+  | { type: 'phaseHistory'; v: 1; requestId: string; phase: Phase; history: PhaseHistory[] };
 
 // -----------------------------------------------------------------------------
 // v2 additions — added alongside v1 for an incremental migration.
@@ -118,4 +120,8 @@ export type MobileMessageV2 =
   | { type: 'chatFeed'; v: 2; messages: ChatMessage[] }
   | { type: 'chatAck'; v: 2; clientMsgId: string; ok: boolean; error?: string }
   | { type: 'state'; v: 2; patch: SessionStatePatch }
-  | { type: 'tokenRefresh'; v: 2; token: string; expiresAt: number };
+  | { type: 'tokenRefresh'; v: 2; token: string; expiresAt: number }
+  // Phone → Desktop
+  | { type: 'getPhaseHistory'; v: 2; phase: Phase; requestId: string }
+  // Desktop → Phone
+  | { type: 'phaseHistory'; v: 2; requestId: string; phase: Phase; history: PhaseHistory[] };
