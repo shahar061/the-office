@@ -21,6 +21,7 @@ interface Props {
 export function SessionScreen({ device, onPairingLost }: Props) {
   const session = useSession({ device, onPairingLost });
   const [mode, setMode] = useState<Mode>('portrait');
+  const [activeTab, setActiveTab] = useState<'chat' | 'office'>('office');
   const transitioningRef = useRef(false);
   const composerRef = useRef<PortraitComposerHandle>(null);
   const focusPendingRef = useRef(false);
@@ -89,9 +90,16 @@ export function SessionScreen({ device, onPairingLost }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.canvasArea}>
-        <WebViewHost onPhoneAnswer={session.sendChat} />
+        <WebViewHost
+          onPhoneAnswer={session.sendChat}
+          onActiveTabChange={setActiveTab}
+        />
         {mode === 'portrait'
-          ? <PortraitOverlays status={session.status} onExpand={() => changeMode('landscape')} />
+          ? <PortraitOverlays
+              status={session.status}
+              activeTab={activeTab}
+              onExpand={() => changeMode('landscape')}
+            />
           : <LandscapeLayout status={session.status} onOpenChat={() => changeMode('portrait')} />}
       </View>
       {mode === 'portrait' && <PortraitComposer ref={composerRef} session={session} />}
