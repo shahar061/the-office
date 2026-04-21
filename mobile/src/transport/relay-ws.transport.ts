@@ -68,7 +68,7 @@ export class RelayWsTransport implements Transport {
   connect(): void {
     if (this.fatalReason) return;
     this.clearReconnect();
-    this.resetCryptoStreams();
+    this.resetAllOnConnect();
     this.emitStatus({ state: 'connecting' });
 
     try {
@@ -131,13 +131,27 @@ export class RelayWsTransport implements Transport {
     return () => { this.listeners[event].delete(handler as any); };
   }
 
-  private resetCryptoStreams(): void {
+  // Full reset — keys, streams, and BOTH seq counters. Called from connect(),
+  // i.e. when our own WS is (re)opening. Zeroing `this.seq` is safe here
+  // because the Cloudflare worker treats a brand-new WS as a brand-new
+  // `lastSeq[us]` baseline.
+  private resetAllOnConnect(): void {
+    this.resetCryptoOnly();
+    this.seq = 0;
+  }
+
+  // Crypto-only reset — derive a fresh pair of secretstream states and zero
+  // `lastRecvSeq`, but DO NOT touch `this.seq`. Called from the handleRaw
+  // peer-reconnect branch: the desktop's WS flapped, so its SendStream is
+  // fresh, but ours didn't drop — the worker still holds our prior
+  // `lastSeq[us]`, so zeroing our outgoing seq would trip the anti-regression
+  // gate (close 1008 `seqRegression`).
+  private resetCryptoOnly(): void {
     const priv = b64decode(this.opts.device.identityPriv);
     const desktopPub = b64decode(this.opts.device.desktopIdentityPub);
     const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
     this.sendStream = new SendStream(keys.sendKey);
     this.recvStream = new RecvStream(keys.recvKey);
-    this.seq = 0;
     this.lastRecvSeq = -1;
   }
 
@@ -183,9 +197,11 @@ export class RelayWsTransport implements Transport {
         || typeof env.seq !== 'number' || typeof env.ct !== 'string') return;
     // Peer-reconnect signal: seq=0 after we've already received non-negative
     // seqs means the desktop's WS dropped and reconnected, so its send stream
-    // is fresh. Reset our streams in lockstep before attempting to decrypt.
+    // is fresh. Reset our crypto streams in lockstep — but NOT our outgoing
+    // seq. Our own WS didn't drop, so the Cloudflare worker still tracks
+    // `lastSeq[us]`, and zeroing would trip its anti-regression gate.
     if (env.seq === 0 && this.lastRecvSeq >= 0) {
-      this.resetCryptoStreams();
+      this.resetCryptoOnly();
     }
 
     if (env.seq <= this.lastRecvSeq) return; // dedup
