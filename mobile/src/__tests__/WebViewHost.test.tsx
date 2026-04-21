@@ -23,7 +23,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 import { WebViewHost } from '../webview-host/WebViewHost';
 
-describe('WebViewHost — activeTab routing', () => {
+describe('WebViewHost — message routing', () => {
   beforeEach(() => { capturedOnMessage = null; });
 
   it('calls onActiveTabChange when the webview posts {type:"activeTab", tab}', () => {
@@ -51,6 +51,36 @@ describe('WebViewHost — activeTab routing', () => {
       />,
     );
     capturedOnMessage!({ nativeEvent: { data: JSON.stringify({ type: 'activeTab', tab: 'bogus' }) } });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('calls onRequestPhaseHistory when the webview posts requestPhaseHistory', () => {
+    const spy = jest.fn();
+    render(
+      <WebViewHost
+        onPhoneAnswer={async () => ({ ok: true })}
+        onRequestPhaseHistory={spy}
+      />,
+    );
+    expect(capturedOnMessage).toBeTruthy();
+    capturedOnMessage!({ nativeEvent: { data: JSON.stringify({
+      type: 'requestPhaseHistory', phase: 'imagine', requestId: 'req-42',
+    }) } });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('imagine', 'req-42');
+  });
+
+  it('ignores requestPhaseHistory with invalid phase', () => {
+    const spy = jest.fn();
+    render(
+      <WebViewHost
+        onPhoneAnswer={async () => ({ ok: true })}
+        onRequestPhaseHistory={spy}
+      />,
+    );
+    capturedOnMessage!({ nativeEvent: { data: JSON.stringify({
+      type: 'requestPhaseHistory', phase: 'bogus', requestId: 'req-1',
+    }) } });
     expect(spy).not.toHaveBeenCalled();
   });
 });
