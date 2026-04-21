@@ -195,4 +195,49 @@ describe('useSession', () => {
     act(() => { void result.current.sendChat('Option A'); });
     expect(result.current.draft).toBe('something the user typed');
   });
+
+  it('sessionActive defaults to false until a snapshot arrives, then reflects snapshot.sessionActive', () => {
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+
+    expect(result.current.sessionActive).toBe(false);
+
+    act(() => {
+      fake.emitMessage({
+        type: 'snapshot', v: 2,
+        snapshot: {
+          sessionActive: true,
+          sessionId: '/tmp/p',
+          desktopName: 'D',
+          projectName: 'p',
+          phase: 'idle',
+          startedAt: 1,
+          activeAgentId: null,
+          characters: [],
+          chatTail: [],
+          sessionEnded: false,
+        },
+      });
+    });
+    expect(result.current.sessionActive).toBe(true);
+
+    act(() => {
+      fake.emitMessage({
+        type: 'snapshot', v: 2,
+        snapshot: {
+          sessionActive: false,
+          sessionId: null,
+          desktopName: 'D',
+          phase: 'idle',
+          startedAt: 2,
+          activeAgentId: null,
+          characters: [],
+          chatTail: [],
+          sessionEnded: false,
+        },
+      });
+    });
+    expect(result.current.sessionActive).toBe(false);
+  });
 });
