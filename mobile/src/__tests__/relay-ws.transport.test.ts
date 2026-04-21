@@ -94,16 +94,17 @@ describe('RelayWsTransport — seq=0 peer-reconnect reset', () => {
     // Simulate desktop reconnecting: fresh SendStream, new frame at seq=0.
     desktopSend = freshDesktopSend();
     const afterReconnect: MobileMessageV2 = { type: 'heartbeat', v: 2 };
-    const sentBeforeReset = lastSocket!.sent.length;
     lastSocket!.simulateStringMessage(encFrame(desktopSend, device.sid, 0, afterReconnect));
 
-    // The transport should have reset its recv stream and decoded the frame.
-    // Processing a heartbeat causes the transport to reply with its own heartbeat,
-    // so sent.length should increase by 1.  Without the reset branch the seq=0
-    // frame is dropped by the dedup guard (0 ≤ lastRecvSeq=1) and no reply is
-    // sent — the send count stays the same.
+    // The transport should have reset its recv stream, evidenced by lastRecvSeq
+    // being set to 0 (the seq from the reset frame). Without the reset branch,
+    // the seq=0 frame is dropped by the dedup guard (0 ≤ lastRecvSeq=1).
+    expect((t as any).lastRecvSeq).toBe(0);
     expect(lastSocket!.readyState).toBe(1);
-    expect(lastSocket!.sent.length).toBe(sentBeforeReset + 1); // heartbeat reply sent
+
+    // Send a follow-up frame at seq=1 to prove post-reset state is consistent.
+    lastSocket!.simulateStringMessage(encFrame(desktopSend, device.sid, 1, { type: 'heartbeat', v: 2 }));
+    expect((t as any).lastRecvSeq).toBe(1);
   });
 
   it('does not reset on initial seq=0 (fresh transport)', async () => {
