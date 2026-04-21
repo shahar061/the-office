@@ -63,13 +63,14 @@ The new rule applies on both receivers:
 
 1. Re-derive session keys from the long-lived identity pair using `deriveSessionKeys` with the same role label (`'responder'` on desktop, `'initiator'` on phone).
 2. Instantiate fresh `SendStream` and `RecvStream` with those keys (counters at 0).
-3. Set own `seq = 0` so the next outbound envelope is a matching reset signal to the peer.
-4. Set `lastRecvSeq = -1` so the dedup gate accepts the incoming `seq=0`.
-5. Decrypt the envelope with the fresh `recv` stream.
+3. Set `lastRecvSeq = -1` so the dedup gate accepts the incoming `seq=0`.
+4. Decrypt the envelope with the fresh `recv` stream.
+
+> **Amendment (2026-04-21, mobile-fixes-batch):** The original draft included a step "Set own `seq = 0`". That was wrong. The envelope `seq` counter is tied to the **local WS lifecycle**, not the crypto ratchet — it must only be zeroed when our own WS reconnects, because that is the only time the Cloudflare worker also resets its `lastSeq[us]` ratchet for our role. Zeroing `seq` on the peer-reconnect receiver path caused the worker's anti-regression gate to kick us with close code `1008 seqRegression`. The receiver-side reset now only resets the crypto streams (and `lastRecvSeq`); `seq` is left alone. See `2026-04-21-mobile-fixes-batch-design.md` for the fix.
 
 If decrypt still fails after the reset (misbehaving peer), fall back to the existing close-on-decrypt-failure behavior — same as today.
 
-The reset is idempotent. If both peers reconnect simultaneously, both see the other's `seq=0` and both reset. The session converges in one round-trip regardless of which side reconnected first.
+The reset is idempotent. If both peers reconnect simultaneously, both see the other's `seq=0` and both reset crypto. The envelope `seq` counters also converge because each side's own-WS reconnect path still does a full reset (crypto + `seq = 0`) aligned with the worker's `lastSeq[us] = -1`. The session converges in one round-trip regardless of which side reconnected first.
 
 ## Architecture
 
@@ -106,6 +107,8 @@ The reset is idempotent. If both peers reconnect simultaneously, both see the ot
 **File:** `electron/mobile-bridge/relay-connection.ts`
 
 The existing private `resetStreams()` (lines 74-80) already does exactly what we need — re-derive keys, re-instantiate streams, zero the seq counters. Reuse it.
+
+> **Amendment (2026-04-21, mobile-fixes-batch):** `resetStreams()` is now split into `resetStreams()` (full reset, including `seq = 0`) and `resetCryptoStreams()` (crypto streams + `lastRecvSeq = -1` only). The `onRawFrame` peer-reconnect branch below now calls `resetCryptoStreams()`, **not** `resetStreams()`. The `client.on('connect', ...)` call site still uses the full `resetStreams()`.
 
 `onRawFrame(raw)` gains one conditional inserted before the existing replay check:
 
@@ -149,7 +152,9 @@ Nothing else in this file changes. The constructor's `this.client.on('connect', 
 
 Extract the inline key-derivation + stream instantiation from `connect()` (lines 71-81) into a private helper `resetCryptoStreams()` so the new branch and the WS-connect path share one code path.
 
-`resetCryptoStreams()`:
+> **Amendment (2026-04-21, mobile-fixes-batch):** The phone-side helper was ultimately split into two methods: `resetAllOnConnect()` (full reset, including `this.seq = 0`, called from `connect()`) and `resetCryptoOnly()` (crypto streams + `lastRecvSeq = -1`, called from `handleRaw`'s peer-reconnect branch). The `handleRaw` branch must NOT zero `this.seq` — see the top-of-doc amendment. The code below is retained for historical context; see `relay-ws.transport.ts` and `2026-04-21-mobile-fixes-batch-design.md` for the current shape.
+
+`resetCryptoStreams()` (original draft — see amendment above):
 
 ```ts
 private resetCryptoStreams(): void {
@@ -163,7 +168,7 @@ private resetCryptoStreams(): void {
 }
 ```
 
-`connect()` replaces its inline block with `this.resetCryptoStreams()` before opening the WebSocket.
+`connect()` replaces its inline block with `this.resetAllOnConnect()` before opening the WebSocket.
 
 `handleRaw(data)` gains the same conditional inserted before the existing replay check:
 
@@ -175,7 +180,7 @@ private async handleRaw(data: unknown): Promise<void> {
       || typeof env.seq !== 'number' || typeof env.ct !== 'string') return;
 
   if (env.seq === 0 && this.lastRecvSeq >= 0) {
-    this.resetCryptoStreams();
+    this.resetCryptoOnly();  // amended: was resetCryptoStreams(), which also zeroed this.seq
   }
 
   if (env.seq <= this.lastRecvSeq) return;
