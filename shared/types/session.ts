@@ -104,8 +104,20 @@ export interface CharacterSnapshot {
 }
 
 export interface SessionSnapshot {
-  sessionId: string;
+  /**
+   * True while the desktop is inside a session (Office screen); false while
+   * in the Lobby / project picker. Added 2026-04-21 for per-session pairing
+   * scope. The phone uses this flag to branch between IdleScreen and the
+   * live session UI.
+   */
+  sessionActive: boolean;
+  /** Opaque identifier for the current session; null when sessionActive=false. */
+  sessionId: string | null;
   desktopName: string;
+  /** Human-readable label for the phone's "Now connected to [X]" toast. */
+  projectName?: string;
+  /** Absolute path to the project; phone displays basename only. */
+  projectRoot?: string;
   phase: Phase;
   startedAt: number;
   activeAgentId: string | null;

@@ -12,7 +12,8 @@ import { classifyActivity } from '../../shared/core/event-reducer';
 import { extractToolTarget } from '../../shared/core/extract-tool-target';
 
 export class SnapshotBuilder {
-  private sessionId = 'current';
+  private sessionActive = false;
+  private sessionId: string | null = null;
   private desktopName: string;
   private phase: Phase = 'idle';
   private startedAt: number = Date.now();
@@ -29,6 +30,7 @@ export class SnapshotBuilder {
 
   getSnapshot(): SessionSnapshot {
     const snap: SessionSnapshot = {
+      sessionActive: this.sessionActive,
       sessionId: this.sessionId,
       desktopName: this.desktopName,
       phase: this.phase,

@@ -46,6 +46,7 @@ vi.mock('../ArchivedRunsList', () => ({
 import { ChatView } from '../ChatView';
 
 const BASE_SNAPSHOT: SessionSnapshot = {
+  sessionActive: false,
   sessionId: 's',
   desktopName: 'test',
   phase: 'idle',
