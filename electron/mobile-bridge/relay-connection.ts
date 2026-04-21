@@ -3,7 +3,7 @@
 // envelope serialization. Owns its own SendStream/RecvStream and seq counter.
 
 import { EventEmitter } from 'events';
-import type { MobileMessageV2, PairedDevice, RelayEnvelope } from '../../shared/types';
+import type { MobileMessageV2, PairedDevice, Phase, PhaseHistory, RelayEnvelope } from '../../shared/types';
 import { RELAY_URL } from '../../shared/types';
 import { encodeV2, decodeV2 } from '../../shared/protocol/mobile';
 import { deriveSessionKeys } from '../../shared/crypto/noise';
@@ -28,6 +28,11 @@ export class RelayConnection extends EventEmitter {
   private readonly desktopPriv: Uint8Array;
   private readonly phonePub: Uint8Array;
   private readonly epoch: number;
+  private phaseHistoryHandler: ((phase: Phase) => PhaseHistory[] | Promise<PhaseHistory[]>) | null = null;
+
+  onPhoneGetPhaseHistory(handler: (phase: Phase) => PhaseHistory[] | Promise<PhaseHistory[]>): void {
+    this.phaseHistoryHandler = handler;
+  }
 
   constructor(opts: { desktop: Identity; device: PairedDevice }) {
     super();
@@ -134,7 +139,30 @@ export class RelayConnection extends EventEmitter {
       const ct = new Uint8Array(Buffer.from(e.ct, 'base64'));
       const plain = this.recv.decrypt(ct);
       const msg = decodeV2(new TextDecoder().decode(plain));
-      if (msg) this.emit('message', msg, this.deviceId);
+      if (msg) {
+        this.emit('message', msg, this.deviceId);
+        if (msg.type === 'getPhaseHistory' && this.phaseHistoryHandler) {
+          const handler = this.phaseHistoryHandler;
+          const result = handler(msg.phase);
+          const sendReply = (history: PhaseHistory[]) => {
+            this.sendMessage({
+              type: 'phaseHistory', v: 2,
+              requestId: msg.requestId, phase: msg.phase, history,
+            });
+          };
+          if (result && typeof (result as Promise<PhaseHistory[]>).then === 'function') {
+            (result as Promise<PhaseHistory[]>).then(sendReply).catch((err: Error) => {
+              console.warn('[relay-conn]', this.deviceId, 'phase-history handler failed:', err.message);
+            });
+          } else {
+            try {
+              sendReply(result as PhaseHistory[]);
+            } catch (err) {
+              console.warn('[relay-conn]', this.deviceId, 'phase-history handler failed:', (err as Error).message);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.warn('[relay-conn]', this.deviceId, 'decrypt failed seq=', e.seq, (err as Error).message);
     }

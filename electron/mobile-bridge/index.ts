@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentWaitingPayload, ArchivedRun, ChatMessage, MobileMessageV2, PairedDevice, SessionStatePatch, CharacterState } from '../../shared/types';
+import type { AgentEvent, AgentWaitingPayload, ArchivedRun, ChatMessage, MobileMessageV2, PairedDevice, Phase, PhaseHistory, SessionStatePatch, CharacterState } from '../../shared/types';
 import { RELAY_URL } from '../../shared/types';
 import { DeviceStore, type SettingsStoreLike } from './device-store';
 import { SnapshotBuilder, type Scope } from './snapshot-builder';
@@ -46,6 +46,7 @@ export interface MobileBridge {
   onCharStates(states: CharacterState[]): void;
   onChange(handler: () => void): () => void;
   onPhoneChat(handler: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>): () => void;
+  onPhoneGetPhaseHistory(handler: (phase: Phase) => PhaseHistory[] | Promise<PhaseHistory[]>): () => void;
   onSessionScopeChanged(scope: Scope): void;
   /** Test-only: exposes the builder's current snapshot for assertions. */
   __getSnapshotForTests(): import('../../shared/types').SessionSnapshot;
@@ -62,6 +63,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
   const snapshots = new SnapshotBuilder(opts.desktopName);
   const changeListeners = new Set<() => void>();
   const phoneChatHandlers = new Set<(m: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>>();
+  const phaseHistoryHandlers = new Set<(phase: Phase) => PhaseHistory[] | Promise<PhaseHistory[]>>();
 
   // Declared BEFORE `new WsServer(...)` so that the onBroadcastToRelay callback
   // (which captures this map) sees the live reference.
@@ -111,6 +113,13 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
         try { await h(msg); } catch (err) { console.warn('[mobile-bridge] phone chat handler failed', err); }
       }
     },
+    onPhoneGetPhaseHistory: async (phase) => {
+      for (const h of phaseHistoryHandlers) {
+        try { return await h(phase); }
+        catch (err) { console.warn('[mobile-bridge] phase-history handler failed (lan)', err); }
+      }
+      return [];
+    },
     onBroadcastToRelay: (msg) => {
       for (const conn of relayConnections.values()) {
         conn.sendMessage(msg);
@@ -143,6 +152,7 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
         conn.on('connect', () => { console.log('[relay]', d.deviceId, 'connect'); baseNotifyChange(); });
         conn.on('disconnect', () => { console.log('[relay]', d.deviceId, 'disconnect'); baseNotifyChange(); });
         conn.on('error', (err) => console.warn('[relay]', d.deviceId, (err as Error).message));
+        for (const h of phaseHistoryHandlers) conn.onPhoneGetPhaseHistory(h);
         conn.on('message', (msg: import('../../shared/types').MobileMessageV2, deviceId: string) => {
           console.log('[relay]', deviceId, 'recv', msg.type);
           // Phone sends `auth` after (re)connecting to the relay. Validate
@@ -344,6 +354,13 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onPhoneChat(handler) {
       phoneChatHandlers.add(handler);
       return () => { phoneChatHandlers.delete(handler); };
+    },
+    onPhoneGetPhaseHistory(handler) {
+      phaseHistoryHandlers.add(handler);
+      for (const conn of relayConnections.values()) conn.onPhoneGetPhaseHistory(handler);
+      return () => {
+        phaseHistoryHandlers.delete(handler);
+      };
     },
     onSessionScopeChanged(scope) {
       snapshots.setScope(scope);
