@@ -159,7 +159,7 @@ No migration step. Existing trusted devices keep working without user action. On
 
 Unit and integration tests, no new harnesses required.
 
-- `SnapshotBuilder`: `setScope({active:false})` clears tail, archivedRuns, waiting, character states, and nulls `sessionId`/`projectName`; `setScope({active:true, …})` sets the fields without clearing prior-frame state.
+- `SnapshotBuilder`: `setScope()` always clears volatile state (tail, archivedRuns, waiting, character states, phase, activeAgentId, sessionEnded) in both directions — `setScope({active:false})` additionally nulls `sessionId`/`projectName`/`projectRoot`; `setScope({active:true, …})` sets those fields while still clearing volatile state from the prior session.
 - `MobileBridge.onSessionScopeChanged`: forwards to `SnapshotBuilder` and emits a patch through `EventForwarder`.
 - `MobileBridge.getPairingQR`: rejects when scope is inactive.
 - Mobile `App.tsx`: given a stored device and a snapshot with `sessionActive=true`, lands on `SessionScreen`; with `false`, lands on `IdleScreen`. Flipping the flag mounts/unmounts `WebViewHost`.
