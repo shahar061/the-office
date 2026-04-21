@@ -1,8 +1,9 @@
 // mobile/src/session/SessionScreen.tsx
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Keyboard, View, StyleSheet } from 'react-native';
+import { AppState, Keyboard, Platform, ToastAndroid, View, StyleSheet } from 'react-native';
 import { WebViewHost } from '../webview-host/WebViewHost';
 import { useSession } from './useSession';
+import { useSessionStore } from '../types/shared';
 import { IdleScreen } from './IdleScreen';
 import { PortraitOverlays, PortraitComposer, type PortraitComposerHandle } from './PortraitLayout';
 import { LandscapeLayout } from './LandscapeLayout';
@@ -53,6 +54,24 @@ export function SessionScreen({ device, onPairingLost }: Props) {
     });
     return () => sub.remove();
   }, [mode]);
+
+  // Toast when the phone transitions from idle → active ("Now connected to [Project]").
+  // wasActiveRef tracks the previous value so we fire only on the false → true edge.
+  const projectName = useSessionStore((s) => s.snapshot?.projectName);
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    const becameActive = !wasActiveRef.current && session.sessionActive;
+    wasActiveRef.current = session.sessionActive;
+    if (!becameActive || !projectName) return;
+    const msg = `Now connected to ${projectName}`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    } else {
+      // iOS: no platform-level toast API in RN; a cross-platform toast component
+      // is a future enhancement (tracked in the design doc). Log for observability.
+      console.log('[session]', msg);
+    }
+  }, [session.sessionActive, projectName]);
 
   // Lobby / idle: the bridge told us the desktop is not in a session. Unmount
   // the entire WebView + overlay tree so the next `sessionActive=true` hydrates
