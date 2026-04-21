@@ -43,7 +43,8 @@ function makeFakeTransport() {
 }
 
 const device = {
-  deviceId: 'd1', deviceToken: 't', identityPriv: 'p', desktopIdentityPub: 'dp',
+  deviceId: 'd1', deviceToken: 't', identityPriv: 'p', identityPub: 'ip',
+  desktopIdentityPub: 'dp', desktopName: 'D',
   host: '', port: 0, remoteAllowed: true, relayToken: 'rt', sid: 'sid',
 };
 
@@ -194,5 +195,50 @@ describe('useSession', () => {
     act(() => result.current.setDraft('something the user typed'));
     act(() => { void result.current.sendChat('Option A'); });
     expect(result.current.draft).toBe('something the user typed');
+  });
+
+  it('sessionActive defaults to false until a snapshot arrives, then reflects snapshot.sessionActive', () => {
+    const fake = makeFakeTransport();
+    (createTransportForDevice as jest.Mock).mockReturnValue(fake);
+    const { result } = renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
+
+    expect(result.current.sessionActive).toBe(false);
+
+    act(() => {
+      fake.emitMessage({
+        type: 'snapshot', v: 2,
+        snapshot: {
+          sessionActive: true,
+          sessionId: '/tmp/p',
+          desktopName: 'D',
+          projectName: 'p',
+          phase: 'idle',
+          startedAt: 1,
+          activeAgentId: null,
+          characters: [],
+          chatTail: [],
+          sessionEnded: false,
+        },
+      });
+    });
+    expect(result.current.sessionActive).toBe(true);
+
+    act(() => {
+      fake.emitMessage({
+        type: 'snapshot', v: 2,
+        snapshot: {
+          sessionActive: false,
+          sessionId: null,
+          desktopName: 'D',
+          phase: 'idle',
+          startedAt: 2,
+          activeAgentId: null,
+          characters: [],
+          chatTail: [],
+          sessionEnded: false,
+        },
+      });
+    });
+    expect(result.current.sessionActive).toBe(false);
   });
 });

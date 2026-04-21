@@ -473,13 +473,13 @@ describe('MobileBridge.onSessionScopeChanged', () => {
       bridge.onSessionScopeChanged({
         active: true, sessionId: '/tmp/foo', projectName: 'foo', projectRoot: '/tmp/foo',
       });
-      expect(bridge.getSnapshotForTests().sessionActive).toBe(true);
-      expect(bridge.getSnapshotForTests().sessionId).toBe('/tmp/foo');
-      expect(bridge.getSnapshotForTests().projectName).toBe('foo');
+      expect(bridge.__getSnapshotForTests().sessionActive).toBe(true);
+      expect(bridge.__getSnapshotForTests().sessionId).toBe('/tmp/foo');
+      expect(bridge.__getSnapshotForTests().projectName).toBe('foo');
 
       bridge.onSessionScopeChanged({ active: false });
-      expect(bridge.getSnapshotForTests().sessionActive).toBe(false);
-      expect(bridge.getSnapshotForTests().sessionId).toBeNull();
+      expect(bridge.__getSnapshotForTests().sessionActive).toBe(false);
+      expect(bridge.__getSnapshotForTests().sessionId).toBeNull();
     } finally {
       await bridge.stop();
     }
@@ -517,7 +517,7 @@ describe('MobileBridge.getPairingQR gating', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run electron/mobile-bridge/__tests__/mobile-bridge.test.ts`
-Expected: FAIL — `onSessionScopeChanged is not a function` / `getSnapshotForTests is not a function`.
+Expected: FAIL — `onSessionScopeChanged is not a function` / `__getSnapshotForTests is not a function`.
 
 - [ ] **Step 3: Implement on the bridge**
 
@@ -532,7 +532,7 @@ onSessionScopeChanged(scope:
 ): void;
 
 /** Test-only: exposes the builder's current snapshot for assertions. */
-getSnapshotForTests(): import('../../shared/types').SessionSnapshot;
+__getSnapshotForTests(): import('../../shared/types').SessionSnapshot;
 ```
 
 Next, change the `getPairingQR` method (around lines 208-241) to gate on scope:
@@ -547,23 +547,19 @@ async getPairingQR() {
 }
 ```
 
-Finally, implement `onSessionScopeChanged` and `getSnapshotForTests` at the end of the returned object (before the closing `};`), right after the existing `onPhoneChat(handler)` entry:
+Finally, implement `onSessionScopeChanged` and `__getSnapshotForTests` at the end of the returned object (before the closing `};`), right after the existing `onPhoneChat(handler)` entry:
 
 ```ts
 onSessionScopeChanged(scope) {
   snapshots.setScope(scope);
   const snap = snapshots.getSnapshot();
-  // Broadcast a fresh snapshot to every authenticated device on both the
-  // LAN WS path and every active relay connection. A full snapshot (rather
-  // than a patch) is intentional — we just reset volatile state, so the
-  // phone must replace its local store atomically.
+  // broadcastToAuthenticated already fans out to relay via onBroadcastToRelay,
+  // so no manual relay loop is needed here (contrast onCharStates which uses
+  // broadcastCharState that does NOT fan out to relay).
   server.broadcastToAuthenticated({ type: 'snapshot', v: 2, snapshot: snap });
-  for (const conn of relayConnections.values()) {
-    conn.sendMessage({ type: 'snapshot', v: 2, snapshot: snap });
-  }
   notifyChange();
 },
-getSnapshotForTests() {
+__getSnapshotForTests() {
   return snapshots.getSnapshot();
 },
 ```

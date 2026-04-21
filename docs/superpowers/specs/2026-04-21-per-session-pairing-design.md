@@ -50,21 +50,21 @@ A new `sessionActive` boolean on `SessionSnapshot` tells the phone whether the d
 │           onSessionScopeChanged({active, sessionId, ...})   │
 │                 │                                           │
 │                 ▼                                           │
-│         MobileBridge → SnapshotBuilder                      │
+│         MobileBridge → SnapshotBuilder.setScope()           │
 │                 │                                           │
 │                 ▼                                           │
-│         EventForwarder ─── patch {sessionActive, …} ──┐    │
-└───────────────────────────────────────────────────────┼─────┘
-                                                        │
-                            LAN WS / Relay (unchanged)  │
-                                                        ▼
+│         broadcastToAuthenticated(snapshot) ────────────┐   │
+└────────────────────────────────────────────────────────┼────┘
+                                                         │
+                             LAN WS / Relay (unchanged)  │
+                                                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Mobile (branches on sessionActive)                          │
 │                                                             │
-│  App                                                        │
+│  App.tsx → SessionScreen (always mounted after loadDevice)  │
 │   ├─ Welcome / QR / SAS / Consent (trust flow, unchanged)   │
-│   └─ after loadDevice()                                     │
-│        ├─ sessionActive=true  → SessionScreen (existing)    │
+│   └─ SessionScreen branches internally on sessionActive:    │
+│        ├─ sessionActive=true  → WebViewHost + layouts       │
 │        └─ sessionActive=false → IdleScreen (new)            │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -89,11 +89,11 @@ projectRoot?: string | null;
 
 No new message types. No new handshakes. No protocol version bump. The phone interprets `sessionActive=false` as "render idle screen; discard session view state." The phone treats `sessionActive=false` as authoritative and ignores any `sessionId` sent alongside it.
 
-**Transition semantics on the desktop side:**
+**Transition semantics on the desktop side (as shipped):**
 
-- Desktop enters Office → bridge emits a full snapshot with `sessionActive=true, sessionId, projectName` and any existing state for that session.
-- Desktop returns to Lobby → bridge emits a patch `{sessionActive:false, sessionId:null, projectName:null}` **and clears** `chatTail`, `archivedRuns`, `waiting`, and character states on the `SnapshotBuilder`. This enforces the "fresh reconnect" contract.
-- Desktop switches directly from session A → session B (via the Lobby step): phone observes two transitions — A → idle (brief), idle → B. The idle → B edge triggers the "Now connected to [Project]" toast on the phone.
+- Desktop enters Office → `onSessionScopeChanged({active:true, …})` calls `SnapshotBuilder.setScope()` which clears all volatile state (chatTail, archivedRuns, waiting, character states) from the prior session, then sets `sessionActive=true` + scope fields. The bridge then broadcasts a **full** `{ type: 'snapshot', v: 2, snapshot }` frame via `broadcastToAuthenticated`. Sending the complete snapshot (rather than a patch) guarantees atomic replacement: the phone never sees a partial transition where `sessionActive` has changed but `chatTail` still contains stale data.
+- Desktop returns to Lobby → same path: `setScope({active:false})` clears volatile state and nulls `sessionId`/`projectName`/`projectRoot`, then broadcasts the full snapshot. No separate patch message type is used.
+- Desktop switches directly from session A → session B (via the Lobby step): phone observes two full-snapshot broadcasts — one with `sessionActive=false`, one with `sessionActive=true` for the new session. The idle→active transition triggers the "Now connected to [Project]" toast on the phone.
 
 ## Desktop Changes
 
@@ -118,12 +118,7 @@ No new message types. No new handshakes. No protocol version bump. The phone int
 
 ## Mobile Changes
 
-1. **New top-level screen branch** — `App.tsx` Screen union gains:
-   ```ts
-   | { kind: 'idle';    device: PairedDeviceCredentials }
-   | { kind: 'session'; device: PairedDeviceCredentials }
-   ```
-   After `loadDevice()` returns credentials, the app starts the transport and waits for the first snapshot. A brief loading indicator bridges until the first snapshot arrives; then the app routes to `idle` or `session` based on `sessionActive`. If no device is stored, the flow is unchanged (Welcome → QR → SAS → Consent).
+1. **Session/idle branch inside `SessionScreen`** — rather than adding an `idle`/`session` variant to `App.tsx`'s Screen union, the branching lives entirely inside `SessionScreen`. The component calls `useSession()`, which reads `sessionActive` from the snapshot store. When `sessionActive` is `false` (or before the first snapshot arrives), `SessionScreen` early-returns `<IdleScreen/>`. When `true`, it renders the full `WebViewHost` + layout tree. This means `App.tsx` routes to `SessionScreen` as soon as `loadDevice()` succeeds — the transport connects immediately and the first snapshot from the desktop determines whether the user sees the session view or the idle view. If no device is stored, the trust flow (Welcome → QR → SAS → Consent) is unchanged.
 
 2. **`IdleScreen` component** (`mobile/src/session/IdleScreen.tsx`):
    - Title: "Waiting for [Desktop Name]"
@@ -135,7 +130,7 @@ No new message types. No new handshakes. No protocol version bump. The phone int
    - `true → false`: unmount `WebViewHost` entirely to enforce the fresh-reconnect contract; fade in `IdleScreen`.
    - `false → true`: mount `WebViewHost` with the fresh snapshot; show a one-shot toast "Now connected to [Project]".
 
-4. **`ConnectionBanner` semantics unchanged** — rendered on both idle and session screens. This lets the user distinguish "desktop offline" (red banner + idle copy) from "desktop in Lobby" (no banner + idle copy) at a glance.
+4. **Offline distinction inlined into `IdleScreen`** — rather than relying on a separate `ConnectionBanner`, `IdleScreen` reads the transport `status` prop and conditionally swaps its body copy: "Open a project on [Desktop] to continue." when connected vs. "[Desktop] is offline." when disconnected. The user-visible distinction between "desktop offline" and "desktop in Lobby" is equivalent to the ConnectionBanner approach described in the original spec.
 
 5. **Unchanged:** `secure-store`, transport (`composite.transport.ts`, `lan-ws.transport.ts`, `relay-ws.transport.ts`), pairing screens (`Welcome`/`QRScan`/`Sas`/`RemoteConsent`), `WebViewHost`, portrait/landscape layouts, orientation handling.
 
@@ -159,7 +154,7 @@ No migration step. Existing trusted devices keep working without user action. On
 
 Unit and integration tests, no new harnesses required.
 
-- `SnapshotBuilder`: `setScope({active:false})` clears tail, archivedRuns, waiting, character states, and nulls `sessionId`/`projectName`; `setScope({active:true, …})` sets the fields without clearing prior-frame state.
+- `SnapshotBuilder`: `setScope()` always clears volatile state (tail, archivedRuns, waiting, character states, phase, activeAgentId, sessionEnded) in both directions — `setScope({active:false})` additionally nulls `sessionId`/`projectName`/`projectRoot`; `setScope({active:true, …})` sets those fields while still clearing volatile state from the prior session.
 - `MobileBridge.onSessionScopeChanged`: forwards to `SnapshotBuilder` and emits a patch through `EventForwarder`.
 - `MobileBridge.getPairingQR`: rejects when scope is inactive.
 - Mobile `App.tsx`: given a stored device and a snapshot with `sessionActive=true`, lands on `SessionScreen`; with `false`, lands on `IdleScreen`. Flipping the flag mounts/unmounts `WebViewHost`.

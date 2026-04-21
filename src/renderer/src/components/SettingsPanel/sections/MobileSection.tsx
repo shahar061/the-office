@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMobileBridgeStore } from '../../../stores/mobile-bridge.store';
+import { useProjectStore } from '../../../stores/project.store';
 import { PairingView } from './mobile/PairingView';
 import { DeviceCard } from './mobile/DeviceCard';
 
@@ -17,6 +18,9 @@ export function MobileSection() {
     setPairing(qr);
     void store.refresh();
   }
+
+  const projectState = useProjectStore((s) => s.projectState);
+  const inSession = projectState !== null;
 
   const status = store.status;
   const devices = status?.devices ?? [];
@@ -57,10 +61,28 @@ export function MobileSection() {
       )}
 
       {!pairing && (
-        <button onClick={startPair} style={{
-          background: '#6366f1', color: '#fff', border: 'none', padding: '10px 18px',
-          borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-        }}>Pair a phone</button>
+        <button
+          onClick={startPair}
+          disabled={!inSession}
+          title={!inSession ? 'Open a project first to pair a phone' : undefined}
+          style={{
+            background: inSession ? '#6366f1' : 'rgba(99,102,241,0.3)',
+            color: '#fff',
+            border: 'none',
+            padding: '10px 18px',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: inSession ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Pair a phone
+        </button>
+      )}
+      {!pairing && !inSession && (
+        <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 8 }}>
+          Open a project first to pair a phone.
+        </div>
       )}
 
       {pairing && (
@@ -77,7 +99,7 @@ export function MobileSection() {
           <div style={{
             color: '#a5b4fc', fontSize: 11, textTransform: 'uppercase',
             letterSpacing: '0.08em', fontWeight: 700, marginBottom: 10,
-          }}>Paired devices ({devices.length})</div>
+          }}>Trusted devices ({devices.length})</div>
           {devices.map((d) => <DeviceCard key={d.deviceId} device={d} />)}
         </div>
       )}

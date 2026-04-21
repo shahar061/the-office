@@ -11,8 +11,22 @@ import type {
 import { classifyActivity } from '../../shared/core/event-reducer';
 import { extractToolTarget } from '../../shared/core/extract-tool-target';
 
+export interface ScopeActive {
+  active: true;
+  sessionId: string;
+  projectName: string;
+  projectRoot?: string;
+}
+export interface ScopeInactive {
+  active: false;
+}
+export type Scope = ScopeActive | ScopeInactive;
+
 export class SnapshotBuilder {
-  private sessionId = 'current';
+  private sessionActive = false;
+  private sessionId: string | null = null;
+  private projectName: string | undefined;
+  private projectRoot: string | undefined;
   private desktopName: string;
   private phase: Phase = 'idle';
   private startedAt: number = Date.now();
@@ -29,6 +43,7 @@ export class SnapshotBuilder {
 
   getSnapshot(): SessionSnapshot {
     const snap: SessionSnapshot = {
+      sessionActive: this.sessionActive,
       sessionId: this.sessionId,
       desktopName: this.desktopName,
       phase: this.phase,
@@ -38,9 +53,45 @@ export class SnapshotBuilder {
       chatTail: [...this.chatTail],
       sessionEnded: this.sessionEnded,
     };
+    if (this.projectName !== undefined) snap.projectName = this.projectName;
+    if (this.projectRoot !== undefined) snap.projectRoot = this.projectRoot;
     if (this.waiting) snap.waiting = this.waiting;
     if (this.archivedRuns.length > 0) snap.archivedRuns = [...this.archivedRuns];
     return snap;
+  }
+
+  /**
+   * Single entry point for scope transitions. Always resets volatile state
+   * (chat tail, archived runs, waiting, characters, phase, etc.) so the next
+   * snapshot the phone receives hydrates from a clean slate.
+   */
+  setScope(scope: Scope): void {
+    // Reset volatile state regardless of direction — this is the "fresh
+    // reconnect" contract from the spec.
+    this.phase = 'idle';
+    this.activeAgentId = null;
+    this.characters.clear();
+    this.chatTail = [];
+    this.sessionEnded = false;
+    this.waiting = null;
+    this.archivedRuns = [];
+    this.startedAt = Date.now();
+
+    if (scope.active) {
+      this.sessionActive = true;
+      this.sessionId = scope.sessionId;
+      this.projectName = scope.projectName;
+      this.projectRoot = scope.projectRoot;
+    } else {
+      this.sessionActive = false;
+      this.sessionId = null;
+      this.projectName = undefined;
+      this.projectRoot = undefined;
+    }
+  }
+
+  isActive(): boolean {
+    return this.sessionActive;
   }
 
   ingestEvent(event: AgentEvent): void {
@@ -105,17 +156,6 @@ export class SnapshotBuilder {
         if (patch.resetTail) this.chatTail = [];
         break;
     }
-  }
-
-  reset(): void {
-    this.phase = 'idle';
-    this.activeAgentId = null;
-    this.characters.clear();
-    this.chatTail = [];
-    this.sessionEnded = false;
-    this.waiting = null;
-    this.archivedRuns = [];
-    this.startedAt = Date.now();
   }
 
   private ensureCharacter(event: AgentEvent): void {

@@ -50,6 +50,7 @@ describe('useSessionStore characterStates slice', () => {
 });
 
 const BASE: SessionSnapshot = {
+  sessionActive: false,
   sessionId: 's',
   desktopName: 'd',
   phase: 'idle',
@@ -132,5 +133,39 @@ describe('session.store appendChat', () => {
     }));
     useSessionStore.getState().appendChat(msgs);
     expect(useSessionStore.getState().snapshot!.chatTail).toHaveLength(60);
+  });
+});
+
+describe('session.store scope fields pass through setSnapshot', () => {
+  it('preserves sessionActive=false, sessionId=null, projectName=undefined on a Lobby snapshot', () => {
+    const snap: SessionSnapshot = {
+      ...BASE,
+      sessionActive: false,
+      sessionId: null,
+      projectName: undefined,
+      projectRoot: undefined,
+    };
+    useSessionStore.getState().setSnapshot(snap);
+    const result = useSessionStore.getState().snapshot!;
+    expect(result.sessionActive).toBe(false);
+    expect(result.sessionId).toBeNull();
+    expect(result.projectName).toBeUndefined();
+    expect(result.projectRoot).toBeUndefined();
+  });
+
+  it('preserves sessionActive=true with session metadata on an Office snapshot', () => {
+    const snap: SessionSnapshot = {
+      ...BASE,
+      sessionActive: true,
+      sessionId: '/Users/me/projects/foo',
+      projectName: 'foo',
+      projectRoot: '/Users/me/projects/foo',
+    };
+    useSessionStore.getState().setSnapshot(snap);
+    const result = useSessionStore.getState().snapshot!;
+    expect(result.sessionActive).toBe(true);
+    expect(result.sessionId).toBe('/Users/me/projects/foo');
+    expect(result.projectName).toBe('foo');
+    expect(result.projectRoot).toBe('/Users/me/projects/foo');
   });
 });

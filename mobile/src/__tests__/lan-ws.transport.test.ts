@@ -77,6 +77,7 @@ describe('LanWsTransport (v2)', () => {
       snapshot: {
         sessionId: 's', desktopName: 'test-desktop', phase: 'idle', startedAt: 1,
         activeAgentId: null, characters: [], chatTail: [], sessionEnded: false,
+        sessionActive: false,
       },
     };
     const encryptedAuthed = serverSend.encrypt(new TextEncoder().encode(encodeV2(authed)));
@@ -128,6 +129,7 @@ describe('LanWsTransport (v2)', () => {
       snapshot: {
         sessionId: 's', desktopName: 'x', phase: 'idle', startedAt: 1,
         activeAgentId: null, characters: [], chatTail: [], sessionEnded: false,
+        sessionActive: false,
       },
     };
     lastSocket!.simulateBinaryMessage(serverSend.encrypt(new TextEncoder().encode(encodeV2(authed))));

@@ -8,6 +8,7 @@ import type { SessionSnapshot } from '../../../shared/types';
 import { ActivityFooter } from '../ActivityFooter';
 
 const BASE: SessionSnapshot = {
+  sessionActive: false,
   sessionId: 's', desktopName: 'd', phase: 'idle', startedAt: 0,
   activeAgentId: null, characters: [], chatTail: [], sessionEnded: false,
 };

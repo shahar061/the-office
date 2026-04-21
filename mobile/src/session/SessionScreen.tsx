@@ -1,8 +1,10 @@
 // mobile/src/session/SessionScreen.tsx
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Keyboard, View, StyleSheet } from 'react-native';
+import { AppState, Keyboard, Platform, ToastAndroid, View, StyleSheet } from 'react-native';
 import { WebViewHost } from '../webview-host/WebViewHost';
 import { useSession } from './useSession';
+import { useSessionStore } from '../types/shared';
+import { IdleScreen } from './IdleScreen';
 import { PortraitOverlays, PortraitComposer, type PortraitComposerHandle } from './PortraitLayout';
 import { LandscapeLayout } from './LandscapeLayout';
 import { lockOrientation, resetOrientation } from './orientation';
@@ -31,7 +33,6 @@ export function SessionScreen({ device, onPairingLost }: Props) {
     setMode(next);
   };
 
-  // Apply the OS-level orientation lock whenever `mode` changes.
   useEffect(() => {
     let cancelled = false;
     lockOrientation(mode).finally(() => {
@@ -39,18 +40,14 @@ export function SessionScreen({ device, onPairingLost }: Props) {
       transitioningRef.current = false;
       if (mode === 'portrait' && focusPendingRef.current) {
         focusPendingRef.current = false;
-        // One animation frame to let layout settle before focusing.
         requestAnimationFrame(() => composerRef.current?.focusInput());
       }
     });
     return () => { cancelled = true; };
   }, [mode]);
 
-  // Reset orientation when SessionScreen unmounts (e.g. pairing lost).
   useEffect(() => () => { resetOrientation().catch(() => {}); }, []);
 
-  // Re-apply the lock when the app returns to the foreground — iOS/Android
-  // can reset orientation on app-switch.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') lockOrientation(mode).catch(() => {});
@@ -58,14 +55,37 @@ export function SessionScreen({ device, onPairingLost }: Props) {
     return () => sub.remove();
   }, [mode]);
 
-  // Root uses `flexDirection: 'column'` so that in PORTRAIT the composer
-  // sits below the canvas (canvas shrinks to the remaining flex:1 space).
-  // In LANDSCAPE no composer is rendered, so the canvas takes the whole
-  // screen and the floating pill / FAB overlay on top of it.
-  //
-  // Keeping the WebViewHost at the SAME position in the tree (first child
-  // of the root) across both modes means React reconciles it to the same
-  // component instance — no re-mount, no canvas flash on rotation.
+  // Toast when the phone transitions from idle → active ("Now connected to [Project]").
+  // wasActiveRef tracks the previous value so we fire only on the false → true edge.
+  const projectName = useSessionStore((s) => s.snapshot?.projectName);
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    const becameActive = !wasActiveRef.current && session.sessionActive;
+    wasActiveRef.current = session.sessionActive;
+    if (!becameActive || !projectName) return;
+    const msg = `Now connected to ${projectName}`;
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(msg, ToastAndroid.SHORT);
+    } else {
+      // iOS: no platform-level toast API in RN; a cross-platform toast component
+      // is a future enhancement (tracked in the design doc). Log for observability.
+      console.log('[session]', msg);
+    }
+  }, [session.sessionActive, projectName]);
+
+  // Lobby / idle: the bridge told us the desktop is not in a session. Unmount
+  // the entire WebView + overlay tree so the next `sessionActive=true` hydrates
+  // from scratch. Transport stays connected (useSession is still mounted)
+  // so we receive the next snapshot without reconnecting.
+  if (!session.sessionActive) {
+    return (
+      <IdleScreen
+        desktopName={device.desktopName}
+        status={session.status}
+      />
+    );
+  }
+
   return (
     <View style={styles.root}>
       <View style={styles.canvasArea}>

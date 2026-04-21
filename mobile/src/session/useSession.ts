@@ -19,6 +19,7 @@ export interface UseSessionOpts {
 
 export interface UseSessionReturn {
   status: ReturnType<typeof useConnectionStore.getState>['status'];
+  sessionActive: boolean;
   draft: string;
   setDraft: (v: string) => void;
   sending: boolean;
@@ -29,6 +30,7 @@ export interface UseSessionReturn {
 
 export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessionReturn {
   const status = useConnectionStore((s) => s.status);
+  const sessionActive = useSessionStore((s) => s.snapshot?.sessionActive ?? false);
   const transportRef = useRef<Transport | null>(null);
   const pendingAcksRef = useRef<Map<string, PendingAck>>(new Map());
   // Use a ref for the callback so the effect doesn't need to re-run when the
@@ -153,5 +155,5 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
 
   const canSend = status.state === 'connected' && draft.trim().length > 0 && !sending;
 
-  return { status, draft, setDraft, sending, canSend, submit, sendChat };
+  return { status, sessionActive, draft, setDraft, sending, canSend, submit, sendChat };
 }

@@ -157,9 +157,9 @@ describe('SnapshotBuilder', () => {
     expect(builder.getSnapshot().waiting).toBeUndefined();
   });
 
-  it('reset clears waiting', () => {
+  it('setScope({active:false}) clears waiting', () => {
     builder.setWaiting({ sessionId: 's1', agentRole: 'ceo', questions: [] });
-    builder.reset();
+    builder.setScope({ active: false });
     expect(builder.getSnapshot().waiting).toBeUndefined();
   });
 
@@ -197,16 +197,93 @@ describe('SnapshotBuilder', () => {
     expect(snap.chatTail).toHaveLength(1);
   });
 
-  it('reset clears archivedRuns', () => {
+  it('setScope({active:false}) clears archivedRuns', () => {
     builder.setArchivedRuns([
       { agentRole: 'ceo', runNumber: 1, messages: [mkChat('m', 'x')], timestamp: 1 },
     ]);
-    builder.reset();
+    builder.setScope({ active: false });
     expect(builder.getSnapshot().archivedRuns).toBeUndefined();
   });
 
   it('ingestChat no longer caps at 50 — tail holds 60 messages', () => {
     for (let i = 0; i < 60; i++) builder.ingestChat([mkChat(`m${i}`, `hi${i}`)]);
     expect(builder.getSnapshot().chatTail).toHaveLength(60);
+  });
+});
+
+describe('SnapshotBuilder.setScope', () => {
+  let builder: SnapshotBuilder;
+
+  beforeEach(() => {
+    builder = new SnapshotBuilder('Test Desktop');
+  });
+
+  it('initializes sessionActive=false, sessionId=null by default', () => {
+    const snap = builder.getSnapshot();
+    expect(snap.sessionActive).toBe(false);
+    expect(snap.sessionId).toBeNull();
+    expect(snap.projectName).toBeUndefined();
+    expect(snap.projectRoot).toBeUndefined();
+  });
+
+  it('setScope({active:true, ...}) sets all scope fields', () => {
+    builder.setScope({
+      active: true,
+      sessionId: '/tmp/p',
+      projectName: 'p',
+      projectRoot: '/tmp/p',
+    });
+    const snap = builder.getSnapshot();
+    expect(snap.sessionActive).toBe(true);
+    expect(snap.sessionId).toBe('/tmp/p');
+    expect(snap.projectName).toBe('p');
+    expect(snap.projectRoot).toBe('/tmp/p');
+  });
+
+  it('setScope({active:false}) clears sessionId/projectName/projectRoot', () => {
+    builder.setScope({ active: true, sessionId: '/tmp/p', projectName: 'p', projectRoot: '/tmp/p' });
+    builder.setScope({ active: false });
+    const snap = builder.getSnapshot();
+    expect(snap.sessionActive).toBe(false);
+    expect(snap.sessionId).toBeNull();
+    expect(snap.projectName).toBeUndefined();
+    expect(snap.projectRoot).toBeUndefined();
+  });
+
+  it('setScope clears volatile state: chatTail, archivedRuns, waiting, characters, activeAgentId, sessionEnded, phase', () => {
+    builder.ingestEvent(mkEvent({ type: 'agent:created', agentId: 'a1' }));
+    builder.ingestEvent(mkEvent({ type: 'agent:tool:start', agentId: 'a1', toolName: 'Read', toolId: 't1' }));
+    builder.ingestChat([mkChat('m1', 'live')]);
+    builder.setWaiting({ sessionId: 's', agentRole: 'ceo', questions: [] });
+    builder.setArchivedRuns([{ agentRole: 'ceo', runNumber: 1, messages: [mkChat('old', 'x')], timestamp: 1 }]);
+    builder.applyStatePatch({ kind: 'phase', phase: 'warroom' });
+    builder.applyStatePatch({ kind: 'ended', ended: true });
+
+    builder.setScope({ active: false });
+
+    const snap = builder.getSnapshot();
+    expect(snap.chatTail).toEqual([]);
+    expect(snap.archivedRuns).toBeUndefined();
+    expect(snap.waiting).toBeUndefined();
+    expect(snap.characters).toEqual([]);
+    expect(snap.activeAgentId).toBeNull();
+    expect(snap.sessionEnded).toBe(false);
+    expect(snap.phase).toBe('idle');
+  });
+
+  it('setScope({active:true}) also clears volatile state from the prior session', () => {
+    builder.setScope({ active: true, sessionId: '/tmp/a', projectName: 'a', projectRoot: '/tmp/a' });
+    builder.ingestChat([mkChat('m1', 'in a')]);
+    builder.setScope({ active: true, sessionId: '/tmp/b', projectName: 'b', projectRoot: '/tmp/b' });
+    expect(builder.getSnapshot().chatTail).toEqual([]);
+    expect(builder.getSnapshot().sessionId).toBe('/tmp/b');
+  });
+
+  it('setScope({active:true}) updates startedAt to now', () => {
+    const before = Date.now();
+    builder.setScope({ active: true, sessionId: '/tmp/x', projectName: 'x', projectRoot: '/tmp/x' });
+    const after = Date.now();
+    expect(builder.getSnapshot().startedAt).toBeGreaterThanOrEqual(before);
+    expect(builder.getSnapshot().startedAt).toBeLessThanOrEqual(after);
   });
 });

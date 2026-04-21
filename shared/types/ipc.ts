@@ -48,6 +48,7 @@ export const IPC_CHANNELS = {
   PICK_DIRECTORY: 'office:pick-directory',
   GET_PROJECT_STATE: 'office:get-project-state',
   MARK_INTRO_SEEN: 'office:mark-intro-seen',
+  CLOSE_PROJECT: 'office:close-project',
   // Phase
   START_IMAGINE: 'office:start-imagine',
   START_WARROOM: 'office:start-warroom',
@@ -170,6 +171,7 @@ export interface OfficeAPI {
   pickDirectory(): Promise<string | null>;
   getProjectState(): Promise<ProjectState>;
   markIntroSeen(): Promise<void>;
+  closeProject(): Promise<void>;
 
   startImagine(userIdea: string): Promise<void>;
   startWarroom(): Promise<void>;

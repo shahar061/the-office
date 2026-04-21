@@ -342,6 +342,10 @@ export default function OfficeView() {
               useChatStore.getState().clearMessages();
               useArtifactStore.getState().reset();
               useWarTableStore.getState().reset();
+              // Flip main-process scope to inactive so the mobile bridge broadcasts a
+              // Lobby snapshot; the renderer transition to the picker happens after
+              // the IPC acks so state is consistent when the picker mounts.
+              await window.office.closeProject();
               useProjectStore.getState().setProjectState(null);
             }}
             style={{
