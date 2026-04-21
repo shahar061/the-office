@@ -95,10 +95,13 @@ export class SessionDO implements DurableObject {
       try { existing.close(1008, 'superseded'); } catch { /* ignore */ }
     }
 
-    // Also kick the peer of the OTHER role so their encryption streams reset
-    // in lockstep — unless we ourselves just kicked this role, in which case
-    // this connect IS the response to that kick and the counterparty is
-    // already fresh. Without this cooldown the two peers ping-pong forever.
+    // Also kick the peer of the OTHER role so it observes a fresh WS and
+    // reinitializes its per-connection seq counter. With stateless AEAD the
+    // peer's crypto state needs no resync, but the seq baseline still does
+    // ("last one wins" semantics per role). Unless we ourselves just kicked
+    // this role — in which case this connect IS the response to that kick and
+    // the counterparty is already fresh. Without this cooldown the two peers
+    // ping-pong forever.
     const other: Role = role === 'desktop' ? 'phone' : 'desktop';
     const myLastKick = this.recentKicks[role];
     const wasJustKicked = myLastKick !== undefined && (Date.now() - myLastKick) < KICK_COOLDOWN_MS;
