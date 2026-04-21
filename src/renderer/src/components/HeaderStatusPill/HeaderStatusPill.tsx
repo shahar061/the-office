@@ -14,13 +14,13 @@ function describe(devices: Device[]): { label: string; dotColor: string } {
   if (devices.length === 0) return { label: '📱 Pair a phone', dotColor: 'transparent' };
   if (devices.length === 1) {
     const d = devices[0];
-    const mode = d.mode === 'lan' ? 'LAN' : d.mode === 'relay' ? 'Remote' : 'Idle';
+    const mode = d.mode === 'lan' ? 'Local' : d.mode === 'relay' ? 'Remote' : 'Idle';
     const color = d.mode === 'lan' ? '#22c55e' : d.mode === 'relay' ? '#6366f1' : '#6b7280';
     return { label: `● ${d.deviceName} · ${mode}`, dotColor: color };
   }
   const modes = new Set(devices.map((d) => d.mode));
-  const combo = modes.has('lan') && modes.has('relay') ? 'LAN+Remote'
-              : modes.has('lan') ? 'LAN'
+  const combo = modes.has('lan') && modes.has('relay') ? 'Local+Remote'
+              : modes.has('lan') ? 'Local'
               : modes.has('relay') ? 'Remote'
               : 'Idle';
   return { label: `📱 ${devices.length} phones · ${combo}`, dotColor: '#a5b4fc' };

@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['tests/setup.ts'],
-    include: ['tests/**/*.test.ts', '**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', '**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
     exclude: ['**/node_modules/**', '**/dist/**', 'mobile/**', 'relay/**', 'landing/**'],
     coverage: {
       reporter: ['text', 'lcov'],
