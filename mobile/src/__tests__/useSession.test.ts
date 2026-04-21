@@ -43,7 +43,8 @@ function makeFakeTransport() {
 }
 
 const device = {
-  deviceId: 'd1', deviceToken: 't', identityPriv: 'p', desktopIdentityPub: 'dp',
+  deviceId: 'd1', deviceToken: 't', identityPriv: 'p', identityPub: 'ip',
+  desktopIdentityPub: 'dp', desktopName: 'D',
   host: '', port: 0, remoteAllowed: true, relayToken: 'rt', sid: 'sid',
 };
 
