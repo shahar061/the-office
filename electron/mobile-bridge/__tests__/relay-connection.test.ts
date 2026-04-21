@@ -121,6 +121,55 @@ describe('RelayConnection', () => {
     expect((conn as any).lastRecvSeq).toBe(0);
   });
 
+  it('preserves outgoing seq across peer-reconnect reset (seqRegression regression guard)', async () => {
+    const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
+    const { SendStream } = await import('../../../shared/crypto/secretstream');
+    const { encodeV2 } = await import('../../../shared/protocol/mobile');
+    const { x25519 } = await import('@noble/curves/ed25519');
+
+    const desktop = makeDesktop();
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const device = makeDevice({ phoneIdentityPub: Buffer.from(phonePub).toString('base64') });
+    const conn = new RelayConnection({ desktop, device });
+    const onRaw = (conn as any).onRawFrame.bind(conn) as (raw: string) => void;
+
+    // Drive desktop's outgoing seq forward by calling sendMessage a few
+    // times. We ignore the "not connected" guard by swapping isConnected.
+    (conn as any).client.isConnected = () => true;
+    (conn as any).client.send = () => {};
+    conn.sendMessage({ type: 'heartbeat', v: 2 });
+    conn.sendMessage({ type: 'heartbeat', v: 2 });
+    conn.sendMessage({ type: 'heartbeat', v: 2 });
+    expect((conn as any).seq).toBe(3);
+
+    // Drive lastRecvSeq forward so the seq=0 branch fires.
+    function makePhoneSend() {
+      const keys = deriveSessionKeys(phonePriv, desktop.pub, 'initiator');
+      return new SendStream(keys.sendKey);
+    }
+    let phoneSend = makePhoneSend();
+    function encFrame(seq: number, msg: any): string {
+      const plain = new TextEncoder().encode(encodeV2(msg));
+      const ct = phoneSend.encrypt(plain);
+      return JSON.stringify({
+        v: 2, sid: device.sid!, seq, kind: 'data',
+        ct: Buffer.from(ct).toString('base64'),
+      });
+    }
+    onRaw(encFrame(0, { type: 'heartbeat', v: 2 }));
+    onRaw(encFrame(1, { type: 'heartbeat', v: 2 }));
+    expect((conn as any).lastRecvSeq).toBe(1);
+
+    // Simulate peer reconnect — fresh SendStream, seq=0.
+    phoneSend = makePhoneSend();
+    onRaw(encFrame(0, { type: 'heartbeat', v: 2 }));
+
+    // Crypto streams reset (peer reconnected), but outgoing seq MUST NOT reset.
+    expect((conn as any).seq).toBe(3);
+    expect((conn as any).lastRecvSeq).toBe(0);
+  });
+
   it('does not reset on initial seq=0 (fresh session, lastRecvSeq=-1)', async () => {
     const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
     const { SendStream } = await import('../../../shared/crypto/secretstream');
