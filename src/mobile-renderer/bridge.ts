@@ -25,6 +25,9 @@ export function handleRawMessage(raw: unknown): void {
       store.appendChat(msg.messages);
       break;
     case 'state':     store.applyStatePatch(msg.patch); break;
+    case 'phaseHistory':
+      store.setPhaseHistory(msg.phase, msg.history);
+      break;
     default: break;
   }
 }
