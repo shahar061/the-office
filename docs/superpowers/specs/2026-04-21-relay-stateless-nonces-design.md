@@ -82,9 +82,9 @@ export function aeadDecrypt(key: Uint8Array, nonce: Uint8Array, ciphertext: Uint
 }
 ```
 
-**Deleted module: `shared/crypto/secretstream.ts`.** The `SendStream`, `RecvStream`, `REKEY_TAG`, and `deriveNextKey` symbols are all retired. `REKEY_TAG` was never invoked in production code.
+**`shared/crypto/secretstream.ts` stays.** It is still used by five non-relay code paths — `mobile/src/transport/lan-ws.transport.ts`, `electron/mobile-bridge/ws-server.ts`, `electron/mobile-bridge/pairing-fsm.ts`, `electron/mobile-bridge/rendezvous-client.ts`, and `mobile/App.tsx` (the pairing-rendezvous bootstrap). LAN connections don't flap across the Cloudflare worker and pairing is one-shot, so those paths don't exhibit the asymmetric-reset drift that motivates this change. The latent nonce-reuse concern applies to those paths too but is less exposed (LAN is a trusted network, pairing sessions are short-lived). Migrating them is out of scope for this spec and can be a follow-up.
 
-**Unchanged: `shared/crypto/noise.ts`.** `deriveSessionKeys` still produces a `sendKey` / `recvKey` pair with role-based asymmetry (initiator sends with `a`, responder sends with `b`). Each side now just holds two `Uint8Array` keys directly — no stream object.
+**Unchanged: `shared/crypto/noise.ts`.** `deriveSessionKeys` still produces a `sendKey` / `recvKey` pair with role-based asymmetry (initiator sends with `a`, responder sends with `b`). Each side now just holds two `Uint8Array` keys directly on the relay path — no stream object there. Non-relay paths keep using `SendStream` / `RecvStream` from `secretstream.ts`.
 
 ## Client Reset Paths
 
@@ -169,9 +169,7 @@ No handshake, no `seq=0` signaling, no window.
 
 - Integration test (extend `electron/mobile-bridge/__tests__/ws-server.integration.test.ts` or a relay-level integration test if one exists) covering the full asymmetric-reconnect scenario end-to-end: desktop WS drops and reconnects while phone keeps sending; assert zero decrypt failures across a burst of 20+ phone→desktop frames.
 
-**Deleted:**
-
-- `shared/crypto/__tests__/secretstream.test.ts` if present — the module it tested is gone.
+**Unchanged:** `shared/crypto/__tests__/secretstream.test.ts` stays — the module is still in use on non-relay paths.
 
 ## Migration
 
@@ -185,13 +183,16 @@ Both clients ship together in the same app bundle; the worker is ours. We do a h
 **In scope:**
 
 - New module `shared/crypto/aead.ts`.
-- Delete `shared/crypto/secretstream.ts` and its tests.
-- Update `shared/types.ts` — add `nonce: string` to `RelayEnvelope`.
+- Update `shared/types/envelope.ts` — add `nonce: string` to `RelayEnvelope`.
 - Update `electron/mobile-bridge/relay-connection.ts` — remove reset paths, switch to stateless AEAD, cache derived keys.
 - Update `mobile/src/transport/relay-ws.transport.ts` — same.
 - Update `relay/src/envelope.ts` — parse + validate `nonce`.
 - Update `relay/src/session-do.ts` — comment refresh only; no logic change.
 - Test updates as listed above.
+
+**Out of scope (unchanged in this spec):**
+
+- `shared/crypto/secretstream.ts` stays for LAN / pairing / rendezvous callers: `mobile/src/transport/lan-ws.transport.ts`, `electron/mobile-bridge/ws-server.ts`, `electron/mobile-bridge/pairing-fsm.ts`, `electron/mobile-bridge/rendezvous-client.ts`, `mobile/App.tsx`. Migrating those is a follow-up.
 - Mark the two superseded spec docs at the top.
 
 **Out of scope:**
