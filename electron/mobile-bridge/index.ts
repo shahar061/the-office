@@ -1,7 +1,7 @@
 import type { AgentEvent, AgentWaitingPayload, ArchivedRun, ChatMessage, MobileMessageV2, PairedDevice, SessionStatePatch, CharacterState } from '../../shared/types';
 import { RELAY_URL } from '../../shared/types';
 import { DeviceStore, type SettingsStoreLike } from './device-store';
-import { SnapshotBuilder } from './snapshot-builder';
+import { SnapshotBuilder, type Scope } from './snapshot-builder';
 import { EventForwarder } from './event-forwarder';
 import { WsServer } from './ws-server';
 import { getOrCreateIdentity } from './identity';
@@ -46,6 +46,9 @@ export interface MobileBridge {
   onCharStates(states: CharacterState[]): void;
   onChange(handler: () => void): () => void;
   onPhoneChat(handler: (msg: { body: string; agentId?: string; fromDeviceId: string; clientMsgId: string }) => void | Promise<void>): () => void;
+  onSessionScopeChanged(scope: Scope): void;
+  /** Test-only: exposes the builder's current snapshot for assertions. */
+  __getSnapshotForTests(): import('../../shared/types').SessionSnapshot;
 }
 
 export interface MobileBridgeOptions {
@@ -206,6 +209,9 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
       await server.stop();
     },
     async getPairingQR() {
+      if (!snapshots.isActive()) {
+        throw new Error('Open a project first to pair a phone');
+      }
       stopRendezvous();
       // Clear any stale SAS from a prior attempt before spawning the new client —
       // belt-and-suspenders for the renderer race, and covers the case where an
@@ -338,6 +344,18 @@ export function createMobileBridge(opts: MobileBridgeOptions): MobileBridge {
     onPhoneChat(handler) {
       phoneChatHandlers.add(handler);
       return () => { phoneChatHandlers.delete(handler); };
+    },
+    onSessionScopeChanged(scope) {
+      snapshots.setScope(scope);
+      const snap = snapshots.getSnapshot();
+      // broadcastToAuthenticated already fans out to relay via onBroadcastToRelay,
+      // so no manual relay loop is needed here (contrast onCharStates which uses
+      // broadcastCharState that does NOT fan out to relay).
+      server.broadcastToAuthenticated({ type: 'snapshot', v: 2, snapshot: snap });
+      notifyChange();
+    },
+    __getSnapshotForTests() {
+      return snapshots.getSnapshot();
     },
   };
 }
