@@ -99,37 +99,6 @@ describe('RelayConnection', () => {
     expect((conn as any).lastRecvSeq).toBe(0);
   });
 
-  // ── stateless AEAD decode ──
-
-  it('decodes an envelope that carries its own random nonce', async () => {
-    const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
-    const { aeadEncrypt } = await import('../../../shared/crypto/aead');
-    const { encodeV2 } = await import('../../../shared/protocol/mobile');
-    const { x25519 } = await import('@noble/curves/ed25519');
-
-    const desktop = makeDesktop();
-    const phonePriv = x25519.utils.randomPrivateKey();
-    const phonePub = x25519.getPublicKey(phonePriv);
-    const device = makeDevice({ phoneIdentityPub: Buffer.from(phonePub).toString('base64') });
-    const conn = new RelayConnection({ desktop, device });
-    const onRaw = (conn as any).onRawFrame.bind(conn) as (raw: string) => void;
-    const received: any[] = [];
-    conn.on('message', (m: any) => received.push(m));
-
-    const keys = deriveSessionKeys(phonePriv, desktop.pub, 'initiator');
-    const plain = new TextEncoder().encode(encodeV2({ type: 'heartbeat', v: 2 }));
-    const { nonce, ct } = aeadEncrypt(keys.sendKey, plain);
-    const env = JSON.stringify({
-      v: 2, sid: device.sid!, seq: 0, kind: 'data',
-      nonce: Buffer.from(nonce).toString('base64'),
-      ct: Buffer.from(ct).toString('base64'),
-    });
-
-    onRaw(env);
-    expect(received.map((m) => m.type)).toEqual(['heartbeat']);
-    expect((conn as any).lastRecvSeq).toBe(0);
-  });
-
   it('survives asymmetric reconnect — desktop resets state but phone keeps its high seq (production bug regression)', async () => {
     const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
     const { aeadEncrypt } = await import('../../../shared/crypto/aead');

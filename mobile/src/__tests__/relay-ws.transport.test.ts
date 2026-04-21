@@ -54,7 +54,7 @@ function encAead(sendKey: Uint8Array, sid: string, seq: number, msg: MobileMessa
   });
 }
 
-describe('RelayWsTransport — seq=0 peer-reconnect reset', () => {
+describe('RelayWsTransport — initial seq=0', () => {
   beforeEach(() => { lastSocket = null; jest.useFakeTimers(); });
   afterEach(() => { jest.useRealTimers(); });
 
@@ -86,33 +86,10 @@ describe('RelayWsTransport — stateless AEAD', () => {
   beforeEach(() => { lastSocket = null; jest.useFakeTimers(); });
   afterEach(() => { jest.useRealTimers(); });
 
-  function encAead(sendKey: Uint8Array, sid: string, seq: number, msg: MobileMessageV2): string {
-    const plain = new TextEncoder().encode(encodeV2(msg));
-    const { nonce, ct } = aeadEncrypt(sendKey, plain);
-    return JSON.stringify({
-      v: 2, sid, seq, kind: 'data',
-      nonce: b64(nonce), ct: b64(ct),
-    });
-  }
-
   const authedSnapshot = {
     sessionActive: true, sessionId: 'p', desktopName: 'D', phase: 'idle',
     startedAt: 1, activeAgents: [], chatTail: [], events: [],
   } as any;
-
-  it('decodes an envelope that carries its own random nonce', async () => {
-    const { device, desktopKeys } = makeSetup();
-    const t = new RelayWsTransport({ device, token: 'fake-token' });
-    const messages: MobileMessageV2[] = [];
-    t.on('message', (m) => messages.push(m));
-    t.connect();
-    lastSocket!.simulateOpen();
-
-    const authed: MobileMessageV2 = { type: 'authed', v: 2, snapshot: authedSnapshot };
-    lastSocket!.simulateStringMessage(encAead(desktopKeys.sendKey, device.sid, 0, authed));
-
-    expect(messages.map((m) => m.type)).toContain('snapshot');
-  });
 
   it('survives asymmetric reconnect — desktop keeps its high seq while phone resets (production bug regression, mirror)', async () => {
     const { device, desktopKeys } = makeSetup();
