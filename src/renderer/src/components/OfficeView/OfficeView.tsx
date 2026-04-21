@@ -21,7 +21,7 @@ import { SplitLayout } from '../SplitLayout/PaneRenderer';
 import { useLayoutStore } from '../../stores/layout.store';
 import { findLeafByPanelId } from '../SplitLayout/layout-utils';
 import { useCharStream } from '../../hooks/useCharStream';
-import { useMobileBridgeStore } from '../../stores/mobile-bridge.store';
+import { useMobileBridgeStore, selectMobileConnectedCount } from '../../stores/mobile-bridge.store';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ export default function OfficeView() {
   useEffect(() => { sceneRef.current = officeScene; }, [officeScene]);
 
   const mobileConnectedCount = useMobileBridgeStore(
-    (s) => s.status?.connectedDevices ?? 0,
+    (s) => selectMobileConnectedCount(s.status),
   );
   useCharStream(sceneRef, mobileConnectedCount);
 

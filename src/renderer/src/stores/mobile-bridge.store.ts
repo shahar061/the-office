@@ -19,6 +19,19 @@ interface MobileStatus {
   }>;
 }
 
+/**
+ * Number of paired mobile devices currently connected via any transport
+ * (LAN or relay). `status.connectedDevices` is LAN-only (it comes from
+ * `server.getConnectedCount()` in the main process), so using it would
+ * miss Remote-only phones and block the desktop's 10 Hz char-state
+ * broadcast that drives sprite rendering on mobile. This helper derives
+ * the full count from the per-device `mode` field which already reflects
+ * both transports.
+ */
+export function selectMobileConnectedCount(status: MobileStatus | null): number {
+  return (status?.devices ?? []).filter((d) => d.mode !== 'offline').length;
+}
+
 interface MobileBridgeState {
   status: MobileStatus | null;
   devices: PairedDevice[];
