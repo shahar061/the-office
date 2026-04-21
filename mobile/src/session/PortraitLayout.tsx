@@ -115,18 +115,16 @@ export const PortraitComposer = forwardRef<PortraitComposerHandle, ComposerProps
       </View>
     );
 
-    // iOS: pad the bottom by the keyboard height. Android: rely on
-    // `softwareKeyboardLayoutMode: "resize"` from app.json (the OS resizes
-    // the window, so the flex layout in SessionScreen shrinks the canvas
-    // and keeps the composer just above the keyboard).
-    if (Platform.OS === 'ios') {
-      return (
-        <KeyboardAvoidingView behavior="padding">
-          {composer}
-        </KeyboardAvoidingView>
-      );
-    }
-    return composer;
+    // Wrap both platforms. iOS uses `padding` (the classic recipe).
+    // Android 15+ enforces edge-to-edge display, which breaks the old
+    // `windowSoftInputMode="adjustResize"` assumption — the flex layout
+    // no longer shrinks on keyboard show. `behavior="height"` asks RN
+    // to resize the wrapper itself so the composer stays visible.
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        {composer}
+      </KeyboardAvoidingView>
+    );
   },
 );
 

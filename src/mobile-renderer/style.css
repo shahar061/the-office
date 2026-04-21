@@ -77,7 +77,11 @@ html, body, #root {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   height: 100%;
-  padding: 12px 16px;
+  /* Top padding includes the RN-injected safe-area inset so the first
+     message sits below the status bar / notch on both iOS and Android.
+     Bottom includes safe-area for the home-indicator area. */
+  padding: calc(var(--rn-safe-top, 0px) + 12px) 16px
+           calc(var(--rn-safe-bottom, 0px) + 12px) 16px;
   box-sizing: border-box;
 }
 

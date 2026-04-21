@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSessionStore } from '../types/shared';
 import type { MobileMessage } from '../types/shared';
 
@@ -13,6 +14,7 @@ interface Props {
 export function WebViewHost({ style, onPhoneAnswer }: Props) {
   const webViewRef = useRef<WebView>(null);
   const [assetUri, setAssetUri] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   // Load the bundled HTML asset once
   useEffect(() => {
@@ -40,8 +42,23 @@ export function WebViewHost({ style, onPhoneAnswer }: Props) {
       return;
     }
     console.log('[WebViewHost] ready → replaying snapshot + subscribing');
+    // Use injectJavaScript rather than webViewRef.postMessage because the
+    // latter is silently dropped on Android + new architecture in
+    // react-native-webview 13.15. Dispatching a synthetic `message` event
+    // is the documented workaround — bridge.ts already listens for it.
     const post = (msg: MobileMessage) => {
-      webViewRef.current?.postMessage(JSON.stringify(msg));
+      const json = JSON.stringify(msg);
+      // Escape for embedding in a JS string literal.
+      const escaped = json
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029');
+      webViewRef.current?.injectJavaScript(
+        `window.dispatchEvent(new MessageEvent('message', { data: '${escaped}' })); true;`,
+      );
     };
     const current = useSessionStore.getState().snapshot;
     console.log('[WebViewHost] replay snapshot?', !!current, current ? `chars=${current.characters.length}` : '');
@@ -82,6 +99,27 @@ export function WebViewHost({ style, onPhoneAnswer }: Props) {
     });
     return unsub;
   }, [ready]);
+
+  // Push RN-side safe-area insets into the WebView as CSS custom properties.
+  // iOS picks these up natively via `env(safe-area-inset-*)` with
+  // `viewport-fit=cover` in the HTML, but Android's WebView doesn't
+  // propagate insets — we set `--rn-safe-*` from RN for uniform behaviour.
+  // Chat CSS uses these vars for top/bottom padding so messages sit below
+  // the status bar / notch and above the home-indicator.
+  useEffect(() => {
+    if (!ready) return;
+    const script = `
+      (function() {
+        const root = document.documentElement;
+        root.style.setProperty('--rn-safe-top', '${insets.top}px');
+        root.style.setProperty('--rn-safe-right', '${insets.right}px');
+        root.style.setProperty('--rn-safe-bottom', '${insets.bottom}px');
+        root.style.setProperty('--rn-safe-left', '${insets.left}px');
+      })();
+      true;
+    `;
+    webViewRef.current?.injectJavaScript(script);
+  }, [ready, insets.top, insets.right, insets.bottom, insets.left]);
 
   return (
     <WebView
