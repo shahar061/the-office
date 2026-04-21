@@ -69,4 +69,87 @@ describe('RelayConnection', () => {
     const conn = new RelayConnection({ desktop, device });
     expect(conn.getDeviceId()).toBe('d1');
   });
+
+  // ── seq=0 peer-reconnect reset ──
+
+  it('resets streams on envelope seq=0 after active session (peer reconnected)', async () => {
+    const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
+    const { SendStream, RecvStream } = await import('../../../shared/crypto/secretstream');
+    const { encodeV2 } = await import('../../../shared/protocol/mobile');
+    const { x25519 } = await import('@noble/curves/ed25519');
+
+    const desktop = makeDesktop();
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const device = makeDevice({
+      phoneIdentityPub: Buffer.from(phonePub).toString('base64'),
+    });
+    const conn = new RelayConnection({ desktop, device });
+    const onRaw = (conn as any).onRawFrame.bind(conn) as (raw: string) => void;
+    const received: string[] = [];
+    conn.on('message', (m: any) => received.push(m.type));
+
+    // Phone-side SendStream keyed to match desktop's recv (desktop uses
+    // role='responder', so phone uses 'initiator' for the counterpart).
+    function makePhoneSend() {
+      const keys = deriveSessionKeys(phonePriv, desktop.pub, 'initiator');
+      return new SendStream(keys.sendKey);
+    }
+    let phoneSend = makePhoneSend();
+
+    function encFrame(seq: number, msg: any): string {
+      const plain = new TextEncoder().encode(encodeV2(msg));
+      const ct = phoneSend.encrypt(plain);
+      return JSON.stringify({
+        v: 2, sid: device.sid!, seq, kind: 'data',
+        ct: Buffer.from(ct).toString('base64'),
+      });
+    }
+
+    // Frames 0 and 1 from the original session
+    onRaw(encFrame(0, { type: 'heartbeat', v: 2 }));
+    onRaw(encFrame(1, { type: 'heartbeat', v: 2 }));
+    expect(received).toEqual(['heartbeat', 'heartbeat']);
+    expect((conn as any).lastRecvSeq).toBe(1);
+
+    // Simulate peer reconnect — fresh SendStream on the phone side,
+    // send seq=0 again. Desktop should reset and decode the new frame.
+    phoneSend = makePhoneSend();
+    onRaw(encFrame(0, { type: 'heartbeat', v: 2 }));
+
+    expect(received).toEqual(['heartbeat', 'heartbeat', 'heartbeat']);
+    expect((conn as any).lastRecvSeq).toBe(0);
+  });
+
+  it('does not reset on initial seq=0 (fresh session, lastRecvSeq=-1)', async () => {
+    const { deriveSessionKeys } = await import('../../../shared/crypto/noise');
+    const { SendStream } = await import('../../../shared/crypto/secretstream');
+    const { encodeV2 } = await import('../../../shared/protocol/mobile');
+    const { x25519 } = await import('@noble/curves/ed25519');
+
+    const desktop = makeDesktop();
+    const phonePriv = x25519.utils.randomPrivateKey();
+    const phonePub = x25519.getPublicKey(phonePriv);
+    const device = makeDevice({ phoneIdentityPub: Buffer.from(phonePub).toString('base64') });
+    const conn = new RelayConnection({ desktop, device });
+    const onRaw = (conn as any).onRawFrame.bind(conn) as (raw: string) => void;
+    const received: string[] = [];
+    conn.on('message', (m: any) => received.push(m.type));
+
+    const keys = deriveSessionKeys(phonePriv, desktop.pub, 'initiator');
+    const sendStream = new SendStream(keys.sendKey);
+
+    const plain = new TextEncoder().encode(encodeV2({ type: 'heartbeat', v: 2 }));
+    const ct = sendStream.encrypt(plain);
+    const env = JSON.stringify({
+      v: 2, sid: device.sid!, seq: 0, kind: 'data',
+      ct: Buffer.from(ct).toString('base64'),
+    });
+
+    // Initial frame at seq=0, lastRecvSeq is still -1 → no reset should fire
+    // and the frame should decrypt under the constructor-initialized stream.
+    onRaw(env);
+    expect(received).toEqual(['heartbeat']);
+    expect((conn as any).lastRecvSeq).toBe(0);
+  });
 });

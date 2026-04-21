@@ -120,6 +120,14 @@ export class RelayConnection extends EventEmitter {
     if (!env || typeof env !== 'object') return;
     const e = env as Partial<RelayEnvelope>;
     if (e.v !== 2 || e.sid !== this.sid || typeof e.seq !== 'number' || typeof e.ct !== 'string') return;
+
+    // Peer-reconnect signal: seq=0 after we've already received non-negative
+    // seqs means the peer's WS dropped and reconnected, so its send stream
+    // is fresh. Reset our streams in lockstep before attempting to decrypt.
+    if (e.seq === 0 && this.lastRecvSeq >= 0) {
+      this.resetStreams();
+    }
+
     if (e.seq <= this.lastRecvSeq) return; // replay / out-of-order
     this.lastRecvSeq = e.seq;
     try {
