@@ -10,6 +10,7 @@ import type {
   AskQuestion,
   ChatMessage,
   Phase,
+  PhaseHistory,
   SessionStats,
 } from '../../shared/types';
 import { ArtifactStore } from '../project/artifact-store';
@@ -334,6 +335,11 @@ export function refreshMobileArchivedRuns(resetTail: boolean): void {
   }
   const runs = chatHistoryStore.computeArchivedRuns(currentChatPhase);
   mobileBridge.onArchivedRuns(runs, resetTail);
+}
+
+export function getPhaseHistoryForMobile(phase: Phase): PhaseHistory[] {
+  if (!chatHistoryStore) return [];
+  return chatHistoryStore.getPhaseHistory(phase);
 }
 
 // ── Waiting-state persistence ──
