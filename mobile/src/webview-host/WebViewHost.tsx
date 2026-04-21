@@ -9,9 +9,12 @@ import type { MobileMessage } from '../types/shared';
 interface Props {
   style?: any;
   onPhoneAnswer: (body: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Fired whenever the webview tells the shell which tab is active.
+   *  Used by SessionScreen to gate the expand-to-landscape button. */
+  onActiveTabChange?: (tab: 'chat' | 'office') => void;
 }
 
-export function WebViewHost({ style, onPhoneAnswer }: Props) {
+export function WebViewHost({ style, onPhoneAnswer, onActiveTabChange }: Props) {
   const webViewRef = useRef<WebView>(null);
   const [assetUri, setAssetUri] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -173,6 +176,10 @@ export function WebViewHost({ style, onPhoneAnswer }: Props) {
             void onPhoneAnswer(data.body).then((result) => {
               if (!result.ok) console.warn('[WebViewHost] sendChat failed', result.error);
             });
+            return;
+          }
+          if (data?.type === 'activeTab' && (data.tab === 'chat' || data.tab === 'office')) {
+            onActiveTabChange?.(data.tab);
             return;
           }
         } catch { /* ignore non-JSON */ }
