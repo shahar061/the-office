@@ -1,13 +1,15 @@
 // electron/mobile-bridge/relay-connection.ts
-// One per remoteAllowed device. Wraps a RelayClient with encryption +
-// envelope serialization. Owns its own SendStream/RecvStream and seq counter.
+// One per remoteAllowed device. Wraps a RelayClient with stateless AEAD +
+// envelope serialization. Holds long-lived session keys and a per-connection
+// seq counter. No stream-cipher state: every envelope carries its own random
+// 12-byte nonce.
 
 import { EventEmitter } from 'events';
 import type { MobileMessageV2, PairedDevice, Phase, PhaseHistory, RelayEnvelope } from '../../shared/types';
 import { RELAY_URL } from '../../shared/types';
 import { encodeV2, decodeV2 } from '../../shared/protocol/mobile';
 import { deriveSessionKeys } from '../../shared/crypto/noise';
-import { SendStream, RecvStream } from '../../shared/crypto/secretstream';
+import { aeadEncrypt, aeadDecrypt } from '../../shared/crypto/aead';
 import { RelayClient } from './relay-client';
 import { mintToken } from './token-minter';
 import type { Identity } from './identity';
@@ -18,15 +20,13 @@ function b64decode(s: string): Uint8Array {
 
 export class RelayConnection extends EventEmitter {
   private client: RelayClient;
-  private send!: SendStream;
-  private recv!: RecvStream;
+  private readonly sendKey: Uint8Array;
+  private readonly recvKey: Uint8Array;
   private seq = 0;
   private lastRecvSeq = -1;
   private readonly sid: string;
   private readonly deviceId: string;
   private readonly pairSignPriv: Uint8Array;
-  private readonly desktopPriv: Uint8Array;
-  private readonly phonePub: Uint8Array;
   private readonly epoch: number;
   private phaseHistoryHandler: ((phase: Phase) => PhaseHistory[] | Promise<PhaseHistory[]>) | null = null;
 
@@ -49,9 +49,11 @@ export class RelayConnection extends EventEmitter {
     this.pairSignPriv = b64decode(opts.device.pairSignPriv);
     this.epoch = opts.device.epoch ?? 1;
 
-    this.desktopPriv = opts.desktop.priv;
-    this.phonePub = b64decode(opts.device.phoneIdentityPub);
-    this.resetStreams();
+    const desktopPriv = opts.desktop.priv;
+    const phonePub = b64decode(opts.device.phoneIdentityPub);
+    const keys = deriveSessionKeys(desktopPriv, phonePub, 'responder');
+    this.sendKey = keys.sendKey;
+    this.recvKey = keys.recvKey;
 
     this.client = new RelayClient({
       url: RELAY_URL,
@@ -66,27 +68,18 @@ export class RelayConnection extends EventEmitter {
       pairSignPub: b64decode(opts.device.pairSignPub),
     });
 
-    // Recreate encryption state on every WS (re)connection. The phone also
-    // resets its streams on each connect, so without matching resets here the
-    // nonces drift apart after the first WS drop and every subsequent frame
-    // fails to decrypt silently.
-    this.client.on('connect', () => { this.resetStreams(); this.emit('connect'); });
+    // On every WS (re)connect, reset our per-connection counters. The worker
+    // resets lastSeq[desktop] = -1 on accepting a new WS, so our seq must
+    // start at 0 to satisfy the anti-regression gate. Crypto state has no
+    // counters anymore — nothing else to reset.
+    this.client.on('connect', () => {
+      this.seq = 0;
+      this.lastRecvSeq = -1;
+      this.emit('connect');
+    });
     this.client.on('disconnect', () => this.emit('disconnect'));
     this.client.on('error', (err: Error) => this.emit('error', err));
     this.client.on('message', (raw: string) => this.onRawFrame(raw));
-  }
-
-  private resetStreams(): void {
-    this.resetCryptoStreams();
-    this.seq = 0;
-    this.lastRecvSeq = -1;
-  }
-
-  private resetCryptoStreams(): void {
-    const keys = deriveSessionKeys(this.desktopPriv, this.phonePub, 'responder');
-    this.send = new SendStream(keys.sendKey);
-    this.recv = new RecvStream(keys.recvKey);
-    this.lastRecvSeq = -1;
   }
 
   start(): void {
@@ -105,12 +98,13 @@ export class RelayConnection extends EventEmitter {
   sendMessage(msg: MobileMessageV2, kind: 'data' | 'ctrl' = 'data'): void {
     if (!this.client.isConnected()) return;
     const plain = new TextEncoder().encode(encodeV2(msg));
-    const ct = this.send.encrypt(plain);
+    const { nonce, ct } = aeadEncrypt(this.sendKey, plain);
     const envelope: RelayEnvelope = {
       v: 2,
       sid: this.sid,
       seq: this.seq++,
       kind,
+      nonce: Buffer.from(nonce).toString('base64'),
       ct: Buffer.from(ct).toString('base64'),
     };
     this.client.send(JSON.stringify(envelope));
@@ -129,20 +123,17 @@ export class RelayConnection extends EventEmitter {
     }
     if (!env || typeof env !== 'object') return;
     const e = env as Partial<RelayEnvelope>;
-    if (e.v !== 2 || e.sid !== this.sid || typeof e.seq !== 'number' || typeof e.ct !== 'string') return;
-
-    // Peer-reconnect signal: seq=0 after we've already received non-negative
-    // seqs means the peer's WS dropped and reconnected, so its send stream
-    // is fresh. Reset our streams in lockstep before attempting to decrypt.
-    if (e.seq === 0 && this.lastRecvSeq >= 0) {
-      this.resetCryptoStreams();
-    }
+    if (e.v !== 2 || e.sid !== this.sid
+        || typeof e.seq !== 'number' || typeof e.ct !== 'string'
+        || typeof e.nonce !== 'string') return;
 
     if (e.seq <= this.lastRecvSeq) return; // replay / out-of-order
     this.lastRecvSeq = e.seq;
+
     try {
+      const nonce = new Uint8Array(Buffer.from(e.nonce, 'base64'));
       const ct = new Uint8Array(Buffer.from(e.ct, 'base64'));
-      const plain = this.recv.decrypt(ct);
+      const plain = aeadDecrypt(this.recvKey, nonce, ct);
       const msg = decodeV2(new TextDecoder().decode(plain));
       if (msg) {
         this.emit('message', msg, this.deviceId);

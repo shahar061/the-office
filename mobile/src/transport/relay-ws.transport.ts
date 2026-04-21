@@ -1,12 +1,14 @@
 // mobile/src/transport/relay-ws.transport.ts
 // Remote-access transport — connects via the Cloudflare Worker relay.
-// Frames on the wire are RelayEnvelope JSON; inner ct is crypto_secretstream-encrypted.
+// Frames on the wire are RelayEnvelope JSON. Encryption is stateless AEAD
+// (ChaCha20-Poly1305 with a random 96-bit nonce per envelope); no counter
+// state, no sliding window, no reset-on-reconnect dance.
 
 import type { MobileMessageV2, SessionSnapshot, RelayEnvelope } from '@shared/types';
 import { RELAY_URL } from '@shared/types';
 import { decodeV2, encodeV2 } from '@shared/protocol/mobile';
 import { deriveSessionKeys } from '@shared/crypto/noise';
-import { SendStream, RecvStream } from '@shared/crypto/secretstream';
+import { aeadEncrypt, aeadDecrypt } from '@shared/crypto/aead';
 import type { Transport, TransportStatus, TransportEventMap } from './transport.interface';
 
 interface Device {
@@ -58,22 +60,30 @@ export class RelayWsTransport implements Transport {
   private lastServerHeartbeat = 0;
   private shouldReconnect = true;
   private fatalReason: string | null = null;
-  private sendStream: SendStream | null = null;
-  private recvStream: RecvStream | null = null;
+  private readonly sendKey: Uint8Array;
+  private readonly recvKey: Uint8Array;
   private seq = 0;
   private lastRecvSeq = -1;
 
-  constructor(private readonly opts: Options) {}
+  constructor(private readonly opts: Options) {
+    const priv = b64decode(opts.device.identityPriv);
+    const desktopPub = b64decode(opts.device.desktopIdentityPub);
+    const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
+    this.sendKey = keys.sendKey;
+    this.recvKey = keys.recvKey;
+  }
 
   connect(): void {
     if (this.fatalReason) return;
     this.clearReconnect();
-    this.resetAllOnConnect();
+    // Reset per-connection counters. The worker resets lastSeq[phone] = -1
+    // on accepting a new WS, so our seq must start at 0 to satisfy the
+    // anti-regression gate. No crypto state to reset — nonces are stateless.
+    this.seq = 0;
+    this.lastRecvSeq = -1;
     this.emitStatus({ state: 'connecting' });
 
     try {
-      // Phone uses the subprotocol to carry the auth token (RN WebSocket won't
-      // send arbitrary Authorization headers).
       const protocol = `token.${this.opts.token}`;
       const wsUrl = `${RELAY_URL}/s/${this.opts.device.sid}`;
       console.log('[relay-ws] opening', wsUrl);
@@ -131,30 +141,6 @@ export class RelayWsTransport implements Transport {
     return () => { this.listeners[event].delete(handler as any); };
   }
 
-  // Full reset — keys, streams, and BOTH seq counters. Called from connect(),
-  // i.e. when our own WS is (re)opening. Zeroing `this.seq` is safe here
-  // because the Cloudflare worker treats a brand-new WS as a brand-new
-  // `lastSeq[us]` baseline.
-  private resetAllOnConnect(): void {
-    this.resetCryptoOnly();
-    this.seq = 0;
-  }
-
-  // Crypto-only reset — derive a fresh pair of secretstream states and zero
-  // `lastRecvSeq`, but DO NOT touch `this.seq`. Called from the handleRaw
-  // peer-reconnect branch: the desktop's WS flapped, so its SendStream is
-  // fresh, but ours didn't drop — the worker still holds our prior
-  // `lastSeq[us]`, so zeroing our outgoing seq would trip the anti-regression
-  // gate (close 1008 `seqRegression`).
-  private resetCryptoOnly(): void {
-    const priv = b64decode(this.opts.device.identityPriv);
-    const desktopPub = b64decode(this.opts.device.desktopIdentityPub);
-    const keys = deriveSessionKeys(priv, desktopPub, 'initiator');
-    this.sendStream = new SendStream(keys.sendKey);
-    this.recvStream = new RecvStream(keys.recvKey);
-    this.lastRecvSeq = -1;
-  }
-
   private emitStatus(s: TransportStatus) {
     for (const h of this.listeners.status) (h as (s: TransportStatus) => void)(s);
   }
@@ -164,15 +150,16 @@ export class RelayWsTransport implements Transport {
   }
 
   private sendEnvelopedEncrypted(msg: MobileMessageV2, kind: 'data' | 'ctrl' = 'data'): void {
-    if (!this.ws || this.ws.readyState !== 1 || !this.sendStream) return;
+    if (!this.ws || this.ws.readyState !== 1) return;
     try {
       const plain = new TextEncoder().encode(encodeV2(msg));
-      const ct = this.sendStream.encrypt(plain);
+      const { nonce, ct } = aeadEncrypt(this.sendKey, plain);
       const env: RelayEnvelope = {
         v: 2,
         sid: this.opts.device.sid,
         seq: this.seq++,
         kind,
+        nonce: b64encode(nonce),
         ct: b64encode(ct),
       };
       this.ws.send(JSON.stringify(env));
@@ -180,7 +167,6 @@ export class RelayWsTransport implements Transport {
   }
 
   private async handleRaw(data: unknown): Promise<void> {
-    if (!this.recvStream) return;
     let text: string;
     try {
       if (typeof data === 'string') text = data;
@@ -194,23 +180,17 @@ export class RelayWsTransport implements Transport {
     let env: any;
     try { env = JSON.parse(text); } catch { return; }
     if (env?.v !== 2 || env.sid !== this.opts.device.sid
-        || typeof env.seq !== 'number' || typeof env.ct !== 'string') return;
-    // Peer-reconnect signal: seq=0 after we've already received non-negative
-    // seqs means the desktop's WS dropped and reconnected, so its send stream
-    // is fresh. Reset our crypto streams in lockstep — but NOT our outgoing
-    // seq. Our own WS didn't drop, so the Cloudflare worker still tracks
-    // `lastSeq[us]`, and zeroing would trip its anti-regression gate.
-    if (env.seq === 0 && this.lastRecvSeq >= 0) {
-      this.resetCryptoOnly();
-    }
+        || typeof env.seq !== 'number' || typeof env.ct !== 'string'
+        || typeof env.nonce !== 'string') return;
 
     if (env.seq <= this.lastRecvSeq) return; // dedup
     this.lastRecvSeq = env.seq;
 
     let msg: MobileMessageV2 | null;
     try {
+      const nonce = b64decode(env.nonce);
       const ct = b64decode(env.ct);
-      const plain = this.recvStream.decrypt(ct);
+      const plain = aeadDecrypt(this.recvKey, nonce, ct);
       msg = decodeV2(new TextDecoder().decode(plain));
     } catch (err) {
       console.log('[relay-ws] decrypt failed', (err as Error).message);

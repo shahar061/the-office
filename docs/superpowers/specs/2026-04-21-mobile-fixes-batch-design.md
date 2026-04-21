@@ -1,5 +1,7 @@
 # Mobile Fixes Batch — Design
 
+> **Partial supersede (crypto portions only) by `2026-04-21-relay-stateless-nonces-design.md` (2026-04-21).** Fix 1 in this doc (the `resetStreams` / `resetCryptoStreams` split on desktop and `resetAllOnConnect` / `resetCryptoOnly` on phone) has been retired along with the entire counter-based crypto ratchet. Fix 2 (`USER_RESPONSE` Q&A mobile echo) is unrelated and remains in effect.
+
 **Date:** 2026-04-21
 **Status:** Approved for planning
 

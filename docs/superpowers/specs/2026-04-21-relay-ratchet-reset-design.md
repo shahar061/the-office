@@ -1,5 +1,7 @@
 # Relay Ratchet Reset — Design
 
+> **Superseded by `2026-04-21-relay-stateless-nonces-design.md` (2026-04-21).** The `seq=0` peer-reconnect signal and the `SendStream`/`RecvStream` counter-sync protocol described here have been replaced with a stateless AEAD pattern (random nonce per envelope). This document is kept for historical context.
+
 **Date:** 2026-04-21
 **Status:** Approved for planning
 
