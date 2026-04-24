@@ -1,0 +1,49 @@
+# <!-- last-reviewed: 2026-04-24 -->
+tasks:
+  - id: foundation-scaffold
+    description: "Scaffold React Native project with TypeScript template"
+    assignedAgent: mobile-developer
+    phaseId: foundation
+    dependsOn: []
+
+  - id: foundation-sqlite
+    description: "Add SQLite dependency and set up migration runner"
+    assignedAgent: mobile-developer
+    phaseId: foundation
+    dependsOn: [foundation-scaffold]
+
+  - id: foundation-datamodel
+    description: "Define habit and check_ins tables and migration"
+    assignedAgent: mobile-developer
+    phaseId: foundation
+    dependsOn: [foundation-sqlite]
+
+  - id: checkin-home
+    description: "Build home screen with habit name and streak"
+    assignedAgent: frontend-engineer
+    phaseId: checkin
+    dependsOn: [foundation-datamodel]
+
+  - id: checkin-button
+    description: "Check-in button with once-per-day guard"
+    assignedAgent: frontend-engineer
+    phaseId: checkin
+    dependsOn: [checkin-home]
+
+  - id: checkin-streak
+    description: "Compute streak from check_ins table"
+    assignedAgent: backend-engineer
+    phaseId: checkin
+    dependsOn: [checkin-home]
+
+  - id: history-dashboard
+    description: "Monthly grid view of check-ins"
+    assignedAgent: frontend-engineer
+    phaseId: history
+    dependsOn: [checkin-streak]
+
+  - id: settings-panel
+    description: "Rename, reset, reminder time, strict/lenient mode"
+    assignedAgent: frontend-engineer
+    phaseId: history
+    dependsOn: [checkin-button]

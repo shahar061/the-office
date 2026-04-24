@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fx-wr-tl-1",
+    "role": "agent",
+    "agentRole": "team-lead",
+    "text": "Reading the plan. Breaking each milestone into engineer-sized tasks with dependencies.",
+    "timestamp": 1767286800000
+  },
+  {
+    "id": "fx-wr-tl-2",
+    "role": "agent",
+    "agentRole": "team-lead",
+    "text": "Foundation is a straight line: scaffold → sqlite → datamodel. Check-in branches into a home screen + streak compute that run in parallel after the datamodel.",
+    "timestamp": 1767286860000
+  },
+  {
+    "id": "fx-wr-tl-3",
+    "role": "user",
+    "text": "Good. Keep the streak compute on the backend-engineer so frontend can stay focused on UI.",
+    "timestamp": 1767286920000
+  },
+  {
+    "id": "fx-wr-tl-4",
+    "role": "agent",
+    "agentRole": "team-lead",
+    "text": "Assigned. Tasks saved to docs/office/tasks.yaml. War Room phase complete.",
+    "timestamp": 1767286980000
+  }
+]

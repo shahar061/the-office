@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fx-wr-pm-1",
+    "role": "agent",
+    "agentRole": "project-manager",
+    "text": "Picked up the imagine artifacts. Breaking the work into 3 milestones: Foundation, Check-in flow, History & settings.",
+    "timestamp": 1767283200000
+  },
+  {
+    "id": "fx-wr-pm-2",
+    "role": "agent",
+    "agentRole": "project-manager",
+    "text": "Flagging one risk — iOS and Android scheduled notifications diverge. Budgeting a day for platform parity in M3.",
+    "timestamp": 1767283260000
+  },
+  {
+    "id": "fx-wr-pm-3",
+    "role": "user",
+    "text": "Sounds right. Put the notification risk in the plan explicitly.",
+    "timestamp": 1767283320000
+  },
+  {
+    "id": "fx-wr-pm-4",
+    "role": "agent",
+    "agentRole": "project-manager",
+    "text": "Done. Plan saved to docs/office/plan.md. Passing to Team Lead.",
+    "timestamp": 1767283380000
+  }
+]

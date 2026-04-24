@@ -113,3 +113,45 @@ describe('SeedEngine.seed — imagine targets', () => {
     });
   }
 });
+
+describe('SeedEngine.seed — warroom + build targets', () => {
+  let projectDir: string;
+
+  beforeEach(() => {
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dev-jump-seed-wrb-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it('seeds warroom.project-manager with imagine completed', () => {
+    SeedEngine.seed({ target: 'warroom.project-manager', mode: 'real', projectDir, force: true });
+
+    const session = fs.readFileSync(path.join(projectDir, 'docs/office/session.yaml'), 'utf-8');
+    expect(session).toContain('current_phase: "warroom"');
+    expect(session).toContain('completed_phases: ["imagine"]');
+
+    const config = JSON.parse(fs.readFileSync(path.join(projectDir, '.the-office/config.json'), 'utf-8'));
+    expect(config.currentPhase).toBe('warroom');
+    expect(config.completedPhases).toEqual(['imagine']);
+
+    // Prior imagine artifacts present
+    expect(fs.existsSync(path.join(projectDir, 'docs/office/04-system-design.md'))).toBe(true);
+    expect(fs.existsSync(path.join(projectDir, 'docs/office/05-ui-designs/index.md'))).toBe(true);
+
+    // Output not present
+    expect(fs.existsSync(path.join(projectDir, 'docs/office/plan.md'))).toBe(false);
+  });
+
+  it('seeds build.engineering with imagine and warroom completed', () => {
+    SeedEngine.seed({ target: 'build.engineering', mode: 'real', projectDir, force: true });
+
+    const session = fs.readFileSync(path.join(projectDir, 'docs/office/session.yaml'), 'utf-8');
+    expect(session).toContain('current_phase: "build"');
+    expect(session).toContain('completed_phases: ["imagine", "warroom"]');
+
+    expect(fs.existsSync(path.join(projectDir, 'docs/office/plan.md'))).toBe(true);
+    expect(fs.existsSync(path.join(projectDir, 'docs/office/tasks.yaml'))).toBe(true);
+  });
+});
