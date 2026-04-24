@@ -11,9 +11,9 @@ export const AGENT_ROLES = [
 export type AgentRole = (typeof AGENT_ROLES)[number];
 
 export const AGENT_GROUPS = {
-  leadership: ['ceo', 'product-manager', 'market-researcher', 'chief-architect'],
+  leadership: ['ceo', 'product-manager', 'market-researcher', 'chief-architect', 'ui-ux-expert'],
   coordination: ['agent-organizer', 'project-manager', 'team-lead'],
-  engineering: ['backend-engineer', 'frontend-engineer', 'mobile-developer', 'ui-ux-expert', 'data-engineer', 'devops', 'automation-developer'],
+  engineering: ['backend-engineer', 'frontend-engineer', 'mobile-developer', 'data-engineer', 'devops', 'automation-developer'],
 } as const;
 
 export const AGENT_COLORS: Record<AgentRole, string> = {
