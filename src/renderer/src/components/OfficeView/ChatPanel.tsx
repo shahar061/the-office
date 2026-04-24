@@ -400,9 +400,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
 
   const panelStyle = isExpanded ? styles.expandedChatPanel : styles.chatPanel;
   const inputRowStyle = isExpanded ? styles.expandedInputRow : styles.inputRow;
-  const messageListStyle = isExpanded
-    ? { ...styles.messageList, paddingTop: '48px' }
-    : styles.messageList;
+  const messageListStyle = styles.messageList;
 
   const isLive = viewedPhase === null || !projectState || viewedPhase === projectState.currentPhase;
 
