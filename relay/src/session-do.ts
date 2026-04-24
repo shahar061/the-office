@@ -38,10 +38,23 @@ export class SessionDO implements DurableObject {
   // two peers kick each other in a loop and neither stays connected long
   // enough to complete the AUTH handshake.
   private recentKicks: Partial<Record<Role, number>> = {};
+  private hydrated = false;
 
   constructor(private state: DurableObjectState, private env: Env) {}
 
+  private async hydrate(): Promise<void> {
+    if (this.hydrated) return;
+    const [pub, ep] = await Promise.all([
+      this.state.storage.get<Uint8Array>('pairSignPub'),
+      this.state.storage.get<number>('epoch'),
+    ]);
+    if (pub) this.pairSignPub = pub;
+    if (typeof ep === 'number') this.epoch = ep;
+    this.hydrated = true;
+  }
+
   async fetch(req: Request): Promise<Response> {
+    await this.hydrate();
     const url = new URL(req.url);
     const parts = url.pathname.split('/'); // ["", "s", sid, maybe-"revoke"]
     const sid = parts[2];
@@ -81,6 +94,8 @@ export class SessionDO implements DurableObject {
       this.pairSignPub = pub;
       this.cachedSid = sid;
       role = 'desktop';
+      await this.state.storage.put('pairSignPub', pub);
+      await this.state.storage.put('epoch', this.epoch);
     } else {
       const claims = verifyToken(this.pairSignPub, token, { sid, currentEpoch: this.epoch });
       if (!claims) return new Response('unauthorized', { status: 401 });
@@ -208,6 +223,7 @@ export class SessionDO implements DurableObject {
     const claims = verifyToken(this.pairSignPub, token, { sid, currentEpoch: this.epoch });
     if (!claims || claims.role !== 'desktop') return new Response('unauthorized', { status: 401 });
     this.epoch++;
+    await this.state.storage.put('epoch', this.epoch);
     for (const role of Object.keys(this.peers) as Role[]) {
       try { this.peers[role]?.close(1008, 'revoked'); } catch { /* ignore */ }
     }
