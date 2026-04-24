@@ -16,7 +16,8 @@
     "dev:mobile-renderer": "vite --config vite.config.mobile.ts",
     "build:mobile-renderer": "vite build --config vite.config.mobile.ts",
     "copy:webview": "tsx scripts/copy-webview-bundle.ts",
-    "build:mobile-all": "npm run build:mobile-renderer && npm run copy:webview"
+    "build:mobile-all": "npm run build:mobile-renderer && npm run copy:webview",
+    "dev:jump": "tsx dev-jump/cli/dev-jump.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "1.6",
+    "commander": "^12.1.0",
     "electron": "^41.0.2",
     "electron-vite": "^5.0.0",
     "jsdom": "^21.1.2",

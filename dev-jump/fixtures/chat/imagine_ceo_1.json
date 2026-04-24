@@ -1,0 +1,35 @@
+[
+  {
+    "id": "fx-ceo-1",
+    "role": "user",
+    "text": "I want to build a habit tracking app — but really simple, just one habit.",
+    "timestamp": 1767261600000
+  },
+  {
+    "id": "fx-ceo-2",
+    "role": "agent",
+    "agentRole": "ceo",
+    "text": "Love the simplicity angle. What's the main pain that existing apps don't solve for you?",
+    "timestamp": 1767261660000
+  },
+  {
+    "id": "fx-ceo-3",
+    "role": "user",
+    "text": "They give you too many habits to track and I get overwhelmed after two days.",
+    "timestamp": 1767261720000
+  },
+  {
+    "id": "fx-ceo-4",
+    "role": "agent",
+    "agentRole": "ceo",
+    "text": "Got it — the constraint is the feature. I'll capture that as the core vision: one habit, big streak counter, nothing else. Writing the vision brief now.",
+    "timestamp": 1767261780000
+  },
+  {
+    "id": "fx-ceo-5",
+    "role": "agent",
+    "agentRole": "ceo",
+    "text": "Vision brief saved to docs/office/01-vision-brief.md. Passing to Product Manager.",
+    "timestamp": 1767261840000
+  }
+]

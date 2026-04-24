@@ -1,0 +1,36 @@
+[
+  {
+    "id": "fx-mr-1",
+    "role": "agent",
+    "agentRole": "market-researcher",
+    "text": "Starting market analysis. Reviewing the vision brief and PRD — the single-habit constraint is a meaningful differentiator from Habitica, Streaks, and Notion-based approaches.",
+    "timestamp": 1767268800000
+  },
+  {
+    "id": "fx-mr-2",
+    "role": "agent",
+    "agentRole": "market-researcher",
+    "text": "Found a handful of habit-simplicity apps but none commit as hard as yours. Streaks (Crunchy Bagel) is closest but still supports multiple habits and is iOS-only and paid.",
+    "timestamp": 1767268860000
+  },
+  {
+    "id": "fx-mr-3",
+    "role": "user",
+    "text": "Good. Any sign people actually want this constraint, or is it just our bet?",
+    "timestamp": 1767268920000
+  },
+  {
+    "id": "fx-mr-4",
+    "role": "agent",
+    "agentRole": "market-researcher",
+    "text": "App Store reviews on multi-habit apps frequently mention overwhelm and abandonment. That's indirect validation. Hard validation would need a landing-page waitlist test before launch.",
+    "timestamp": 1767268980000
+  },
+  {
+    "id": "fx-mr-5",
+    "role": "agent",
+    "agentRole": "market-researcher",
+    "text": "Market analysis saved to docs/office/03-market-analysis.md. Passing to UI/UX Expert.",
+    "timestamp": 1767269040000
+  }
+]

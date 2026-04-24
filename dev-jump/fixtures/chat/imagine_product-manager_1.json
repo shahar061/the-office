@@ -1,0 +1,42 @@
+[
+  {
+    "id": "fx-pm-1",
+    "role": "agent",
+    "agentRole": "product-manager",
+    "text": "Read the vision brief. Before I write the PRD, a few questions on flows and edge cases.",
+    "timestamp": 1767265200000
+  },
+  {
+    "id": "fx-pm-2",
+    "role": "agent",
+    "agentRole": "product-manager",
+    "text": "First: what happens when the user misses a day? Strict reset, or a grace day?",
+    "timestamp": 1767265260000
+  },
+  {
+    "id": "fx-pm-3",
+    "role": "user",
+    "text": "Strict by default, but allow a toggle for lenient mode with one grace day per week.",
+    "timestamp": 1767265320000
+  },
+  {
+    "id": "fx-pm-4",
+    "role": "agent",
+    "agentRole": "product-manager",
+    "text": "Good. And check-ins — once per local day, I assume? If the user taps twice, silently ignore or show 'already checked'?",
+    "timestamp": 1767265380000
+  },
+  {
+    "id": "fx-pm-5",
+    "role": "user",
+    "text": "Show 'already checked for today' — don't silently ignore.",
+    "timestamp": 1767265440000
+  },
+  {
+    "id": "fx-pm-6",
+    "role": "agent",
+    "agentRole": "product-manager",
+    "text": "PRD saved to docs/office/02-prd.md. Passing to Market Researcher.",
+    "timestamp": 1767265500000
+  }
+]
