@@ -6,17 +6,12 @@ import { useSessionStore } from '../types/shared';
 
 // Mock the module seam so useSession doesn't build real sockets.
 jest.mock('../transport/create', () => ({ createTransportForDevice: jest.fn() }));
-jest.mock('../state/cache', () => ({
-  loadLastKnown: jest.fn().mockResolvedValue(null),
-  saveLastKnown: jest.fn().mockResolvedValue(undefined),
-}));
 jest.mock('../pairing/secure-store', () => ({
   saveDevice: jest.fn().mockResolvedValue(undefined),
 }));
 
 import { createTransportForDevice } from '../transport/create';
 import { saveDevice } from '../pairing/secure-store';
-import { saveLastKnown } from '../state/cache';
 import { useSession } from '../session/useSession';
 
 type StatusHandler = (s: TransportStatus) => void;
@@ -54,7 +49,6 @@ describe('useSession', () => {
     useSessionStore.setState({ snapshot: null, pendingEvents: [] });
     (createTransportForDevice as jest.Mock).mockReset();
     (saveDevice as jest.Mock).mockReset();
-    (saveLastKnown as jest.Mock).mockReset();
   });
 
   it('builds transport and connects on mount, disconnects on unmount', () => {
@@ -66,14 +60,13 @@ describe('useSession', () => {
     expect(fake.disconnectCalls).toBe(1);
   });
 
-  it('routes snapshot messages to the store and cache', () => {
+  it('routes snapshot messages to the store', () => {
     const fake = makeFakeTransport();
     (createTransportForDevice as jest.Mock).mockReturnValue(fake);
     renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
     const snapshot = { sessionId: 's', desktopName: 'X', phase: 'imagine', startedAt: 1, activeAgentId: null, characters: [], chatTail: [], sessionEnded: false } as any;
     act(() => fake.emitMessage({ type: 'snapshot', v: 2, snapshot }));
     expect(useSessionStore.getState().snapshot).toEqual(snapshot);
-    expect(saveLastKnown).toHaveBeenCalledWith(snapshot);
   });
 
   it('calls onPairingLost on disconnected status with unknownDevice/revoked', () => {
@@ -103,29 +96,25 @@ describe('useSession', () => {
     expect(useSessionStore.getState().pendingEvents[0]).toEqual(event);
   });
 
-  it('chatFeed appends messages and re-saves the snapshot', () => {
+  it('chatFeed appends messages to the snapshot chatTail', () => {
     const fake = makeFakeTransport();
     (createTransportForDevice as jest.Mock).mockReturnValue(fake);
     renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
     const snapshot = { sessionId: 's', desktopName: 'X', phase: 'imagine', startedAt: 1, activeAgentId: null, characters: [], chatTail: [], sessionEnded: false } as any;
     act(() => fake.emitMessage({ type: 'snapshot', v: 2, snapshot }));
-    (saveLastKnown as jest.Mock).mockClear();
     const messages = [{ id: 'm1', role: 'user' as const, text: 'hi', timestamp: Date.now() }];
     act(() => fake.emitMessage({ type: 'chatFeed', v: 2, messages }));
     expect(useSessionStore.getState().snapshot?.chatTail).toHaveLength(1);
-    expect(saveLastKnown).toHaveBeenCalledTimes(1);
   });
 
-  it('state patch updates the snapshot and re-saves it', () => {
+  it('state patch updates the snapshot', () => {
     const fake = makeFakeTransport();
     (createTransportForDevice as jest.Mock).mockReturnValue(fake);
     renderHook(() => useSession({ device, onPairingLost: jest.fn() }));
     const snapshot = { sessionId: 's', desktopName: 'X', phase: 'imagine', startedAt: 1, activeAgentId: null, characters: [], chatTail: [], sessionEnded: false } as any;
     act(() => fake.emitMessage({ type: 'snapshot', v: 2, snapshot }));
-    (saveLastKnown as jest.Mock).mockClear();
     act(() => fake.emitMessage({ type: 'state', v: 2, patch: { kind: 'phase', phase: 'warroom' } }));
     expect(useSessionStore.getState().snapshot?.phase).toBe('warroom');
-    expect(saveLastKnown).toHaveBeenCalledTimes(1);
   });
 
   it('submit resolves ok=true when a matching chatAck arrives', async () => {

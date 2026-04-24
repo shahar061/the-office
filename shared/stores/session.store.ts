@@ -20,7 +20,6 @@ interface SessionState {
   phaseHistoryCache: Partial<Record<Phase, PhaseHistory[]>>;
   lastVisitedAtByPhase: Partial<Record<Phase, number>>;
   setSnapshot: (s: SessionSnapshot) => void;
-  hydrateFromCache: (s: SessionSnapshot) => void;
   appendEvent: (e: AgentEvent) => void;
   drainPendingEvents: () => AgentEvent[];
   appendChat: (messages: ChatMessage[]) => void;
@@ -66,8 +65,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     return { snapshot, pendingEvents: [], viewedPhase };
   }),
-
-  hydrateFromCache: (snapshot) => set({ snapshot }),
 
   appendEvent: (event) => set((state) => ({ pendingEvents: [...state.pendingEvents, event] })),
 

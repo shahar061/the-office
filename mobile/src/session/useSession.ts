@@ -3,7 +3,6 @@ import { createTransportForDevice } from '../transport/create';
 import type { Transport } from '../transport/transport.interface';
 import { useConnectionStore } from '../state/connection.store';
 import { useSessionStore } from '../types/shared';
-import { loadLastKnown, saveLastKnown } from '../state/cache';
 import type { MobileMessageV2 } from '../types/shared';
 import type { Phase, PhaseHistory } from '../types/shared';
 import { saveDevice, type PairedDeviceCredentials } from '../pairing/secure-store';
@@ -50,11 +49,6 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    // Hydrate from cache asynchronously — best effort, doesn't block mount.
-    loadLastKnown().then((last) => {
-      if (last) useSessionStore.getState().hydrateFromCache(last.snapshot);
-    });
-
     const transport = createTransportForDevice(deviceRef.current);
     transportRef.current = transport;
 
@@ -73,7 +67,6 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
       switch (m.type) {
         case 'snapshot':
           store.setSnapshot(m.snapshot);
-          void saveLastKnown(m.snapshot);
           break;
         case 'event':
           store.appendEvent(m.event);
@@ -84,15 +77,10 @@ export function useSession({ device, onPairingLost }: UseSessionOpts): UseSessio
           store.appendChat(m.messages);
           const snap = useSessionStore.getState().snapshot;
           console.log('[useSession] chatFeed after appendChat tailAfter=', snap?.chatTail.length ?? 'n/a');
-          if (snap) void saveLastKnown(snap);
           break;
         }
         case 'state':
           store.applyStatePatch(m.patch);
-          {
-            const snap = useSessionStore.getState().snapshot;
-            if (snap) void saveLastKnown(snap);
-          }
           break;
         case 'chatAck': {
           const pending = pendingAcksRef.current.get(m.clientMsgId);
