@@ -7,10 +7,6 @@ import { useSessionStore } from '../types/shared';
 
 // Prevent real sockets from being created.
 jest.mock('../transport/create', () => ({ createTransportForDevice: jest.fn() }));
-jest.mock('../state/cache', () => ({
-  loadLastKnown: jest.fn().mockResolvedValue(null),
-  saveLastKnown: jest.fn().mockResolvedValue(undefined),
-}));
 jest.mock('../pairing/secure-store', () => ({
   saveDevice: jest.fn().mockResolvedValue(undefined),
 }));

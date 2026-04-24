@@ -77,11 +77,10 @@ html, body, #root {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   height: 100%;
-  /* Top padding includes the RN-injected safe-area inset so the first
-     message sits below the status bar / notch on both iOS and Android.
-     Bottom includes safe-area for the home-indicator area. */
-  padding: calc(var(--rn-safe-top, 0px) + 12px) 16px
-           calc(var(--rn-safe-bottom, 0px) + 12px) 16px;
+  /* PhaseTabs above handles status-bar / notch clearance via its own
+     padding-top: var(--rn-safe-top). Bottom includes safe-area for the
+     home-indicator area. */
+  padding: 12px 16px calc(var(--rn-safe-bottom, 0px) + 12px) 16px;
   box-sizing: border-box;
 }
 
@@ -250,6 +249,7 @@ html, body, #root {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(15, 15, 26, 0.6);
   flex-shrink: 0;
+  padding-top: var(--rn-safe-top, 0px);
 }
 .phase-tab {
   flex: 1;
