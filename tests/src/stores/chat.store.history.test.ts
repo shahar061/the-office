@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useChatStore } from '@/renderer/src/stores/chat.store';
+import { useChatStore } from '@/stores/chat.store';
 import type { PhaseHistory, ChatMessage } from '@shared/types';
 
 function makeMsg(overrides: Partial<ChatMessage> = {}): ChatMessage {
