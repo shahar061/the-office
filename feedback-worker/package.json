@@ -1,0 +1,17 @@
+{
+  "name": "feedback-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply office-feedback --local",
+    "db:migrate:prod": "wrangler d1 migrations apply office-feedback --remote",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240620.0",
+    "vitest": "1.6",
+    "wrangler": "^3.78.0"
+  }
+}

@@ -17,7 +17,11 @@
     "build:mobile-renderer": "vite build --config vite.config.mobile.ts",
     "copy:webview": "tsx scripts/copy-webview-bundle.ts",
     "build:mobile-all": "npm run build:mobile-renderer && npm run copy:webview",
-    "dev:jump": "tsx dev-jump/cli/dev-jump.ts"
+    "dev:jump": "tsx dev-jump/cli/dev-jump.ts",
+    "dev:worker": "cd feedback-worker && npm run dev",
+    "deploy:worker": "cd feedback-worker && npm run deploy",
+    "dev:admin": "cd feedback-admin && npm run dev",
+    "deploy:admin": "cd feedback-admin && npm run deploy"
   },
   "keywords": [],
   "author": "",

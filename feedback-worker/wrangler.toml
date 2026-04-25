@@ -1,0 +1,14 @@
+name = "office-feedback-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# D1 binding — the Worker accesses D1 via env.DB
+[[d1_databases]]
+binding = "DB"
+database_name = "office-feedback"
+database_id = "PLACEHOLDER_FILL_AT_M5"
+migrations_dir = "migrations"
+
+# Vars set via `wrangler secret put` at M5:
+# - TURNSTILE_SECRET (Cloudflare Turnstile secret key)
+# - ADMIN_READ_TOKEN (random hex string used to authorize admin reads)
