@@ -25,6 +25,11 @@ export interface AgentSessionConfig {
 }
 
 export async function runAgentSession(config: AgentSessionConfig): Promise<void> {
+  if (process.env.OFFICE_MOCK_AGENTS === '1') {
+    const { mockRunAgentSession } = await import('../../dev-jump/mock/mock-run-agent-session');
+    return mockRunAgentSession(config);
+  }
+
   // 1. Load agent definition
   const agentPath = path.join(config.agentsDir, `${config.agentName}.md`);
   const [name, agentDef] = loadAgentDefinition(agentPath);

@@ -7,6 +7,7 @@ import { resolveSafeProjectDir } from './safety';
 import { writeSessionYaml } from './session-yaml-writer';
 import { writeProjectConfig } from './project-config-writer';
 import { writeChatHistoryFiles } from './chat-history-writer';
+import { writeModeFlag } from '../mock/mode-flag';
 
 export class FixtureMissingError extends Error {
   constructor(message: string) {
@@ -58,8 +59,8 @@ export class SeedEngine {
     writeSessionYaml(projectDir, stateAfterSeed);
     writeProjectConfig(projectDir, path.basename(projectDir), stateAfterSeed);
 
-    // 5. Mock-mode flag (mock-mode.flag handling added in Task 24 wiring).
-    // Placeholder: for now, just record nothing extra for mode='real'.
+    // 5. Write mock-mode flag to reflect the chosen mode.
+    writeModeFlag(projectDir, opts.mode);
 
     return { projectDir };
   }

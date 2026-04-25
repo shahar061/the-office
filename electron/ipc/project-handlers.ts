@@ -11,6 +11,7 @@ import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
 import { ProjectScanner } from '../project/project-scanner';
 import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, handleStartWarroom, handleStartBuild } from './phase-handlers';
+import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 import { resolverForRestoredQuestion } from '../orchestrator/phase-advance';
 import {
   mainWindow,
@@ -50,6 +51,7 @@ export function initProjectHandlers(): void {
       resetSessionState();
       projectManager.openProject(projectPath);
       setCurrentProjectDir(projectPath);
+      applyModeFlagToEnv(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
       setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();

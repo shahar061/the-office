@@ -86,6 +86,7 @@ import {
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
 import type { BuildState } from '../orchestrator/build';
+import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 
 let lastBuildState: BuildState | null = null;
 
@@ -136,6 +137,7 @@ function clearSessionYaml(projectDir: string, targetPhase: Phase): void {
 }
 
 export async function handleStartImagine(userIdea: string, resume = false): Promise<void> {
+  if (currentProjectDir) applyModeFlagToEnv(currentProjectDir);
   setCurrentChatPhase('imagine');
   setCurrentChatAgentRole('ceo');
   setCurrentChatRunNumber(chatHistoryStore?.nextRunNumber('imagine', 'ceo') ?? 1);
@@ -215,6 +217,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
 }
 
 export async function handleStartWarroom(): Promise<void> {
+  if (currentProjectDir) applyModeFlagToEnv(currentProjectDir);
   setCurrentChatPhase('warroom');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
@@ -287,6 +290,7 @@ export async function handleStartWarroom(): Promise<void> {
 }
 
 export async function handleStartBuild(config: BuildConfig): Promise<void> {
+  if (currentProjectDir) applyModeFlagToEnv(currentProjectDir);
   setCurrentChatPhase('build');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
