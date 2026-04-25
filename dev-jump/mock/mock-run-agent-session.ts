@@ -37,8 +37,22 @@ function buildSkeletonEvents(_expectedOutput?: string): MockEvent[] {
 }
 
 function writePlaceholder(projectCwd: string, filename: string, role: AgentRole): void {
-  const dst = path.join(projectCwd, 'docs', 'office', filename);
+  // Callers pass project-relative paths that already include docs/office/...
+  // (e.g. 'docs/office/tasks.yaml'). Don't prepend docs/office again — that
+  // produced docs/office/docs/office/tasks.yaml and tripped the orchestrator's
+  // existence check on the canonical path.
+  const dst = path.join(projectCwd, filename);
   fs.mkdirSync(path.dirname(dst), { recursive: true });
+
+  // Prefer real fixture content over an inert placeholder when one exists.
+  // Lets the orchestrator parse a populated tasks.yaml (so spec writers and
+  // Build can actually advance) instead of stalling on `tasks: []`.
+  const fixtureCandidate = path.resolve(__dirname, '..', 'fixtures', 'artifacts', path.basename(filename));
+  if (fs.existsSync(fixtureCandidate)) {
+    fs.copyFileSync(fixtureCandidate, dst);
+    return;
+  }
+
   if (filename.endsWith('.md')) {
     fs.writeFileSync(dst, `<!-- mock placeholder from ${role} -->\n`, 'utf-8');
   } else if (filename.endsWith('.yaml')) {

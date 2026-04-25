@@ -26,7 +26,7 @@ describe('mockRunAgentSession', () => {
       env: {},
       onEvent,
       onWaiting: vi.fn().mockResolvedValue({}),
-      expectedOutput: '01-vision-brief.md',
+      expectedOutput: 'docs/office/01-vision-brief.md',
     });
 
     const types = onEvent.mock.calls.map((c) => c[0].type);
