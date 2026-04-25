@@ -98,11 +98,9 @@ contextBridge.exposeInMainWorld('office', {
   getLayouts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_LAYOUTS),
   saveLayouts: (layouts: Record<string, unknown>) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_LAYOUTS, layouts),
 
-  // Dev Jump — only exposed when OFFICE_DEV=1 in the main process env
-  ...(process.env.OFFICE_DEV === '1' ? {
-    devJump: (req: { target: string; mode: 'real' | 'mock' }) =>
-      ipcRenderer.invoke(IPC_CHANNELS.DEV_JUMP, req),
-  } : {}),
+  // Dev Jump — handler self-gates on isDevModeActive(); preload always exposes
+  devJump: (req: { target: string; mode: 'real' | 'mock' }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DEV_JUMP, req),
 
   // Utilities
   openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),

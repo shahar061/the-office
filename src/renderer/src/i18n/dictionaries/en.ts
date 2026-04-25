@@ -63,6 +63,13 @@ export const en = {
   'permission.deny': 'Deny',
   'permission.deny.reason.placeholder': 'Optional reason for the agent...',
 
+  // About — dev mode tap-to-unlock
+  'about.devmode.almost': 'Press {count} more times to enable dev mode',
+  'about.devmode.enabled': '✓ Dev mode enabled',
+  'about.devmode.on': 'Dev mode is on.',
+  'about.devmode.disable': 'Disable',
+  'about.devmode.forced': 'Dev mode forced on by OFFICE_DEV environment variable.',
+
   // Settings
   'settings.title': 'Settings',
   'settings.language.title': 'Language',

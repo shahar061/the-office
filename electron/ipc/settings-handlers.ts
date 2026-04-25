@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { IPC_CHANNELS } from '../../shared/types';
-import type { AppSettings, GitIdentity } from '../../shared/types';
+import type { AppSettings, AppSettingsForRenderer, GitIdentity } from '../../shared/types';
 import {
   settingsStore,
   projectManager,
@@ -13,9 +13,14 @@ import { writeRepoIdentity } from '../project/git-identity-apply';
 
 const execFileAsync = promisify(execFile);
 
+function settingsForRenderer(): AppSettingsForRenderer {
+  const s = settingsStore.get();
+  return { ...s, _isDevMode: process.env.OFFICE_DEV === '1' || s.devMode === true };
+}
+
 export function initSettingsHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async (): Promise<AppSettings> => {
-    return settingsStore.get();
+  ipcMain.handle(IPC_CHANNELS.GET_SETTINGS, async () => {
+    return settingsForRenderer();
   });
 
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, patch: Partial<AppSettings>) => {
@@ -23,15 +28,16 @@ export function initSettingsHandlers(): void {
     if (patch.language !== undefined) {
       process.env.OFFICE_LANGUAGE = next.language;
     }
-    send(IPC_CHANNELS.SETTINGS_UPDATED, next);
-    return next;
+    const renderer = settingsForRenderer();
+    send(IPC_CHANNELS.SETTINGS_UPDATED, renderer);
+    return renderer;
   });
 
   ipcMain.handle(
     IPC_CHANNELS.ADD_GIT_IDENTITY,
     async (_event, identity: Omit<GitIdentity, 'id'>) => {
       const created = settingsStore.addIdentity(identity);
-      send(IPC_CHANNELS.SETTINGS_UPDATED, settingsStore.get());
+      send(IPC_CHANNELS.SETTINGS_UPDATED, settingsForRenderer());
       return created;
     },
   );
@@ -40,20 +46,20 @@ export function initSettingsHandlers(): void {
     IPC_CHANNELS.UPDATE_GIT_IDENTITY,
     async (_event, id: string, patch: Partial<Omit<GitIdentity, 'id'>>) => {
       const updated = settingsStore.updateIdentity(id, patch);
-      if (updated) send(IPC_CHANNELS.SETTINGS_UPDATED, settingsStore.get());
+      if (updated) send(IPC_CHANNELS.SETTINGS_UPDATED, settingsForRenderer());
       return updated;
     },
   );
 
   ipcMain.handle(IPC_CHANNELS.DELETE_GIT_IDENTITY, async (_event, id: string) => {
     const result = settingsStore.deleteIdentity(id);
-    if (result.ok) send(IPC_CHANNELS.SETTINGS_UPDATED, settingsStore.get());
+    if (result.ok) send(IPC_CHANNELS.SETTINGS_UPDATED, settingsForRenderer());
     return result;
   });
 
   ipcMain.handle(IPC_CHANNELS.SET_DEFAULT_GIT_IDENTITY, async (_event, id: string | null) => {
     settingsStore.setDefaultIdentity(id);
-    send(IPC_CHANNELS.SETTINGS_UPDATED, settingsStore.get());
+    send(IPC_CHANNELS.SETTINGS_UPDATED, settingsForRenderer());
   });
 
   ipcMain.handle(

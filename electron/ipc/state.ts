@@ -210,6 +210,10 @@ export function incrementSessionId(): number {
 
 // ── Helper functions ──
 
+export function isDevModeActive(): boolean {
+  return process.env.OFFICE_DEV === '1' || settingsStore.get().devMode === true;
+}
+
 export function send(channel: string, data: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, data);

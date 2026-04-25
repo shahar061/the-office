@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../../shared/types';
 import type { BuildConfig } from '../../shared/types';
 import { ACT_MANIFEST } from '../../dev-jump/engine/act-manifest';
 import type { JumpTarget } from '../../dev-jump/engine/types';
+import { isDevModeActive } from './state';
 
 export interface DevJumpDeps {
   seed: (opts: { target: JumpTarget; mode: 'real' | 'mock'; projectDir?: string }) => { projectDir: string };
@@ -44,12 +45,15 @@ export async function handleDevJump(
 }
 
 /**
- * Register the IPC channel only when OFFICE_DEV=1.
+ * Register the DEV_JUMP IPC channel unconditionally.
+ * The handler self-gates on isDevModeActive() so callers without dev mode
+ * enabled receive an error rather than a no-op.
  */
 export function initDevHandlers(deps: DevJumpDeps): void {
-  if (process.env.OFFICE_DEV !== '1') return;
-
   ipcMain.handle(IPC_CHANNELS.DEV_JUMP, async (_evt, req: { target: string; mode: 'real' | 'mock' }) => {
+    if (!isDevModeActive()) {
+      throw new Error('dev mode not enabled');
+    }
     return handleDevJump(req, deps);
   });
 }

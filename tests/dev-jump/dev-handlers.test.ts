@@ -1,4 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// dev-handlers.ts now imports from ./state, which calls app.getPath() at
+// module-evaluation time. Mock electron before the import to prevent the crash.
+vi.mock('electron', () => ({
+  app: { getPath: () => '/tmp/dev-handlers-test' },
+  BrowserWindow: class {},
+  ipcMain: { handle: vi.fn() },
+}));
+
 import { handleDevJump, type DevJumpDeps } from '../../electron/ipc/dev-handlers';
 
 function makeDeps(overrides: Partial<DevJumpDeps> = {}): DevJumpDeps & {

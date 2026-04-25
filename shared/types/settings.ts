@@ -38,6 +38,13 @@ export interface AppSettings {
     sfxMuted: boolean;
   };
   language: 'en' | 'he';
+  devMode: boolean;
+}
+
+export interface AppSettingsForRenderer extends AppSettings {
+  /** Derived: process.env.OFFICE_DEV === '1' || settings.devMode === true.
+   * NOT persisted to disk — computed at IPC boundary by settings-handlers. */
+  _isDevMode: boolean;
 }
 
 export interface RateLimitState {

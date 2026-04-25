@@ -38,9 +38,6 @@ const UTILITY_ITEMS: NavItem[] = [
 ];
 
 const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', labelKey: 'iconrail.devjump' };
-const isDevMode = (): boolean =>
-  typeof window !== 'undefined' &&
-  typeof (window.office as any)?.devJump === 'function';
 
 interface ActionItem {
   id: 'settings';
@@ -268,6 +265,8 @@ export function IconRail() {
     return null;
   });
 
+  const isDevMode = useSettingsStore((s) => s.isDevMode);
+
   const t = useT();
 
   const visiblePrimary = PRIMARY_ITEMS.filter(item => {
@@ -342,7 +341,7 @@ export function IconRail() {
           onDragStart={(e) => handleDragStart(e, item.id)}
         />
       ))}
-      {isDevMode() && (
+      {isDevMode && (
         <IconButton
           key={DEVJUMP_ITEM.id}
           item={DEVJUMP_ITEM}

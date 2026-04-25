@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     sfxMuted: false,
   },
   language: 'en',
+  devMode: false,
 };
 
 export class SettingsStore {
