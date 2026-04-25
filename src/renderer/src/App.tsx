@@ -17,6 +17,7 @@ import { useGreenfieldBannersStore } from './stores/greenfield-banners.store';
 import { useSettingsStore } from './stores/settings.store';
 import { useMobileBridgeStore } from './stores/mobile-bridge.store';
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
+import { BugReportModal } from './components/BugReportModal';
 import { HeaderStatusPill } from './components/HeaderStatusPill/HeaderStatusPill';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
@@ -233,6 +234,7 @@ export default function App() {
         )}
       </React.Suspense>
       <SettingsPanel />
+      <BugReportModal />
       <div
         style={{
           position: 'fixed',

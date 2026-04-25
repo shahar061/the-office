@@ -10,6 +10,7 @@ import { useKanbanStore } from '../../stores/kanban.store';
 import { useStatsStore } from '../../stores/stats.store';
 import { useChatStore } from '../../stores/chat.store';
 import { useSettingsStore } from '../../stores/settings.store';
+import { useBugReportStore } from '../../stores/bug-report.store';
 import { collectPanelIds, findLeafByPanelId, firstLeaf } from '../SplitLayout/layout-utils';
 import { colors } from '../../theme';
 import type { StringKey } from '../../i18n';
@@ -40,13 +41,15 @@ const UTILITY_ITEMS: NavItem[] = [
 const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', labelKey: 'iconrail.devjump' };
 
 interface ActionItem {
-  id: 'settings';
+  id: 'settings' | 'feedback';
   icon: string;
   labelKey: StringKey;
+  devOnly?: boolean;
 }
 
 const UTILITY_ACTIONS: ActionItem[] = [
   { id: 'settings', icon: '⚙️', labelKey: 'iconrail.settings' },
+  { id: 'feedback', icon: '🐞', labelKey: 'iconrail.feedback', devOnly: true },
 ];
 
 const styles = {
@@ -266,6 +269,7 @@ export function IconRail() {
   });
 
   const isDevMode = useSettingsStore((s) => s.isDevMode);
+  const openBugReport = useBugReportStore((s) => s.open);
 
   const t = useT();
 
@@ -351,12 +355,15 @@ export function IconRail() {
         />
       )}
       <div style={styles.actionSpacer}>
-        {UTILITY_ACTIONS.map((action) => (
+        {UTILITY_ACTIONS.filter((a) => !a.devOnly || isDevMode).map((action) => (
           <ActionButton
             key={action.id}
             icon={action.icon}
             label={t(action.labelKey)}
-            onClick={() => useSettingsStore.getState().open()}
+            onClick={() => {
+              if (action.id === 'settings') useSettingsStore.getState().open();
+              else if (action.id === 'feedback') openBugReport();
+            }}
           />
         ))}
       </div>

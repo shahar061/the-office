@@ -164,6 +164,12 @@ contextBridge.exposeInMainWorld('office', {
   broadcastCharStates: (states: CharacterState[]) =>
     ipcRenderer.send(IPC_CHANNELS.OFFICE_CHAR_STATES, states),
 
+  // Feedback
+  feedback: {
+    submitReport: (req: { type: 'bug' | 'feature'; title: string; body: string; turnstileToken: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SUBMIT_FEEDBACK_REPORT, req),
+  },
+
   // Mobile Bridge
   mobile: {
     getPairingQR: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_GET_PAIRING_QR),

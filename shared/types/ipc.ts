@@ -2,6 +2,10 @@
 
 import type { AgentEvent } from './agent';
 import type {
+  SubmitReportRequest,
+  SubmitReportResponse,
+} from './feedback';
+import type {
   Phase,
   ChatMessage,
   PhaseHistory,
@@ -159,6 +163,8 @@ export const IPC_CHANNELS = {
   PROJECT_STATE_CHANGED: 'office:project-state-changed',
   // Dev Jump
   DEV_JUMP: 'office:dev-jump',
+  // Feedback
+  SUBMIT_FEEDBACK_REPORT: 'office:submit-feedback-report',
 } as const;
 
 export interface OfficeAPI {
@@ -280,6 +286,12 @@ export interface OfficeAPI {
 
   // Dev Jump (only available when OFFICE_DEV=1)
   devJump?(req: { target: string; mode: 'real' | 'mock' }): Promise<{ projectDir: string }>;
+
+  // Feedback
+  feedback: {
+    submitReport(req: Pick<SubmitReportRequest, 'type' | 'title' | 'body' | 'turnstileToken'>):
+      Promise<SubmitReportResponse>;
+  };
 
   // Mobile Bridge
   mobile: {

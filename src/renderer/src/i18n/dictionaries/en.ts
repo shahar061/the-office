@@ -29,6 +29,26 @@ export const en = {
   'iconrail.about': 'About',
   'iconrail.settings': 'Settings',
   'iconrail.devjump': 'Dev Jump',
+  'iconrail.feedback': 'Report a bug',
+
+  // Bug report / feedback modal
+  'feedback.title': 'Report a Bug / Request a Feature',
+  'feedback.type.bug': '🐛 Bug',
+  'feedback.type.feature': '✨ Feature request',
+  'feedback.title.placeholder': 'Title (one line)',
+  'feedback.body.placeholder': 'Describe the bug, steps to reproduce, expected vs actual...',
+  'feedback.attached.summary': 'Auto-attached info (will be sent)',
+  'feedback.cancel': 'Cancel',
+  'feedback.submit': 'Submit',
+  'feedback.submitting': 'Submitting...',
+  'feedback.success': '✓ Report submitted (#{id}). Thanks!',
+  'feedback.success.close': 'Close',
+  'feedback.success.another': 'Submit another',
+  'feedback.error.network': 'No connection to feedback service. Check your network and try again.',
+  'feedback.error.turnstile': 'Captcha verification failed. Please complete the captcha and try again.',
+  'feedback.error.rate': 'Too many submissions. Try again in a minute.',
+  'feedback.error.invalid': 'Submission rejected: {message}',
+  'feedback.error.server': 'Something broke on our end. Try again later — your submission was not saved.',
 
   // Phase tabs
   'phase.imagine': 'Imagine',

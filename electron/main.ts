@@ -25,6 +25,7 @@ import { initProjectHandlers } from './ipc/project-handlers';
 import { initPhaseHandlers, routeUserChat, handleStartImagine, handleStartWarroom, handleStartBuild } from './ipc/phase-handlers';
 import { initSettingsHandlers } from './ipc/settings-handlers';
 import { initDevHandlers } from './ipc/dev-handlers';
+import { initFeedbackHandlers } from './ipc/feedback-handlers';
 import { SeedEngine } from '../dev-jump/engine/seed-engine';
 import { hostname } from 'os';
 import { createMobileBridge } from './mobile-bridge';
@@ -198,6 +199,7 @@ app.whenReady().then(async () => {
   initProjectHandlers();
   initPhaseHandlers();
   initSettingsHandlers();
+  initFeedbackHandlers();
   process.env.OFFICE_LANGUAGE = settingsStore.get().language ?? 'en';
   initDevHandlers({
     seed: (opts) => SeedEngine.seed(opts),
