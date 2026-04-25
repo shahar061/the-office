@@ -1,5 +1,6 @@
 import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
 import type { Plugin } from 'vite';
 
@@ -18,8 +19,25 @@ function tiledJsonPlugin(): Plugin {
   };
 }
 
+// SeedEngine.FIXTURES_DIR resolves to dist/fixtures at runtime
+// (path.resolve(__dirname, '..', 'fixtures') from dist/main/), so the
+// fixture tree must be copied there after each main build.
+function copyDevJumpFixturesPlugin(): Plugin {
+  return {
+    name: 'copy-dev-jump-fixtures',
+    closeBundle() {
+      const src = path.resolve(__dirname, 'dev-jump/fixtures');
+      const dst = path.resolve(__dirname, 'dist/fixtures');
+      if (!fs.existsSync(src)) return;
+      fs.rmSync(dst, { recursive: true, force: true });
+      fs.cpSync(src, dst, { recursive: true });
+    },
+  };
+}
+
 export default defineConfig({
   main: {
+    plugins: [copyDevJumpFixturesPlugin()],
     build: {
       outDir: 'dist/main',
       lib: {
