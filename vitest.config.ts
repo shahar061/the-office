@@ -14,7 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(process.cwd(), 'src'),
+      '@': resolve(process.cwd(), 'src/renderer/src'),
       '@electron': resolve(process.cwd(), 'electron'),
       '@shared': resolve(process.cwd(), 'shared'),
     },
