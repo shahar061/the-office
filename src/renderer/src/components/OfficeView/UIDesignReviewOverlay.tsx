@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUIDesignReviewStore } from '../../stores/ui-design-review.store';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 
 const styles = {
   backdrop: {
@@ -154,6 +155,7 @@ const styles = {
 } as const;
 
 export function UIDesignReviewOverlay() {
+  const t = useT();
   const isOpen = useUIDesignReviewStore((s) => s.isOpen);
   const designDirection = useUIDesignReviewStore((s) => s.designDirection);
   const mockups = useUIDesignReviewStore((s) => s.mockups);
@@ -203,7 +205,7 @@ export function UIDesignReviewOverlay() {
     <div style={styles.backdrop}>
       <div style={styles.panel}>
         <div style={styles.header}>
-          <span style={styles.title}>UI Designs — Review</span>
+          <span style={styles.title}>{t('overlay.uidesign.title')}</span>
           <button style={styles.close} onClick={handleApprove} aria-label="Close (approve)">✕</button>
         </div>
         <div style={styles.body}>
@@ -228,17 +230,17 @@ export function UIDesignReviewOverlay() {
           <div style={styles.feedbackLabel}>Feedback (optional)</div>
           <textarea
             style={styles.feedbackInput}
-            placeholder="Describe changes you want: e.g., 'make the dashboard darker, move the nav to the left'"
+            placeholder={t('overlay.uidesign.feedback.placeholder')}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
           />
         </div>
         <div style={styles.footer}>
           <button style={styles.reviseButton} onClick={handleRevise}>
-            Revise with feedback
+            {t('overlay.uidesign.feedback.send')}
           </button>
           <button style={styles.approveButton} onClick={handleApprove}>
-            Looks good
+            {t('overlay.uidesign.approve')}
           </button>
         </div>
       </div>

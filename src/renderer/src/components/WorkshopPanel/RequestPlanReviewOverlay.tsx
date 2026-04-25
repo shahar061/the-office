@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRequestPlanReviewStore } from '../../stores/request-plan-review.store';
 import { MarkdownContent } from '../OfficeView/MarkdownContent';
 import { AGENT_COLORS } from '@shared/types';
+import { useT } from '../../i18n';
 
 const backdropStyle: React.CSSProperties = {
   position: 'absolute',
@@ -98,6 +99,7 @@ const reviseButtonStyle = (enabled: boolean): React.CSSProperties => ({
 });
 
 export function RequestPlanReviewOverlay() {
+  const t = useT();
   const isOpen = useRequestPlanReviewStore((s) => s.isOpen);
   const title = useRequestPlanReviewStore((s) => s.title);
   const planMarkdown = useRequestPlanReviewStore((s) => s.planMarkdown);
@@ -144,7 +146,7 @@ export function RequestPlanReviewOverlay() {
         <div style={footerStyle}>
           <textarea
             style={textareaStyle}
-            placeholder="What needs to change? (required to request changes)"
+            placeholder={t('overlay.plan.feedback.placeholder')}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
           />
@@ -157,7 +159,7 @@ export function RequestPlanReviewOverlay() {
               Request Changes
             </button>
             <button style={approveButtonStyle} onClick={handleApprove}>
-              Approve
+              {t('overlay.requestplan.approve')}
             </button>
           </div>
         </div>

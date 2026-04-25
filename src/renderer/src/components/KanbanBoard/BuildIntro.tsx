@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
 interface BuildIntroProps {
@@ -102,6 +103,7 @@ const styles = {
 } as const;
 
 export function BuildIntro({ onComplete }: BuildIntroProps) {
+  const t = useT();
   const [step, setStep] = useState(0);
   const panel = PANELS[step];
   const isLast = step === PANELS.length - 1;
@@ -125,7 +127,7 @@ export function BuildIntro({ onComplete }: BuildIntroProps) {
               else setStep(step + 1);
             }}
           >
-            {isLast ? "Let's Build" : 'Next'}
+            {isLast ? t('build.intro.start') : 'Next'}
           </button>
         </div>
       </div>

@@ -2,18 +2,19 @@ import { useState } from 'react';
 import { useKanbanStore } from '../../stores/kanban.store';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
+import { useT, type StringKey } from '../../i18n';
 import { KanbanColumn } from './KanbanColumn';
 import { BuildFailureModal } from './BuildFailureModal';
 import { BuildIntro } from './BuildIntro';
 import { DependencyGraph } from './DependencyGraph';
 import type { BuildConfig } from '@shared/types';
 
-const COLUMNS = [
-  { status: 'queued' as const, title: 'Queued', accent: colors.accent },
-  { status: 'active' as const, title: 'Active', accent: colors.warning },
-  { status: 'review' as const, title: 'In Review', accent: '#a855f7' },
-  { status: 'done' as const, title: 'Done', accent: colors.success },
-] as const;
+const COLUMNS: { status: 'queued' | 'active' | 'review' | 'done'; labelKey: StringKey; accent: string }[] = [
+  { status: 'queued', labelKey: 'kanban.column.queued', accent: colors.accent },
+  { status: 'active', labelKey: 'kanban.column.active', accent: colors.warning },
+  { status: 'review', labelKey: 'kanban.column.review', accent: '#a855f7' },
+  { status: 'done', labelKey: 'kanban.column.done', accent: colors.success },
+];
 
 const styles = {
   root: {
@@ -107,6 +108,7 @@ const styles = {
 } as const;
 
 export function KanbanBoard() {
+  const t = useT();
   const kanban = useKanbanStore((s) => s.kanban);
   const failedTask = useKanbanStore((s) => s.failedTask());
   const projectState = useProjectStore((s) => s.projectState);
@@ -115,7 +117,7 @@ export function KanbanBoard() {
 
   const hasTasks = kanban.tasks.length > 0;
   const buildStarting = phaseInfo?.phase === 'build' && phaseInfo?.status === 'starting';
-  const doneCount = kanban.tasks.filter(t => t.status === 'done').length;
+  const doneCount = kanban.tasks.filter(task => task.status === 'done').length;
 
   // Show intro when build is in 'starting' status (waiting for intro completion)
   if (buildStarting) {
@@ -150,7 +152,7 @@ export function KanbanBoard() {
                 window.office.startBuild(config);
               }}
             >
-              Start Build
+              {t('build.intro.start')}
             </button>
           )}
         </div>
@@ -193,9 +195,9 @@ export function KanbanBoard() {
           {COLUMNS.map(col => (
             <KanbanColumn
               key={col.status}
-              title={col.title}
-              tasks={kanban.tasks.filter(t =>
-                t.status === col.status || (t.status === 'failed' && col.status === 'active')
+              title={t(col.labelKey)}
+              tasks={kanban.tasks.filter(task =>
+                task.status === col.status || (task.status === 'failed' && col.status === 'active')
               )}
               accentColor={col.accent}
             />

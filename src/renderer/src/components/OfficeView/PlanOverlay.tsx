@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useWarTableStore } from '../../stores/war-table.store';
 import { MarkdownContent } from './MarkdownContent';
 import { AGENT_COLORS } from '@shared/types';
+import { useT } from '../../i18n';
 
 const backdropStyle: React.CSSProperties = {
   position: 'absolute',
@@ -90,6 +91,7 @@ const closeButtonStyle: React.CSSProperties = {
 };
 
 export function PlanOverlay() {
+  const t = useT();
   const reviewOpen = useWarTableStore((s) => s.reviewOpen);
   const reviewContent = useWarTableStore((s) => s.reviewContent);
   const reviewArtifact = useWarTableStore((s) => s.reviewArtifact);
@@ -164,7 +166,7 @@ export function PlanOverlay() {
           <div style={feedbackBarStyle}>
             <input
               style={inputStyle}
-              placeholder="Optional: redirect the plan (e.g. 'prioritize the API')..."
+              placeholder={t('overlay.plan.feedback.placeholder')}
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               onKeyDown={(e) => {
@@ -175,7 +177,7 @@ export function PlanOverlay() {
               }}
             />
             <button style={approveButtonStyle} onClick={handleApprove}>
-              Looks good
+              {t('overlay.plan.approve')}
             </button>
           </div>
         )}

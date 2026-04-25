@@ -62,7 +62,7 @@ const styles = {
   phaseCellRight: {
     padding: '6px 4px',
     color: colors.textMuted,
-    textAlign: 'right' as const,
+    textAlign: 'end' as const,
     fontFamily: 'monospace',
   },
 } as const;

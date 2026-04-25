@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useArtifactStore } from '../../stores/artifact.store';
 import { AGENT_COLORS } from '@shared/types';
 import { MarkdownContent } from './MarkdownContent';
+import { useT } from '../../i18n';
 
 const backdropStyle: React.CSSProperties = {
   position: 'absolute',
@@ -58,6 +59,7 @@ function agentDisplayName(role: string): string {
 }
 
 export function ArtifactOverlay() {
+  const t = useT();
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const artifacts = useArtifactStore((s) => s.artifacts);
   const closeDocument = useArtifactStore((s) => s.closeDocument);
@@ -98,7 +100,7 @@ export function ArtifactOverlay() {
               {agentDisplayName(artifactInfo.agentRole)}
             </span>
           </div>
-          <button style={closeButtonStyle} onClick={closeDocument}>✕</button>
+          <button style={closeButtonStyle} onClick={closeDocument} aria-label={t('overlay.artifact.close')}>✕</button>
         </div>
         <div style={contentStyle}>
           {openArtifact.content

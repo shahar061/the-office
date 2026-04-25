@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { KanbanTask } from '@shared/types';
 import { AGENT_COLORS } from '@shared/types';
 import { colors } from '../../theme';
+import { useT, type StringKey } from '../../i18n';
 
 interface KanbanCardProps {
   task: KanbanTask;
@@ -15,12 +16,12 @@ const STATUS_BORDER: Record<KanbanTask['status'], string> = {
   failed: colors.error,
 };
 
-const STATUS_LABEL: Record<KanbanTask['status'], string> = {
-  queued: 'Queued',
-  active: 'Active',
-  review: 'In Review',
-  done: 'Done',
-  failed: 'Failed',
+const STATUS_LABEL_KEY: Record<KanbanTask['status'], StringKey> = {
+  queued: 'kanban.column.queued',
+  active: 'kanban.column.active',
+  review: 'kanban.column.review',
+  done: 'kanban.column.done',
+  failed: 'kanban.column.failed',
 };
 
 const styles = {
@@ -29,7 +30,7 @@ const styles = {
     gap: '8px',
     padding: '8px 10px',
     background: hovered ? colors.surfaceLight : colors.surface,
-    borderLeft: `3px solid ${STATUS_BORDER[status]}`,
+    borderInlineStart: `3px solid ${STATUS_BORDER[status]}`,
     borderRadius: '4px',
     fontSize: '12px',
     transition: 'transform 0.3s ease, opacity 0.3s ease, background 0.15s ease',
@@ -180,6 +181,7 @@ function agentDisplayName(agent: string): string {
 }
 
 function TaskPopup({ task, onClose }: { task: KanbanTask; onClose: () => void }) {
+  const t = useT();
   const agentColor = AGENT_COLORS[task.assignedAgent] || '#6b7280';
   const pColor = phaseColor(task.phaseId);
   const statusColor = STATUS_BORDER[task.status];
@@ -214,7 +216,7 @@ function TaskPopup({ task, onClose }: { task: KanbanTask; onClose: () => void })
                 borderRadius: '50%',
                 background: statusColor,
               }} />
-              {STATUS_LABEL[task.status]}
+              {t(STATUS_LABEL_KEY[task.status])}
             </div>
             <div style={styles.popupMetaItem}>
               <span style={styles.phasePill(pColor)}>{task.phaseId}</span>

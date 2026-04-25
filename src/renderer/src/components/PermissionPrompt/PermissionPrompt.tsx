@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AGENT_COLORS, type PermissionRequest } from '@shared/types';
 import { audioManager } from '../../audio/AudioManager';
+import { useT } from '../../i18n';
 
 export function PermissionPrompt() {
+  const t = useT();
   const [queue, setQueue] = useState<PermissionRequest[]>([]);
 
   useEffect(() => {
@@ -111,7 +113,7 @@ export function PermissionPrompt() {
             cursor: 'pointer',
           }}
         >
-          Allow
+          {t('permission.allow')}
         </button>
         <button
           onClick={() => handleRespond(false)}
@@ -127,7 +129,7 @@ export function PermissionPrompt() {
             cursor: 'pointer',
           }}
         >
-          Deny
+          {t('permission.deny')}
         </button>
       </div>
 
@@ -138,7 +140,7 @@ export function PermissionPrompt() {
             marginTop: 10,
             fontSize: 11,
             color: '#6b7280',
-            textAlign: 'right',
+            textAlign: 'end',
           }}
         >
           +{pendingCount} more pending

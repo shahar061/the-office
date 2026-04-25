@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 import { parseRunMd, type ParsedRunMd } from './run-md-parser';
 
@@ -30,7 +31,7 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -45,7 +46,7 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -60,7 +61,7 @@ const styles = {
     fontWeight: 600,
     cursor: 'not-allowed',
     fontFamily: 'inherit',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -72,7 +73,7 @@ const styles = {
     fontSize: '11px',
     color: colors.success,
     marginTop: '6px',
-    marginLeft: '4px',
+    marginInlineStart: '4px',
   },
   runSection: {
     marginTop: '12px',
@@ -121,6 +122,7 @@ function confirm(message: string): boolean {
 }
 
 export function ActionHub() {
+  const t = useT();
   const [runMd, setRunMd] = useState<ParsedRunMd | null>(null);
   const [runMdLoaded, setRunMdLoaded] = useState(false);
   const [runExpanded, setRunExpanded] = useState(true);
@@ -163,7 +165,7 @@ export function ActionHub() {
       <div style={styles.buttonGrid}>
         <button style={styles.primaryButton} onClick={handleOpenFolder}>
           <span style={styles.icon}>📁</span>
-          Open project folder
+          {t('completion.openFolder')}
         </button>
         <button
           style={hasRunCommand ? styles.primaryButton : styles.disabledButton}
