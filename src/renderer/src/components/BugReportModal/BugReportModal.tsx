@@ -4,7 +4,7 @@ import { useSettingsStore } from '../../stores/settings.store';
 import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
-const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // Cloudflare test key — production key inserted at M5 Task 28.
+const TURNSTILE_SITE_KEY = '0x4AAAAAADDMjqVMq5IMW6oP';
 
 const styles = {
   backdrop: {

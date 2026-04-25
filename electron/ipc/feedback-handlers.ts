@@ -6,8 +6,7 @@ import type {
 } from '../../shared/types/feedback';
 import { settingsStore } from './state';
 
-const PRODUCTION_WORKER_URL = 'https://office-feedback-worker.example.workers.dev';
-// (Updated to real URL in M5 Task 28.)
+const PRODUCTION_WORKER_URL = 'https://office-feedback-worker.shahar061.workers.dev';
 
 export interface FeedbackDeps {
   fetch: typeof globalThis.fetch;

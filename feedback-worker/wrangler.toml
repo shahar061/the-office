@@ -6,7 +6,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "office-feedback"
-database_id = "PLACEHOLDER_FILL_AT_M5"
+database_id = "d3c331f5-f4a4-496e-bbfc-4a0d10174f64"
 migrations_dir = "migrations"
 
 # Vars set via `wrangler secret put` at M5:
