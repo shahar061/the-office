@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report — Feedback Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; margin-bottom: 16px; font-size: 12px; }
+    .meta strong { color: #94a3b8; font-weight: 500; }
+    .body { background: #1a1a2e; padding: 16px; border-radius: 6px; margin-bottom: 16px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 13px; line-height: 1.5; }
+    .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .controls select, .controls textarea {
+      background: #1a1a2e; color: #e5e5e5; border: 1px solid #333;
+      padding: 6px 10px; border-radius: 4px; font-size: 13px; font-family: inherit;
+    }
+    .controls textarea { width: 100%; resize: vertical; min-height: 60px; }
+    button {
+      background: #6366f1; border: none; color: #fff; padding: 8px 16px;
+      border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    a { color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/">← Back to list</a>
+    <h1 id="title">Loading…</h1>
+
+    <div id="error-box"></div>
+
+    <div id="content" style="display:none">
+      <div class="meta" id="meta"></div>
+
+      <div class="controls">
+        <label>Status:
+          <select id="status">
+            <option value="open">Open</option>
+            <option value="in-progress">In progress</option>
+            <option value="done">Done</option>
+            <option value="wont-fix">Won't fix</option>
+          </select>
+        </label>
+        <button id="save">Save</button>
+        <span id="save-status"></span>
+      </div>
+
+      <h3>Body</h3>
+      <div class="body" id="body"></div>
+
+      <h3>Triage note</h3>
+      <textarea id="triage-note" placeholder="Internal note (only visible here)"></textarea>
+      <div style="margin-top:8px"><button id="save-note">Save note</button></div>
+    </div>
+  </div>
+
+  <script src="/detail.js" type="module"></script>
+</body>
+</html>

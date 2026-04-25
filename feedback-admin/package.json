@@ -1,0 +1,15 @@
+{
+  "name": "feedback-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8788 --persist-to ../.wrangler/admin",
+    "deploy": "wrangler pages deploy public --project-name office-feedback-admin",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "1.6",
+    "jsdom": "^21.1.2",
+    "wrangler": "^3.78.0"
+  }
+}

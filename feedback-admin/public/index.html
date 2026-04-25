@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Office — Feedback Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Feedback Reports</h1>
+
+    <div class="filters">
+      <label>
+        Status:
+        <select id="filter-status">
+          <option value="">All</option>
+          <option value="open" selected>Open</option>
+          <option value="in-progress">In progress</option>
+          <option value="done">Done</option>
+          <option value="wont-fix">Won't fix</option>
+        </select>
+      </label>
+      <label>
+        Type:
+        <select id="filter-type">
+          <option value="">All</option>
+          <option value="bug">🐛 Bug</option>
+          <option value="feature">✨ Feature</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="error-box"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Title</th>
+          <th>Version</th>
+          <th>OS</th>
+          <th>Lang</th>
+          <th>Received</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+
+    <div id="empty" class="empty" style="display:none">No reports.</div>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
