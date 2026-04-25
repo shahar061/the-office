@@ -75,7 +75,7 @@ function EntryRow({ entry }: { entry: LogEntry }) {
           <span style={{ color: colors.textDim }}> → message</span>
         </div>
         {entry.text && (
-          <div style={{ paddingLeft: '60px', color: colors.textDim, fontStyle: 'italic', fontSize: '9px' }}>
+          <div style={{ paddingInlineStart: '60px', color: colors.textDim, fontStyle: 'italic', fontSize: '9px' }}>
             &ldquo;{entry.text.length > 80 ? entry.text.slice(0, 80) + '…' : entry.text}&rdquo;
           </div>
         )}
@@ -93,7 +93,7 @@ function EntryRow({ entry }: { entry: LogEntry }) {
           <span style={{ color: colors.textDim }}> → message</span>
         </div>
         {entry.text && (
-          <div style={{ paddingLeft: '60px', color: colors.textDim, fontStyle: 'italic', fontSize: '9px' }}>
+          <div style={{ paddingInlineStart: '60px', color: colors.textDim, fontStyle: 'italic', fontSize: '9px' }}>
             &ldquo;{entry.text.length > 80 ? entry.text.slice(0, 80) + '…' : entry.text}&rdquo;
           </div>
         )}
@@ -189,7 +189,7 @@ export function LogViewer() {
       <div style={styles.footer}>
         <div style={styles.liveDot} />
         <span style={styles.footerText}>Live — auto-scrolling</span>
-        <span style={{ ...styles.footerText, marginLeft: 'auto' }}>{entries.length} entries</span>
+        <span style={{ ...styles.footerText, marginInlineStart: 'auto' }}>{entries.length} entries</span>
       </div>
     </div>
   );

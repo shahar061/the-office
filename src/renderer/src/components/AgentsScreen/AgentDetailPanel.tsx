@@ -135,7 +135,7 @@ const styles = {
     fontSize: '12px',
     fontWeight: 600,
     padding: '8px 0',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     fontFamily: 'inherit',
   }),
   promptContent: {

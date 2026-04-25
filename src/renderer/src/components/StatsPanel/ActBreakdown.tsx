@@ -35,7 +35,7 @@ const styles = {
     width: '1px',
     height: '8px',
     background: `${color}44`,
-    marginLeft: '2.5px',
+    marginInlineStart: '2.5px',
   }),
   name: {
     flex: 1,

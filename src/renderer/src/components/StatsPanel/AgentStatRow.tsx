@@ -35,7 +35,7 @@ const styles = {
   dots: {
     display: 'flex',
     gap: '3px',
-    marginRight: '4px',
+    marginInlineEnd: '4px',
   },
   dot: (color: string) => ({
     width: '6px',
@@ -46,14 +46,14 @@ const styles = {
   cost: {
     color: colors.text,
     width: '42px',
-    textAlign: 'right' as const,
+    textAlign: 'end' as const,
     fontWeight: 600,
     fontSize: '11px',
   },
   tokens: {
     color: colors.textDim,
     width: '48px',
-    textAlign: 'right' as const,
+    textAlign: 'end' as const,
     fontSize: '9px',
   },
 } as const;
@@ -79,7 +79,7 @@ export function AgentStatRow({ role, stats }: AgentStatRowProps) {
   const agentColor = AGENT_COLORS[role as AgentRole] || '#6b7280';
 
   return (
-    <div style={{ ...styles.row, borderLeft: `3px solid ${agentColor}` }}>
+    <div style={{ ...styles.row, borderInlineStart: `3px solid ${agentColor}` }}>
       <span style={styles.name(agentColor)}>{formatRole(role)}</span>
       <div style={styles.dots}>
         {stats.phases.map(p => (

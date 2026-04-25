@@ -84,7 +84,7 @@ export function PillPopover({ onClose }: Props) {
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 8px',
           background: paused ? 'rgba(99,102,241,0.15)' : 'transparent',
           border: 'none', borderRadius: 8, color: '#e5e7eb', fontSize: 13,
-          cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+          cursor: 'pointer', textAlign: 'start', fontFamily: 'inherit',
         }}
       >
         ⏸ {paused ? 'Remote access paused' : 'Pause remote access'}
@@ -107,6 +107,6 @@ const linkStyle: React.CSSProperties = {
   color: '#a5b4fc',
   fontSize: 13,
   cursor: 'pointer',
-  textAlign: 'left',
+  textAlign: 'start',
   fontFamily: 'inherit',
 };

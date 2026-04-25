@@ -26,7 +26,7 @@ export function SessionSelector() {
       alignItems: 'center',
       zIndex: 10,
     }}>
-      <span style={{ fontSize: 10, color: '#6b7280', marginRight: 2 }}>Sessions:</span>
+      <span style={{ fontSize: 10, color: '#6b7280', marginInlineEnd: 2 }}>Sessions:</span>
       {sessions.map((agent) => {
         const config = AGENT_CONFIGS[agent.role];
         const isSelected = focusedSessionId === agent.agentId;

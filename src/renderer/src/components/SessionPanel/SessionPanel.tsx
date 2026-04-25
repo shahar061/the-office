@@ -35,7 +35,7 @@ function SessionCard({ session }: { session: SessionListItem }) {
       style={{
         display: 'block',
         width: '100%',
-        textAlign: 'left',
+        textAlign: 'start',
         padding: '10px 12px',
         background: 'rgba(42, 42, 74, 0.3)',
         border: '1px solid #2a2a4a',
@@ -78,7 +78,7 @@ function SessionCard({ session }: { session: SessionListItem }) {
         }} />
         <span style={{ fontWeight: 600, fontSize: 12 }}>{session.projectName}</span>
       </div>
-      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 30 }}>
+      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInlineEnd: 30 }}>
         {session.title}
       </div>
       <div style={{ fontSize: 10, color: '#6b7280' }}>
@@ -116,7 +116,7 @@ export function SessionPanel() {
     <div style={{
       width: 320,
       minWidth: 320,
-      borderRight: '1px solid #2a2a4a',
+      borderInlineEnd: '1px solid #2a2a4a',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',

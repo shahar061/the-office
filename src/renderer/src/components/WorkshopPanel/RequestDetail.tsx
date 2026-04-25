@@ -6,8 +6,8 @@ import { useDiffReviewStore } from '../../stores/diff-review.store';
 const styles = {
   root: {
     padding: '12px 0 6px 24px',
-    borderLeft: `2px solid ${colors.accent}`,
-    marginLeft: '8px',
+    borderInlineStart: `2px solid ${colors.accent}`,
+    marginInlineStart: '8px',
     fontSize: '11px',
     color: colors.textLight,
   },

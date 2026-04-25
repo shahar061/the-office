@@ -36,7 +36,7 @@ const styles = {
   lineNum: {
     color: '#475569',
     minWidth: '28px',
-    textAlign: 'right' as const,
+    textAlign: 'end' as const,
     userSelect: 'none' as const,
     flexShrink: 0,
   },

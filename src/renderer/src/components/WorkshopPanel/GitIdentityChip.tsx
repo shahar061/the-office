@@ -25,7 +25,7 @@ const styles = {
   },
   label: {
     color: colors.textMuted,
-    marginRight: '4px',
+    marginInlineEnd: '4px',
   },
   value: {
     fontWeight: 600 as const,

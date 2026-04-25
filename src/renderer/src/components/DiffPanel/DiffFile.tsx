@@ -64,7 +64,7 @@ const styles = {
     padding: '3px 8px',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    marginLeft: '8px',
+    marginInlineStart: '8px',
   },
 } as const;
 

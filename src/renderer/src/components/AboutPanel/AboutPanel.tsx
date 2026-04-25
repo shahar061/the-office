@@ -107,7 +107,7 @@ const styles = {
   dots: {
     display: 'flex',
     gap: '2px',
-    marginLeft: 'auto',
+    marginInlineStart: 'auto',
   },
   dot: (color: string) => ({
     width: '5px',
@@ -165,7 +165,7 @@ function PhaseCardComponent({ phase, index }: { phase: PhaseCard; index: number 
           {index + 1}. {phase.name}
         </span>
         {!expanded && (
-          <span style={{ fontSize: '10px', color: colors.textDark, marginLeft: '4px' }}>
+          <span style={{ fontSize: '10px', color: colors.textDark, marginInlineStart: '4px' }}>
             {phase.tagline}
           </span>
         )}

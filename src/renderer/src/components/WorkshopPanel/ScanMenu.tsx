@@ -41,7 +41,7 @@ const styles = {
     border: 'none',
     color: colors.text,
     fontSize: '12px',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     cursor: 'pointer',
     fontFamily: 'inherit',
     borderRadius: '4px',
