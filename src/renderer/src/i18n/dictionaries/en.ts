@@ -96,6 +96,11 @@ export const en = {
   'settings.language.english': 'English',
   'settings.language.hebrew': 'עברית',
   'settings.language.note': 'Changes take effect immediately.',
+  'settings.workspace.placeholder': 'Open a project to manage workspace settings.',
+
+  // App chrome cluster
+  'cluster.language.aria': 'Switch language',
+  'cluster.auth.disconnected.aria': 'Connect API key',
 
   // Office overlays
   'overlay.uidesign.title': 'UI Designs — Review',

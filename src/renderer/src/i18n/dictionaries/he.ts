@@ -82,6 +82,11 @@ export const he: Partial<Record<StringKey, string>> = {
   'settings.language.english': 'English',
   'settings.language.hebrew': 'עברית',
   'settings.language.note': 'השינויים נכנסים לתוקף מיידית.',
+  'settings.workspace.placeholder': 'פתח פרויקט כדי לנהל הגדרות סביבת עבודה.',
+
+  // App chrome cluster
+  'cluster.language.aria': 'החלף שפה',
+  'cluster.auth.disconnected.aria': 'התחבר באמצעות מפתח API',
   'overlay.uidesign.title': 'עיצובי ממשק — סקירה',
   'overlay.uidesign.approve': 'אישור',
   'overlay.uidesign.feedback.placeholder': 'מה לשנות?',

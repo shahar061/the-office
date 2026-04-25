@@ -18,7 +18,7 @@ import { useSettingsStore } from './stores/settings.store';
 import { useMobileBridgeStore } from './stores/mobile-bridge.store';
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
 import { BugReportModal } from './components/BugReportModal';
-import { HeaderStatusPill } from './components/HeaderStatusPill/HeaderStatusPill';
+import { AppChromeCluster } from './components/AppChromeCluster';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
 import { audioManager } from './audio/AudioManager';
 
@@ -138,6 +138,18 @@ export default function App() {
     return () => unsubs.forEach((fn) => fn());
   }, []);
 
+  // Cmd+, / Ctrl+, opens Settings
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        useSettingsStore.getState().open();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   // Re-hydrate artifacts whenever a project is opened
   useEffect(() => {
     if (projectState) {
@@ -235,17 +247,7 @@ export default function App() {
       </React.Suspense>
       <SettingsPanel />
       <BugReportModal />
-      <div
-        style={{
-          position: 'fixed',
-          top: 10,
-          right: 14,
-          zIndex: 90, // below SettingsPanel backdrop (100) but above most content
-          pointerEvents: 'auto',
-        }}
-      >
-        <HeaderStatusPill />
-      </div>
+      <AppChromeCluster />
     </div>
   );
 }

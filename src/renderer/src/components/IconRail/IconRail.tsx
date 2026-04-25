@@ -41,14 +41,13 @@ const UTILITY_ITEMS: NavItem[] = [
 const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', labelKey: 'iconrail.devjump' };
 
 interface ActionItem {
-  id: 'settings' | 'feedback';
+  id: 'feedback';
   icon: string;
   labelKey: StringKey;
   devOnly?: boolean;
 }
 
 const UTILITY_ACTIONS: ActionItem[] = [
-  { id: 'settings', icon: '⚙️', labelKey: 'iconrail.settings' },
   { id: 'feedback', icon: '🐞', labelKey: 'iconrail.feedback', devOnly: true },
 ];
 
@@ -361,8 +360,7 @@ export function IconRail() {
             icon={action.icon}
             label={t(action.labelKey)}
             onClick={() => {
-              if (action.id === 'settings') useSettingsStore.getState().open();
-              else if (action.id === 'feedback') openBugReport();
+              if (action.id === 'feedback') openBugReport();
             }}
           />
         ))}

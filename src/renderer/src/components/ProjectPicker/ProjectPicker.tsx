@@ -7,6 +7,7 @@ import { RecentProjects } from './RecentProjects';
 import { NewProjectForm } from './NewProjectForm';
 import { ExistingCodebaseModal } from './ExistingCodebaseModal';
 import { useT } from '../../i18n';
+import { useApiKeyPanelStore } from '../../stores/api-key-panel.store';
 
 // ── Styles ──
 
@@ -90,35 +91,6 @@ const S = {
     color: '#f87171',
     marginTop: 4,
   },
-  statusBar: {
-    position: 'absolute' as const,
-    bottom: 20,
-    left: 24,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: (connected: boolean): React.CSSProperties => ({
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: connected ? colors.success : colors.error,
-    boxShadow: connected ? '0 0 6px rgba(34,197,94,0.5)' : '0 0 6px rgba(239,68,68,0.5)',
-    flexShrink: 0,
-  }),
-  statusLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  connectBtn: {
-    fontSize: 11,
-    padding: '3px 10px',
-    borderRadius: 5,
-    border: `1px solid ${colors.accent}`,
-    background: 'transparent',
-    color: colors.accent,
-    cursor: 'pointer',
-  },
   spinner: {
     width: 14,
     height: 14,
@@ -158,8 +130,9 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
     { path: string; fileCount: number } | null
   >(null);
 
-  // API key panel
-  const [showApiKeyPanel, setShowApiKeyPanel] = useState(false);
+  // API key panel (state lifted to store)
+  const showApiKeyPanel = useApiKeyPanelStore((s) => s.isOpen);
+  const closeApiKeyPanel = useApiKeyPanelStore((s) => s.close);
 
   const connected = authStatus.connected;
 
@@ -330,77 +303,57 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
         </div>
       </div>
 
-      {/* ── Status Bar (bottom-left) ── */}
-      <div style={S.statusBar}>
-        <div style={S.dot(connected)} />
-        <span style={S.statusLabel}>
-          {connected
-            ? authStatus.method === 'cli-auth'
-              ? 'Claude Code (CLI)'
-              : (authStatus.account ?? t('project.picker.connected'))
-            : t('project.picker.notConnected')}
-        </span>
-        {!connected && !showApiKeyPanel && (
-          <button
-            style={S.connectBtn}
-            onClick={() => setShowApiKeyPanel(true)}
-          >
-            {t('project.picker.connect')}
-          </button>
-        )}
-
-        {/* Auth panel -- CLI detected or API key fallback */}
-        {showApiKeyPanel && !connected && (
-          <div style={{
-            position: 'fixed',
-            bottom: 56,
-            left: 24,
-            background: colors.surface,
-            border: '1px solid #444',
-            borderRadius: 10,
-            padding: '16px 18px',
-            width: 400,
-            zIndex: 9999,
-            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Authentication
-              </span>
-              <button
-                onClick={() => setShowApiKeyPanel(false)}
-                style={{
-                  background: '#2a2a3e',
-                  border: '1px solid #444',
-                  borderRadius: 4,
-                  color: '#e5e5e5',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  lineHeight: 1,
-                  padding: '4px 8px',
-                  minWidth: 28,
-                  minHeight: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12, lineHeight: 1.5 }}>
-              <strong style={{ color: '#e5e5e5' }}>Recommended:</strong> Install{' '}
-              <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: colors.accent }}>Claude Code</a>{' '}
-              and run <code style={{ background: colors.surface, padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
-              in your terminal. Works with Max/Pro subscriptions.
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-              Or enter API key
-            </div>
-            <ApiKeyPanel onConnected={() => setShowApiKeyPanel(false)} />
+      {/* API key entry panel (gated by useApiKeyPanelStore.isOpen) */}
+      {showApiKeyPanel && !connected && (
+        <div style={{
+          position: 'fixed',
+          bottom: 56,
+          left: 24,
+          background: colors.surface,
+          border: '1px solid #444',
+          borderRadius: 10,
+          padding: '16px 18px',
+          width: 400,
+          zIndex: 9999,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Authentication
+            </span>
+            <button
+              onClick={closeApiKeyPanel}
+              style={{
+                background: '#2a2a3e',
+                border: '1px solid #444',
+                borderRadius: 4,
+                color: '#e5e5e5',
+                cursor: 'pointer',
+                fontSize: 14,
+                lineHeight: 1,
+                padding: '4px 8px',
+                minWidth: 28,
+                minHeight: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ✕
+            </button>
           </div>
-        )}
-      </div>
+          <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12, lineHeight: 1.5 }}>
+            <strong style={{ color: '#e5e5e5' }}>Recommended:</strong> Install{' '}
+            <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: colors.accent }}>Claude Code</a>{' '}
+            and run <code style={{ background: colors.surface, padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
+            in your terminal. Works with Max/Pro subscriptions.
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            Or enter API key
+          </div>
+          <ApiKeyPanel onConnected={closeApiKeyPanel} />
+        </div>
+      )}
 
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
