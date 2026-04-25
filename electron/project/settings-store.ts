@@ -140,6 +140,8 @@ export class SettingsStore {
         gitPreferences: parsed.gitPreferences ?? DEFAULT_SETTINGS.gitPreferences,
         mobile: parsed.mobile ?? DEFAULT_SETTINGS.mobile,
         audio: parsed.audio ?? DEFAULT_SETTINGS.audio,
+        language: parsed.language ?? DEFAULT_SETTINGS.language,
+        devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
       };
     } catch (err) {
       console.warn('[SettingsStore] Corrupted settings.json, using defaults:', err);
