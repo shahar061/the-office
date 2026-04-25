@@ -102,6 +102,16 @@ export const en = {
   'cluster.language.aria': 'Switch language',
   'cluster.auth.disconnected.aria': 'Connect API key',
 
+  // Intro sequences
+  'intro.ceo.step1': 'Ah, a new project! *adjusts glasses*\nWelcome to The Office. I\'m the CEO — and we\'ve got quite the team here.',
+  'intro.ceo.step2': 'First, we Imagine — that\'s where I sit down with the leadership team and figure out exactly what we\'re building.',
+  'intro.ceo.step3': 'Then the War Room turns it into a battle plan, and the engineers Build it. The whole team\'s had their coffee already.',
+  'intro.ceo.step4': 'Over there is where we chat. You can talk to the team, answer their questions, and guide the project as it moves along.',
+  'intro.ceo.step5': 'So, what would you like to build?',
+  'intro.warroom.step1': "Time to turn vision into action. I'm the Project Manager — I'll be leading the War Room phase.",
+  'intro.warroom.step2': "I'll review everything the leadership team created and write a battle plan. You'll get to review it before we move on.",
+  'intro.warroom.step3': "Then the Team Lead will break it into tasks for the engineers. Let's get started.",
+
   // Office overlays
   'overlay.uidesign.title': 'UI Designs — Review',
   'overlay.uidesign.approve': 'Approve',

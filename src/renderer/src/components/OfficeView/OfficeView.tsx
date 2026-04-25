@@ -12,8 +12,9 @@ import { audioManager } from '../../audio/AudioManager';
 import { useAudioStore } from '../../stores/audio.store';
 import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
-import { useIntro, CEO_INTRO_STEPS } from './useIntro';
-import { useWarRoomIntro, WARROOM_SPEAKER, WARROOM_SPEAKER_COLOR } from './useWarRoomIntro';
+import { useIntro, useCeoIntroSteps } from './useIntro';
+import { useWarRoomIntro, WARROOM_SPEAKER_COLOR } from './useWarRoomIntro';
+import { useT } from '../../i18n';
 import { useWarTableStore } from '../../stores/war-table.store';
 import { IconRail } from '../IconRail/IconRail';
 import { useLogStore } from '../../stores/log.store';
@@ -118,9 +119,12 @@ export default function OfficeView() {
     showDialog: showWarRoomDialog,
     highlights: warRoomHighlights,
     introSteps: warRoomSteps,
+    speaker: warRoomSpeaker,
     handleIntroComplete: handleWarRoomIntroComplete,
     handleHighlightChange: handleWarRoomHighlightChange,
   } = useWarRoomIntro(officeScene);
+  const ceoIntroSteps = useCeoIntroSteps();
+  const t = useT();
 
   // Keep a stable ref to the current scene so useCharStream's interval
   // closure always reads the live value without re-starting on each render.
@@ -383,8 +387,8 @@ export default function OfficeView() {
         {showIntro && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'auto', left: '40px' }}>
             <IntroSequence
-              steps={CEO_INTRO_STEPS}
-              speaker="CEO"
+              steps={ceoIntroSteps}
+              speaker={t('agent.ceo')}
               onComplete={handleIntroComplete}
               onHighlightChange={handleHighlightChange}
               onChatHighlightChange={handleChatHighlightChange}
@@ -396,7 +400,7 @@ export default function OfficeView() {
           <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'auto', left: '40px' }}>
             <IntroSequence
               steps={warRoomSteps}
-              speaker={WARROOM_SPEAKER}
+              speaker={warRoomSpeaker}
               speakerColor={WARROOM_SPEAKER_COLOR}
               onComplete={handleWarRoomIntroComplete}
               onHighlightChange={handleWarRoomHighlightChange}

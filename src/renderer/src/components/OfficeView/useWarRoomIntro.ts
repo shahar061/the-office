@@ -1,31 +1,17 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Phase } from '@shared/types';
 import { AGENT_COLORS } from '@shared/types';
 import { useProjectStore } from '../../stores/project.store';
+import { useT } from '../../i18n';
 import type { OfficeScene } from '../../office/OfficeScene';
 import type { DialogueStep } from './IntroSequence';
 
-const WARROOM_INTRO_STEPS: DialogueStep[] = [
-  {
-    text: "Time to turn vision into action. I'm the Project Manager — I'll be leading the War Room phase.",
-    highlights: ['warroom'] as Phase[],
-  },
-  {
-    text: "I'll review everything the leadership team created and write a battle plan. You'll get to review it before we move on.",
-    highlights: ['imagine', 'warroom'] as Phase[],
-  },
-  {
-    text: "Then the Team Lead will break it into tasks for the engineers. Let's get started.",
-    highlights: ['warroom', 'build'] as Phase[],
-  },
-];
-
-export const WARROOM_SPEAKER = 'Project Manager';
 export const WARROOM_SPEAKER_COLOR = AGENT_COLORS['project-manager'];
 
 export function useWarRoomIntro(scene: OfficeScene | null) {
   const warRoomIntroActive = useProjectStore((s) => s.warRoomIntroActive);
   const setWarRoomIntroActive = useProjectStore((s) => s.setWarRoomIntroActive);
+  const t = useT();
 
   const [showDialog, setShowDialog] = useState(false);
   const [highlights, setHighlights] = useState<Phase[]>([]);
@@ -124,11 +110,21 @@ export function useWarRoomIntro(scene: OfficeScene | null) {
     setHighlights(phases);
   }, []);
 
+  const introSteps = useMemo<DialogueStep[]>(
+    () => [
+      { text: t('intro.warroom.step1'), highlights: ['warroom'] as Phase[] },
+      { text: t('intro.warroom.step2'), highlights: ['imagine', 'warroom'] as Phase[] },
+      { text: t('intro.warroom.step3'), highlights: ['warroom', 'build'] as Phase[] },
+    ],
+    [t],
+  );
+
   return {
     warRoomIntroActive,
     showDialog,
     highlights,
-    introSteps: WARROOM_INTRO_STEPS,
+    introSteps,
+    speaker: t('agent.project-manager'),
     handleIntroComplete,
     handleHighlightChange,
   };

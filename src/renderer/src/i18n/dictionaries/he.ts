@@ -87,6 +87,17 @@ export const he: Partial<Record<StringKey, string>> = {
   // App chrome cluster
   'cluster.language.aria': 'החלף שפה',
   'cluster.auth.disconnected.aria': 'התחבר באמצעות מפתח API',
+
+  // Intro sequences
+  'intro.ceo.step1': 'אה, פרויקט חדש! *מסדר את המשקפיים*\nברוכים הבאים למשרד. אני המנכ"ל — ויש לנו כאן צוות לא רע בכלל.',
+  'intro.ceo.step2': 'קודם כל, אנחנו מדמיינים — בשלב הזה אני יושב עם צוות ההנהלה ומברר מה בדיוק אנחנו בונים.',
+  'intro.ceo.step3': 'אחר כך חדר המלחמה הופך את זה לתוכנית קרב, והמהנדסים בונים אותה. כל הצוות כבר שתה את הקפה שלו.',
+  'intro.ceo.step4': 'שם אנחנו משוחחים. אפשר לדבר עם הצוות, לענות לשאלות שלהם, ולכוון את הפרויקט תוך כדי תנועה.',
+  'intro.ceo.step5': 'אז, מה תרצה לבנות?',
+  'intro.warroom.step1': 'הגיע הזמן להפוך חזון לפעולה. אני מנהל הפרויקט — אני אנהל את שלב חדר המלחמה.',
+  'intro.warroom.step2': 'אני אעבור על כל מה שצוות ההנהלה יצר ואכתוב תוכנית קרב. תוכל לסקור אותה לפני שנמשיך.',
+  'intro.warroom.step3': 'אחר כך ראש הצוות יפרק אותה למשימות עבור המהנדסים. בוא נתחיל.',
+
   'overlay.uidesign.title': 'עיצובי ממשק — סקירה',
   'overlay.uidesign.approve': 'אישור',
   'overlay.uidesign.feedback.placeholder': 'מה לשנות?',

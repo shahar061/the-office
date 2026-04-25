@@ -43,13 +43,16 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
   );
 }
 
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export function useT() {
-  useSyncExternalStore(
+  const lang = useSyncExternalStore(
     (cb) => subscribeToLanguage(cb),
     () => currentLang,
   );
-  return (key: StringKey, vars?: Record<string, string | number>) =>
-    interpolate(lookup(currentLang, key), vars);
+  return useCallback(
+    (key: StringKey, vars?: Record<string, string | number>) =>
+      interpolate(lookup(lang, key), vars),
+    [lang],
+  );
 }
