@@ -222,6 +222,7 @@ export async function handleStartWarroom(): Promise<void> {
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
 
+  ensurePhaseMachine();
   phaseMachine!.transition('warroom');
 
   if (!statsCollector && currentProjectDir) {
@@ -295,6 +296,7 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
 
+  ensurePhaseMachine();
   phaseMachine!.transition('build');
 
   if (!statsCollector && currentProjectDir) {
