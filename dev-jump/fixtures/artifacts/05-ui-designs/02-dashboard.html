@@ -1,0 +1,29 @@
+<!-- last-reviewed: 2026-04-24 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — Habit Streak Tracker</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #FAF7F2; color: #2A2620; }
+    .phone { max-width: 375px; margin: 40px auto; background: #FFFDF9; border: 1px solid #E6DFD2; border-radius: 24px; padding: 32px 24px; }
+    h1 { font-size: 14px; font-weight: 600; color: #8B7D6B; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 24px; }
+    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .day { aspect-ratio: 1; border-radius: 50%; }
+    .day.filled { background: #C87A4A; }
+    .day.empty { border: 1px solid #E6DFD2; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <h1>April 2026</h1>
+    <div class="grid">
+      <div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div>
+      <div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div>
+      <div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day filled"></div><div class="day empty"></div><div class="day empty"></div>
+      <div class="day empty"></div><div class="day empty"></div><div class="day empty"></div><div class="day empty"></div><div class="day empty"></div><div class="day empty"></div><div class="day empty"></div>
+      <div class="day empty"></div><div class="day empty"></div>
+    </div>
+  </div>
+</body>
+</html>
