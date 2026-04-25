@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
+import { languageInstructions, currentLanguageFromEnv } from './language';
 import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse, AppSettings } from '../../shared/types';
 import yaml from 'js-yaml';
 import { runPool } from './worker-pool';
@@ -31,6 +32,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     onWarTableState, onWarTableCardAdded, onWarTableChoreography, onReviewReady,
     waitForIntro, getSettings,
   } = config;
+  const langPrefix = languageInstructions(currentLanguageFromEnv());
   const artifactStore = new ArtifactStore(projectDir);
   const context = artifactStore.getImagineContext();
 
@@ -59,7 +61,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     await runAgentSession({
       agentName: 'project-manager',
       agentsDir,
-      prompt: [
+      prompt: langPrefix + [
         'You are the Project Manager leading the War Room planning phase.',
         'Based on the design documents below, create a human-readable implementation plan.',
         '',
@@ -115,7 +117,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
   await runAgentSession({
     agentName: 'team-lead',
     agentsDir,
-    prompt: [
+    prompt: langPrefix + [
       'You are the Team Lead creating the machine-readable task manifest.',
       'Based on the plan and design documents below, create ONLY tasks.yaml.',
       'Do NOT write an implementation spec — that will be handled separately per phase.',
@@ -210,7 +212,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
         agentName: 'team-lead',
         agentLabel: `Team Lead #${cloneNumber}`,
         agentsDir,
-        prompt: [
+        prompt: langPrefix + [
           `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,
           '',
           `Write the spec to docs/office/specs/phase-${phase.id}.md`,

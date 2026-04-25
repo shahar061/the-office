@@ -3,6 +3,7 @@ import type { PermissionHandler } from '../sdk/permission-handler';
 import type { AgentEvent, AgentRole, AskQuestion, BuildConfig, KanbanState, KanbanTask } from '../../shared/types';
 import { resolveRole } from '../sdk/sdk-bridge';
 import { runAgentSession } from './run-agent-session';
+import { languageInstructions, currentLanguageFromEnv } from './language';
 import { runDependencyGraph, type DependencyTask } from './dependency-graph';
 import yaml from 'js-yaml';
 
@@ -116,6 +117,7 @@ export async function runBuild(
   resumeState?: BuildState,
 ): Promise<BuildState> {
   const artifactStore = new ArtifactStore(config.projectDir);
+  const langPrefix = languageInstructions(currentLanguageFromEnv());
 
   let allTasks: BuildTask[];
   const taskStatuses = new Map<string, KanbanTask['status']>();
@@ -181,7 +183,7 @@ export async function runBuild(
     tasks: adjustedTasks,
     concurrency: 4,  // max parallel agent sessions
     run: async (task) => {
-      await runTaskSession(task, config, artifactStore, completedTaskOutputs);
+      await runTaskSession(task, config, artifactStore, completedTaskOutputs, langPrefix);
     },
     onStatusChange: (taskId, status, error) => {
       if (status === 'active') config.onActStart?.(taskId);
@@ -220,7 +222,7 @@ export async function runBuild(
       await runAgentSession({
         agentName: 'devops',
         agentsDir: config.agentsDir,
-        prompt: RUN_MD_PROMPT,
+        prompt: langPrefix + RUN_MD_PROMPT,
         cwd: config.projectDir,
         env: config.authEnv || {},
         excludeAskUser: true,
@@ -245,6 +247,7 @@ async function runTaskSession(
   config: BuildOrchestratorConfig,
   artifactStore: ArtifactStore,
   completedOutputs: Map<string, string>,
+  langPrefix: string,
 ): Promise<void> {
   const role = resolveRole(task.assignedAgent);
   const spec = artifactStore.getSpecForPhase(task.phaseId);
@@ -275,7 +278,7 @@ async function runTaskSession(
   await runAgentSession({
     agentName: task.assignedAgent.replace(/_/g, '-'),
     agentsDir: config.agentsDir,
-    prompt,
+    prompt: langPrefix + prompt,
     cwd: config.projectDir,
     env: config.authEnv || {},
     model: task.model,

@@ -1,5 +1,6 @@
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
+import { languageInstructions, currentLanguageFromEnv } from './language';
 import type { PhaseConfig, UIDesignReviewPayload, UIDesignReviewResponse } from '../../shared/types';
 
 export interface ImagineConfig extends PhaseConfig {
@@ -31,6 +32,7 @@ async function runAct(act: Act, artifactStore: ArtifactStore, config: ImagineCon
 
 export async function runImagine(userIdea: string, config: ImagineConfig): Promise<void> {
   const { projectDir, agentsDir, env, onEvent, onWaiting } = config;
+  const langPrefix = languageInstructions(currentLanguageFromEnv());
   const artifactStore = new ArtifactStore(projectDir);
 
   // 1. CEO — Discovery
@@ -40,7 +42,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     run: () => runAgentSession({
       agentName: 'ceo',
       agentsDir,
-      prompt: [
+      prompt: langPrefix + [
         'You are the CEO leading the Discovery phase.',
         'Ask the user clarifying questions to understand their idea deeply.',
         'Use AskUserQuestion to ask structured questions with options when possible.',
@@ -67,7 +69,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'product-manager',
         agentsDir,
-        prompt: [
+        prompt: langPrefix + [
           'You are the Product Manager leading the Definition phase.',
           'Based on the vision brief below, ask the user questions to refine requirements.',
           'Use AskUserQuestion for structured questions when possible.',
@@ -97,7 +99,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'market-researcher',
         agentsDir,
-        prompt: [
+        prompt: langPrefix + [
           'You are the Market Researcher leading the Validation phase.',
           'Research the market landscape, competitors, and opportunities.',
           'Use WebSearch to gather real data.',
@@ -153,7 +155,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
         await runAgentSession({
           agentName: 'ui-ux-expert',
           agentsDir,
-          prompt,
+          prompt: langPrefix + prompt,
           cwd: projectDir,
           env,
           expectedOutput: 'docs/office/05-ui-designs/index.md',
@@ -184,7 +186,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'chief-architect',
         agentsDir,
-        prompt: [
+        prompt: langPrefix + [
           'You are the Chief Architect leading the Architecture phase.',
           'Based on the design documents below, ask the user about tech stack preferences.',
           'Use AskUserQuestion for structured questions when possible.',

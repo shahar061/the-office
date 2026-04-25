@@ -1,4 +1,5 @@
 import { runAgentSession } from './run-agent-session';
+import { languageInstructions, currentLanguageFromEnv } from './language';
 import { ProjectScanner } from '../project/project-scanner';
 import { ArtifactStore } from '../project/artifact-store';
 import { parseTriageOutput } from './workshop-parser';
@@ -42,6 +43,7 @@ export async function runWorkshopRequest(
   request: Request,
   config: WorkshopConfigWithReview,
 ): Promise<Request> {
+  const langPrefix = languageInstructions(currentLanguageFromEnv());
   const scanner = new ProjectScanner(config.projectDir);
   const artifactStore = new ArtifactStore(config.projectDir);
   const fileTree = scanner.getFileTree();
@@ -55,7 +57,7 @@ export async function runWorkshopRequest(
     await runAgentSession({
       agentName: 'team-lead',
       agentsDir: config.agentsDir,
-      prompt: buildTriagePrompt(request, fileTree, imagineContext),
+      prompt: langPrefix + buildTriagePrompt(request, fileTree, imagineContext),
       cwd: config.projectDir,
       env: config.env,
       model: 'haiku',
@@ -98,7 +100,7 @@ export async function runWorkshopRequest(
   try {
     // ── Step 2: Branch on mode ──
     if (triage.mode === 'direct') {
-      return await runExecution(request, triage.reasoning, fileTree, imagineContext, null, config);
+      return await runExecution(request, triage.reasoning, fileTree, imagineContext, null, config, langPrefix);
     }
 
     // ── Step 3: Planning + revision loop ──
@@ -114,6 +116,7 @@ export async function runWorkshopRequest(
           currentPlan,
           feedback,
           config,
+          langPrefix,
         );
       } catch (err: any) {
         request.status = 'failed';
@@ -132,7 +135,7 @@ export async function runWorkshopRequest(
       if (review.action === 'approve') {
         request.status = 'in_progress';
         config.onRequestUpdated(request);
-        return await runExecution(request, triage.reasoning, fileTree, imagineContext, currentPlan, config);
+        return await runExecution(request, triage.reasoning, fileTree, imagineContext, currentPlan, config, langPrefix);
       }
 
       feedback = review.feedback ?? '';
@@ -161,6 +164,7 @@ async function runPlanningSession(
   previousPlan: string | null,
   feedback: string,
   config: WorkshopConfig,
+  langPrefix: string,
 ): Promise<string> {
   const prompt = previousPlan
     ? buildRevisionPrompt(request, reasoning, fileTree, imagineContext, previousPlan, feedback)
@@ -170,7 +174,7 @@ async function runPlanningSession(
   await runAgentSession({
     agentName: request.assignedAgent!,
     agentsDir: config.agentsDir,
-    prompt,
+    prompt: langPrefix + prompt,
     cwd: config.projectDir,
     env: config.env,
     excludeAskUser: true,
@@ -203,6 +207,7 @@ async function runExecution(
   imagineContext: string,
   approvedPlan: string | null,
   config: WorkshopConfig,
+  langPrefix: string,
 ): Promise<Request> {
   const prompt = approvedPlan
     ? buildApprovedExecutionPrompt(request, reasoning, fileTree, imagineContext, approvedPlan)
@@ -213,7 +218,7 @@ async function runExecution(
     await runAgentSession({
       agentName: request.assignedAgent!,
       agentsDir: config.agentsDir,
-      prompt,
+      prompt: langPrefix + prompt,
       cwd: config.projectDir,
       env: config.env,
       excludeAskUser: true,
@@ -423,6 +428,7 @@ export async function continueWorkshopAfterReview(
     return request;
   }
 
+  const langPrefix = languageInstructions(currentLanguageFromEnv());
   const scanner = new ProjectScanner(config.projectDir);
   const artifactStore = new ArtifactStore(config.projectDir);
   const fileTree = scanner.getFileTree();
@@ -434,7 +440,7 @@ export async function continueWorkshopAfterReview(
   if (response.action === 'approve' && request.plan) {
     request.status = 'in_progress';
     config.onRequestUpdated(request);
-    return runExecution(request, reasoning, fileTree, imagineContext, request.plan, config);
+    return runExecution(request, reasoning, fileTree, imagineContext, request.plan, config, langPrefix);
   }
 
   // revise — loop into a fresh planning session
@@ -450,6 +456,7 @@ export async function continueWorkshopAfterReview(
         currentPlan,
         feedback,
         config,
+        langPrefix,
       );
     } catch (err: any) {
       request.status = 'failed';
@@ -468,7 +475,7 @@ export async function continueWorkshopAfterReview(
     if (nextReview.action === 'approve') {
       request.status = 'in_progress';
       config.onRequestUpdated(request);
-      return runExecution(request, reasoning, fileTree, imagineContext, currentPlan, config);
+      return runExecution(request, reasoning, fileTree, imagineContext, currentPlan, config, langPrefix);
     }
     feedback = nextReview.feedback ?? '';
   }
