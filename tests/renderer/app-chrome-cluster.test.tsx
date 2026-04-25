@@ -50,5 +50,6 @@ describe('AppChromeCluster', () => {
     render(<AppChromeCluster />);
     expect(screen.getByText('⚙️')).toBeTruthy();
     expect(screen.queryByText(/Not connected/)).toBeNull();
+    expect(screen.getByText('📱 Pair a phone')).toBeTruthy();
   });
 });
