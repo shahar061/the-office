@@ -63,6 +63,7 @@ export function LanguageDropdown() {
         onClick={() => setOpen(!open)}
         style={styles.badge}
         aria-label={t('cluster.language.aria')}
+        aria-expanded={open}
       >
         {language === 'he' ? 'HE' : 'EN'} ▾
       </button>

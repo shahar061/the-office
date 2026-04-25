@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LanguageDropdown } from '../../src/renderer/src/components/AppChromeCluster/LanguageDropdown';
 import { useSettingsStore } from '../../src/renderer/src/stores/settings.store';
 
@@ -46,8 +46,9 @@ describe('LanguageDropdown', () => {
   it('clicking a language item calls setLanguage and closes dropdown', async () => {
     render(<LanguageDropdown />);
     fireEvent.click(screen.getByText(/EN/));
-    fireEvent.click(screen.getByText(/עברית/));
-    await new Promise((r) => setTimeout(r, 0));
+    await act(async () => {
+      fireEvent.click(screen.getByText(/עברית/));
+    });
     expect(globalThis.window.office.saveSettings).toHaveBeenCalledWith({ language: 'he' });
   });
 
