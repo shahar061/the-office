@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import type { AppSettings } from '@shared/types';
+import { setCurrentLanguage } from '../i18n';
 
 export type SettingsSection =
   | 'general'
+  | 'language'
   | 'agents'
   | 'workspace'
   | 'mobile'
@@ -20,6 +22,7 @@ interface SettingsStoreState {
   setActiveSection: (section: SettingsSection) => void;
   hydrate: () => Promise<void>;
   setFromEvent: (settings: AppSettings) => void;
+  setLanguage: (lang: 'en' | 'he') => Promise<void>;
   dismissFirstRunBanner: (projectPath: string) => void;
   isFirstRunBannerDismissed: (projectPath: string) => boolean;
 }
@@ -43,6 +46,7 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   async hydrate() {
     try {
       const settings = await window.office.getSettings();
+      setCurrentLanguage(settings.language ?? 'en');
       set({ settings });
     } catch (err) {
       console.warn('[settings.store] hydrate failed:', err);
@@ -50,6 +54,12 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   },
 
   setFromEvent: (settings) => set({ settings }),
+
+  setLanguage: async (lang) => {
+    setCurrentLanguage(lang);
+    const next = await window.office.saveSettings({ language: lang });
+    set({ settings: next });
+  },
 
   dismissFirstRunBanner: (projectPath) =>
     set((state) => {

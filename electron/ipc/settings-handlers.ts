@@ -20,6 +20,9 @@ export function initSettingsHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, patch: Partial<AppSettings>) => {
     const next = settingsStore.update(patch);
+    if (patch.language !== undefined) {
+      process.env.OFFICE_LANGUAGE = next.language;
+    }
     send(IPC_CHANNELS.SETTINGS_UPDATED, next);
     return next;
   });

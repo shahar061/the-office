@@ -198,6 +198,7 @@ app.whenReady().then(async () => {
   initProjectHandlers();
   initPhaseHandlers();
   initSettingsHandlers();
+  process.env.OFFICE_LANGUAGE = settingsStore.get().language ?? 'en';
   initDevHandlers({
     seed: (opts) => SeedEngine.seed(opts),
     abortActivePhase: () => {

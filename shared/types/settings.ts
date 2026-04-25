@@ -37,6 +37,7 @@ export interface AppSettings {
     musicMuted: boolean;
     sfxMuted: boolean;
   };
+  language: 'en' | 'he';
 }
 
 export interface RateLimitState {

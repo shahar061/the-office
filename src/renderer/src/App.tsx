@@ -45,6 +45,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const language = settings?.language ?? 'en';
+    document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [settings?.language]);
+
+  useEffect(() => {
     void useMobileBridgeStore.getState().refresh();
     // Apply the status payload directly from the push event — avoids a race
     // where multiple in-flight getStatus() calls resolve out of order and
