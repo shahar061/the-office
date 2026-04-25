@@ -3,7 +3,7 @@ import { useApiKeyPanelStore } from '../../src/renderer/src/stores/api-key-panel
 
 describe('useApiKeyPanelStore', () => {
   beforeEach(() => {
-    useApiKeyPanelStore.setState({ isOpen: false });
+    useApiKeyPanelStore.getState().close();
   });
 
   it('starts closed', () => {
