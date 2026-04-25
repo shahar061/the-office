@@ -10,6 +10,7 @@ import { MonitorGlow } from './MonitorGlow';
 import { WarTable } from './WarTable';
 import { SeatPool } from './SeatPool';
 import type { AgentRole, CharacterState } from '../../../shared/types';
+import { getCurrentLanguage } from '../i18n';
 import officeTilesetUrl from '../assets/tilesets/office-tileset.png?url';
 import a5FloorsWallsUrl from '../assets/tilesets/a5-office-floors-walls.png?url';
 import interiorsUrl from '../assets/tilesets/interiors.png?url';
@@ -228,9 +229,19 @@ export class OfficeScene {
     if (py + bgH > visBottom) py = visBottom - bgH;
     if (py < visTop) py = visTop;
 
-    let px = pos.x - bgW / 2;
-    if (px + bgW > visRight) px = visRight - bgW;
-    if (px < visLeft) px = visLeft;
+    const isRTL = getCurrentLanguage() === 'he';
+    let px: number;
+    if (isRTL) {
+      // RTL: bias popup to the left of the character; fall back rightward if no room.
+      px = pos.x - bgW + 16;
+      if (px < visLeft) px = pos.x - 16;
+      if (px + bgW > visRight) px = visRight - bgW;
+    } else {
+      // LTR: bias popup to the right of the character; fall back leftward if no room.
+      px = pos.x - 16;
+      if (px + bgW > visRight) px = pos.x - bgW + 16;
+      if (px < visLeft) px = visLeft;
+    }
 
     popup.x = px;
     popup.y = py;

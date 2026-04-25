@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { getCurrentLanguage } from '../../i18n';
 
 const TOOL_ICONS: Record<string, string> = {
   Write: '>',
@@ -122,9 +123,13 @@ export class ToolBubble {
     this.lingerElapsed = 0;
   }
 
-  /** Position bubble centered above a character at world coordinates (px, py). */
+  /** Position bubble above a character at world coordinates (px, py).
+   *  In LTR the bubble is biased to the right of centre; in RTL it is biased left. */
   setPosition(px: number, py: number): void {
-    this.container.x = px - (this.bgW * RENDER_SCALE) / 2;
+    const isRTL = getCurrentLanguage() === 'he';
+    const halfBubble = (this.bgW * RENDER_SCALE) / 2;
+    const bias = isRTL ? -16 : 16;
+    this.container.x = px - halfBubble + bias;
     this.container.y = py + OFFSET_Y - this.bgH * RENDER_SCALE;
   }
 
