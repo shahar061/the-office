@@ -43,4 +43,14 @@ describe('AuthChip', () => {
     const btn = screen.getByText('foo@example.com').closest('button')!;
     expect(btn.disabled).toBe(true);
   });
+
+  it('shows "Claude Code (CLI)" when connected via cli-auth', () => {
+    useProjectStore.setState({
+      authStatus: { connected: true, method: 'cli-auth', account: 'foo@example.com' },
+      projectState: null,
+    } as any);
+    render(<AuthChip />);
+    expect(screen.getByText('Claude Code (CLI)')).toBeTruthy();
+    expect(screen.queryByText('foo@example.com')).toBeNull();
+  });
 });

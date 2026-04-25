@@ -42,7 +42,9 @@ export function AuthChip() {
     >
       <span style={styles.dot(auth.connected)} />
       {auth.connected
-        ? (auth.account ?? t('project.picker.connected'))
+        ? (auth.method === 'cli-auth'
+            ? 'Claude Code (CLI)'
+            : (auth.account ?? t('project.picker.connected')))
         : t('project.picker.notConnected')}
     </button>
   );
