@@ -26,6 +26,7 @@ import { SpecProgressStrip } from '../OfficeView/SpecProgressStrip';
 import { GreenfieldBanners } from '../OfficeView/GreenfieldBanners';
 import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
+import { DevJumpPanel } from '../DevJumpPanel';
 
 const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   chat: { icon: '💬', label: 'Chat' },
@@ -38,6 +39,7 @@ const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
   complete: { icon: '🎉', label: 'Complete' },
   workshop: { icon: '🔧', label: 'Workshop' },
   diff: { icon: '📝', label: 'Diff' },
+  devjump: { icon: '🧪', label: 'Dev Jump' },
 };
 
 interface PaneProps {
@@ -164,6 +166,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
           </div>
         )}
         {panelId === 'diff' && <DiffPanel />}
+        {panelId === 'devjump' && <DevJumpPanel />}
       </div>
 
       {/* Drop zone overlay (only during drag) */}

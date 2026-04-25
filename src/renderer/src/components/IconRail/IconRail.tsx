@@ -35,6 +35,11 @@ const UTILITY_ITEMS: NavItem[] = [
   { id: 'about', icon: 'ℹ️', label: 'About' },
 ];
 
+const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', label: 'Dev Jump' };
+const isDevMode = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof (window.office as any)?.devJump === 'function';
+
 interface ActionItem {
   id: 'settings';
   icon: string;
@@ -332,6 +337,15 @@ export function IconRail() {
           onDragStart={(e) => handleDragStart(e, item.id)}
         />
       ))}
+      {isDevMode() && (
+        <IconButton
+          key={DEVJUMP_ITEM.id}
+          item={DEVJUMP_ITEM}
+          inWorkspace={activePanels.has(DEVJUMP_ITEM.id)}
+          onClick={() => handleClick(DEVJUMP_ITEM.id)}
+          onDragStart={(e) => handleDragStart(e, DEVJUMP_ITEM.id)}
+        />
+      )}
       <div style={styles.actionSpacer}>
         {UTILITY_ACTIONS.map((action) => (
           <ActionButton

@@ -157,6 +157,8 @@ export const IPC_CHANNELS = {
   RUN_ONBOARDING_SCAN: 'office:run-onboarding-scan',
   SKIP_ONBOARDING_SCAN: 'office:skip-onboarding-scan',
   PROJECT_STATE_CHANGED: 'office:project-state-changed',
+  // Dev Jump
+  DEV_JUMP: 'office:dev-jump',
 } as const;
 
 export interface OfficeAPI {
@@ -275,6 +277,9 @@ export interface OfficeAPI {
 
   // Canvas State Parity
   broadcastCharStates(states: CharacterState[]): void;
+
+  // Dev Jump (only available when OFFICE_DEV=1)
+  devJump?(req: { target: string; mode: 'real' | 'mock' }): Promise<{ projectDir: string }>;
 
   // Mobile Bridge
   mobile: {

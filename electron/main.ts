@@ -15,14 +15,17 @@ import {
   rejectPendingQuestions,
   setMainWindow,
   setActiveAbort,
+  setPendingReview,
   settingsStore,
   setMobileBridge,
   getPhaseHistoryForMobile,
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
-import { initPhaseHandlers, routeUserChat } from './ipc/phase-handlers';
+import { initPhaseHandlers, routeUserChat, handleStartImagine, handleStartWarroom, handleStartBuild } from './ipc/phase-handlers';
 import { initSettingsHandlers } from './ipc/settings-handlers';
+import { initDevHandlers } from './ipc/dev-handlers';
+import { SeedEngine } from '../dev-jump/engine/seed-engine';
 import { hostname } from 'os';
 import { createMobileBridge } from './mobile-bridge';
 import type { MobileBridge } from './mobile-bridge';
@@ -195,6 +198,23 @@ app.whenReady().then(async () => {
   initProjectHandlers();
   initPhaseHandlers();
   initSettingsHandlers();
+  initDevHandlers({
+    seed: (opts) => SeedEngine.seed(opts),
+    abortActivePhase: () => {
+      if (activeAbort) {
+        activeAbort();
+        setActiveAbort(null);
+      }
+      rejectPendingQuestions('Dev jump', true);
+      setPendingReview(null);
+    },
+    reloadProjectState: (projectDir: string) => {
+      projectManager.openProject(projectDir);
+    },
+    startImagine: (idea, resume) => handleStartImagine(idea, resume),
+    startWarroom: () => handleStartWarroom(),
+    startBuild: (config) => handleStartBuild(config),
+  });
 
   // Start mobile bridge
   try {
