@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { formatAge, shortPath } from '../../utils';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 import type { ProjectInfo } from '@shared/types';
 
 // ── Styles ──
@@ -50,7 +51,7 @@ const S = {
     fontSize: 11,
     color: colors.textDark,
     flexShrink: 0,
-    marginLeft: 8,
+    marginInlineStart: 8,
   },
   emptyState: {
     fontSize: 12,
@@ -85,18 +86,19 @@ export interface RecentProjectsProps {
 }
 
 export function RecentProjects({ projects, loading, disabled, onOpen, openingPath }: RecentProjectsProps) {
+  const t = useT();
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
   if (loading) {
     return (
       <div style={{ ...S.emptyState, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <Spinner /> Loading recent projects...
+        <Spinner /> {t('project.picker.loadingRecent')}
       </div>
     );
   }
 
   if (projects.length === 0) {
-    return <div style={S.emptyState}>No recent projects</div>;
+    return <div style={S.emptyState}>{t('project.picker.empty')}</div>;
   }
 
   return (

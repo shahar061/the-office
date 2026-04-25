@@ -5,13 +5,14 @@ import { useProjectStore } from '../../stores/project.store';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
 import { PhaseTabs } from './PhaseTabs';
-import { agentDisplayName } from '../../utils';
 import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
 import { QuestionBubble } from './QuestionBubble';
 import { ActivityIndicator } from './ActivityIndicator';
 import { useOfficeStore } from '../../stores/office.store';
 import { audioManager } from '../../audio/AudioManager';
+import { useT } from '../../i18n';
+import type { StringKey } from '../../i18n';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ const styles = {
     flexDirection: 'column' as const,
     width: '320px',
     minWidth: '320px',
-    borderRight: `1px solid ${colors.border}`,
+    borderInlineEnd: `1px solid ${colors.border}`,
     background: colors.bg,
     overflow: 'hidden',
   },
@@ -121,6 +122,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
+  const t = useT();
   const {
     messages,
     archivedRuns,
@@ -152,10 +154,10 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
   const isIdle = phase === 'idle';
 
   const inputPlaceholder = waitingForResponse && waitingAgentRole
-    ? `Responding to ${agentDisplayName(waitingAgentRole)}...`
+    ? t('chat.input.placeholder.responding', { agent: t(`agent.${waitingAgentRole}` as StringKey) })
     : isIdle
-      ? 'What would you like to build?'
-      : 'Type a message...';
+      ? t('chat.input.placeholder.idle')
+      : t('chat.input.placeholder');
 
   const canSend = inputValue.trim().length > 0;
 
@@ -329,10 +331,10 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
               >
                 <span style={{ color: '#666' }}>{isOpen ? '\u25BC' : '\u25B6'}</span>
                 <span style={{ color, fontWeight: 600 }}>
-                  Run {run.runNumber} — {agentDisplayName(run.agentRole)}
+                  {t('chat.archived.run', { number: run.runNumber, agent: t(`agent.${run.agentRole}` as StringKey) })}
                 </span>
                 <span style={{ color: '#555' }}>
-                  ({msgCount} message{msgCount !== 1 ? 's' : ''}, {dateStr})
+                  {t(msgCount === 1 ? 'chat.archived.messageCount.one' : 'chat.archived.messageCount', { count: msgCount, date: dateStr })}
                 </span>
               </button>
               {isOpen && (
@@ -353,13 +355,13 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
           <span style={{
             position: 'absolute',
             top: '-8px',
-            left: '12px',
+            insetInlineStart: '12px',
             background: colors.bg,
             padding: '0 8px',
             fontSize: '10px',
             color: '#555',
           }}>
-            Current
+            {t('chat.current')}
           </span>
         </div>
       </>
@@ -420,11 +422,11 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
       {isLive ? (
         showEmpty ? (
           <div style={styles.emptyState}>
-            <div style={styles.emptyTitle}>The Office</div>
+            <div style={styles.emptyTitle}>{t('chat.empty.title')}</div>
             <div style={styles.emptySubtitle}>
               {isIdle
-                ? 'Describe what you want to build and the team will get to work.'
-                : 'No messages yet.'}
+                ? t('chat.empty.idle')
+                : t('chat.empty.active')}
             </div>
           </div>
         ) : (
@@ -469,7 +471,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
       {(viewedPhase && projectState && viewedPhase !== projectState.currentPhase) ? (
         <div style={styles.inputArea}>
           <div style={{ color: '#9ca3af', fontSize: 11, marginBottom: 6 }}>
-            Viewing {viewedPhase} history — read-only.
+            {t('chat.history.viewing', { phase: t(`phase.${viewedPhase}` as StringKey) })}
           </div>
           <button
             onClick={() => setViewedPhase(projectState.currentPhase)}
@@ -478,7 +480,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
               border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            Return to {projectState.currentPhase}
+            {t('chat.history.return', { phase: t(`phase.${projectState.currentPhase}` as StringKey) })}
           </button>
         </div>
       ) : agentActive && !waitingForResponse ? (
@@ -499,7 +501,7 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
               style={styles.sendButton(canSend)}
               onClick={handleSend}
               disabled={!canSend}
-              aria-label="Send message"
+              aria-label={t('chat.input.send.aria')}
             >
               ↑
             </button>

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { shortPath } from '../../utils';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 import type { ProjectState } from '@shared/types';
 
 // ── Styles ──
@@ -107,6 +108,7 @@ interface NewProjectFormProps {
 }
 
 export function NewProjectForm({ connected, busy: parentBusy, onProjectOpened }: NewProjectFormProps) {
+  const t = useT();
   const [newName, setNewName] = useState('');
   const [newPath, setNewPath] = useState<string | null>(null);
   const [newNameFocused, setNewNameFocused] = useState(false);
@@ -176,9 +178,9 @@ export function NewProjectForm({ connected, busy: parentBusy, onProjectOpened }:
         >
           {creating ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Spinner /> Creating...
+              <Spinner /> {t('project.picker.creating')}
             </span>
-          ) : 'Create Project'}
+          ) : t('project.picker.createProject')}
         </button>
         {newError && <div style={S.errorText}>{newError}</div>}
       </div>

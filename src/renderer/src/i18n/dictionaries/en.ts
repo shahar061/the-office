@@ -4,11 +4,17 @@ export const en = {
   'app.menu.about': 'About',
 
   // Project picker
-  'project.picker.title': 'Open a project',
-  'project.picker.create': 'Create new project',
-  'project.picker.recent': 'Recent projects',
-  'project.picker.empty': 'No recent projects yet.',
-  'project.picker.open': 'Open',
+  'project.picker.openProject': 'Open Project',
+  'project.picker.recentProjects': 'Recent Projects',
+  'project.picker.browseFolder': 'Browse for Project Folder…',
+  'project.picker.opening': 'Opening...',
+  'project.picker.creating': 'Creating...',
+  'project.picker.loadingRecent': 'Loading recent projects...',
+  'project.picker.createProject': 'Create Project',
+  'project.picker.empty': 'No recent projects',
+  'project.picker.connect': 'Connect',
+  'project.picker.notConnected': 'Not connected',
+  'project.picker.connected': 'Connected',
 
   // IconRail
   'iconrail.chat': 'Chat',
@@ -22,6 +28,7 @@ export const en = {
   'iconrail.logs': 'Logs',
   'iconrail.about': 'About',
   'iconrail.settings': 'Settings',
+  'iconrail.devjump': 'Dev Jump',
 
   // Phase tabs
   'phase.imagine': 'Imagine',

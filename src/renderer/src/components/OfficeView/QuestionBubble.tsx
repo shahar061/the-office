@@ -1,5 +1,6 @@
 import type { AskQuestion } from '@shared/types';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 
 interface QuestionBubbleProps {
   question: AskQuestion;
@@ -14,7 +15,7 @@ const styles = {
     borderRadius: '8px',
     padding: '12px',
     border: `1px solid ${accentColor}44`,
-    borderLeft: `3px solid ${accentColor}`,
+    borderInlineStart: `3px solid ${accentColor}`,
   }),
   questionText: (isExpanded: boolean) => ({
     fontSize: isExpanded ? '13px' : '11px',
@@ -30,7 +31,7 @@ const styles = {
     borderRadius: '8px',
     color: colors.textLight,
     cursor: 'pointer',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     fontFamily: 'inherit',
   }),
   questionOptionsGrid: (isExpanded: boolean) => ({
@@ -52,7 +53,7 @@ const styles = {
     borderRadius: '10px',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    textAlign: 'left' as const,
+    textAlign: 'start' as const,
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',
@@ -86,6 +87,7 @@ const styles = {
 };
 
 export function QuestionBubble({ question, accentColor, isExpanded, onSelect }: QuestionBubbleProps) {
+  const t = useT();
   return (
     <div
       className="bubble-waiting"
@@ -111,7 +113,7 @@ export function QuestionBubble({ question, accentColor, isExpanded, onSelect }: 
               >
                 {isRecommended && (
                   <span style={styles.expandedCardBadge(accentColor)}>
-                    ★ Recommended
+                    ★ {t('question.recommended')}
                   </span>
                 )}
                 <span style={styles.expandedCardLabel}>{opt.label}</span>

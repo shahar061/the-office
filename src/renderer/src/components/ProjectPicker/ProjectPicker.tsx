@@ -6,6 +6,7 @@ import { ApiKeyPanel } from './ApiKeyPanel';
 import { RecentProjects } from './RecentProjects';
 import { NewProjectForm } from './NewProjectForm';
 import { ExistingCodebaseModal } from './ExistingCodebaseModal';
+import { useT } from '../../i18n';
 
 // ── Styles ──
 
@@ -141,6 +142,7 @@ interface ProjectPickerProps {
 }
 
 export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
+  const t = useT();
   const authStatus = useProjectStore((s) => s.authStatus);
   const setAuthStatus = useProjectStore((s) => s.setAuthStatus);
 
@@ -300,7 +302,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
 
         {/* ── Open Project ── */}
         <div style={S.card}>
-          <div style={S.cardTitle}>Open Project</div>
+          <div style={S.cardTitle}>{t('project.picker.openProject')}</div>
           <button
             style={S.btnWide(false, !connected || busy)}
             onClick={handlePickAndOpen}
@@ -308,16 +310,16 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
           >
             {openingPath !== null ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Spinner /> Opening...
+                <Spinner /> {t('project.picker.opening')}
               </span>
-            ) : 'Browse for Project Folder\u2026'}
+            ) : t('project.picker.browseFolder')}
           </button>
           {openError && <div style={{ ...S.errorText, marginTop: 8 }}>{openError}</div>}
         </div>
 
         {/* ── Recent Projects ── */}
         <div style={S.card}>
-          <div style={S.cardTitle}>Recent Projects</div>
+          <div style={S.cardTitle}>{t('project.picker.recentProjects')}</div>
           <RecentProjects
             projects={recentProjects}
             loading={recentLoading}
@@ -335,15 +337,15 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
           {connected
             ? authStatus.method === 'cli-auth'
               ? 'Claude Code (CLI)'
-              : (authStatus.account ?? 'Connected')
-            : 'Not connected'}
+              : (authStatus.account ?? t('project.picker.connected'))
+            : t('project.picker.notConnected')}
         </span>
         {!connected && !showApiKeyPanel && (
           <button
             style={S.connectBtn}
             onClick={() => setShowApiKeyPanel(true)}
           >
-            Connect
+            {t('project.picker.connect')}
           </button>
         )}
 

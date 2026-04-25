@@ -1,13 +1,7 @@
 import type { Phase } from '@shared/types';
+import { useT, type StringKey } from '../../i18n';
 
 const PHASE_ORDER: Phase[] = ['imagine', 'warroom', 'build', 'complete'];
-const PHASE_LABELS: Record<Phase, string> = {
-  idle: 'Idle',
-  imagine: 'Imagine',
-  warroom: 'War Room',
-  build: 'Build',
-  complete: 'Complete',
-};
 
 interface Props {
   currentPhase: Phase;
@@ -20,6 +14,7 @@ interface Props {
 export function PhaseTabs({
   currentPhase, viewedPhase, completedPhases, unreadByPhase, onSelect,
 }: Props) {
+  const t = useT();
   return (
     <div style={{
       display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -48,13 +43,13 @@ export function PhaseTabs({
               position: 'relative',
             }}
           >
-            {PHASE_LABELS[phase]}
+            {t(`phase.${phase}` as StringKey)}
             {isUnread && (
               <span
                 data-testid="phase-tab-badge"
                 style={{
                   position: 'absolute',
-                  top: 6, right: 6,
+                  top: 6, insetInlineEnd: 6,
                   width: 6, height: 6, borderRadius: '50%',
                   background: '#ef4444',
                 }}

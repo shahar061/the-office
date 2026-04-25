@@ -1,8 +1,9 @@
 import { useOfficeStore } from '../../stores/office.store';
 import type { ActivityAction } from '../../stores/office.store';
 import { AGENT_COLORS } from '@shared/types';
-import { agentDisplayName } from '../../utils';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
+import type { StringKey } from '../../i18n';
 
 function ActionRow({ action, agentColor }: { action: ActivityAction; agentColor: string }) {
   const isDone = action.status === 'done';
@@ -29,12 +30,13 @@ function ActionRow({ action, agentColor }: { action: ActivityAction; agentColor:
 }
 
 export function ActivityIndicator() {
+  const t = useT();
   const { agentRole, actions } = useOfficeStore((s) => s.agentActivity);
 
   if (!agentRole) return null;
 
   const agentColor = AGENT_COLORS[agentRole] ?? colors.textMuted;
-  const displayName = agentDisplayName(agentRole);
+  const displayName = t(`agent.${agentRole}` as StringKey);
 
   return (
     <div style={styles.container}>
@@ -42,7 +44,7 @@ export function ActivityIndicator() {
         <div style={{ ...styles.dot, background: agentColor }} />
         <span style={{ ...styles.agentName, color: agentColor }}>{displayName}</span>
       </div>
-      <div style={{ ...styles.timeline, borderLeftColor: `${agentColor}4D` }}>
+      <div style={{ ...styles.timeline, borderInlineStartColor: `${agentColor}4D` }}>
         {actions.length === 0 ? (
           <div style={styles.actionRow}>
             <span
@@ -52,7 +54,7 @@ export function ActivityIndicator() {
                 borderTopColor: agentColor,
               }}
             />
-            <span style={styles.actionTextRunning}>Thinking...</span>
+            <span style={styles.actionTextRunning}>{t('chat.activity.thinking')}</span>
           </div>
         ) : (
           actions.map((action) => (
@@ -91,8 +93,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',
-    paddingLeft: '14px',
-    borderLeft: '2px solid',
+    paddingInlineStart: '14px',
+    borderInlineStart: '2px solid',
   } as React.CSSProperties,
   actionRow: {
     display: 'flex',

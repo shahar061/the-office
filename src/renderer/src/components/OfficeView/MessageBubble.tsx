@@ -1,9 +1,11 @@
 import React from 'react';
 import { AGENT_COLORS } from '@shared/types';
 import type { ChatMessage } from '@shared/types';
-import { agentDisplayName, formatTime } from '../../utils';
+import { formatTime } from '../../utils';
 import { colors } from '../../theme';
 import { MessageRenderer } from './MessageRenderer';
+import { useT } from '../../i18n';
+import type { StringKey } from '../../i18n';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -11,7 +13,7 @@ const styles = {
   messageBubble: (role: 'user' | 'agent' | 'system', accentColor: string) => ({
     padding: '10px 12px',
     borderRadius: '8px',
-    borderLeft: `3px solid ${accentColor}`,
+    borderInlineStart: `3px solid ${accentColor}`,
     background: role === 'user' ? '#1a2a3a' : role === 'system' ? '#1a1a1a' : colors.surface,
     marginBottom: '0px', // gap handled by parent flex gap
   }),
@@ -46,7 +48,7 @@ const styles = {
   messageTimestamp: {
     fontSize: '10px',
     color: '#666',
-    textAlign: 'right' as const,
+    textAlign: 'end' as const,
     marginTop: '4px',
   },
 };
@@ -59,6 +61,7 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ msg, isWaiting }: MessageBubbleProps): React.JSX.Element {
+  const t = useT();
   const isUser = msg.role === 'user';
   const isSystem = msg.role === 'system';
 
@@ -67,7 +70,7 @@ export function MessageBubble({ msg, isWaiting }: MessageBubbleProps): React.JSX
     : isSystem
       ? 'System'
       : msg.agentLabel ?? (msg.agentRole
-        ? agentDisplayName(msg.agentRole)
+        ? t(`agent.${msg.agentRole}` as StringKey)
         : 'Agent');
 
   const accentColor = isUser

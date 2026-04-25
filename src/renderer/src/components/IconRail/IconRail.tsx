@@ -12,30 +12,32 @@ import { useChatStore } from '../../stores/chat.store';
 import { useSettingsStore } from '../../stores/settings.store';
 import { collectPanelIds, findLeafByPanelId, firstLeaf } from '../SplitLayout/layout-utils';
 import { colors } from '../../theme';
+import type { StringKey } from '../../i18n';
+import { useT } from '../../i18n';
 
 interface NavItem {
   id: PanelId;
   icon: string;
-  label: string;
+  labelKey: StringKey;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
-  { id: 'chat', icon: '💬', label: 'Chat' },
-  { id: 'office', icon: '🖥️', label: 'Office' },
-  { id: 'agents', icon: '👥', label: 'Agents' },
-  { id: 'kanban', icon: '📋', label: 'Kanban' },
-  { id: 'stats', icon: '📊', label: 'Stats' },
-  { id: 'complete', icon: '🎉', label: 'Complete' },
-  { id: 'workshop', icon: '🔧', label: 'Workshop' },
-  { id: 'diff', icon: '📝', label: 'Diff' },
+  { id: 'chat', icon: '💬', labelKey: 'iconrail.chat' },
+  { id: 'office', icon: '🖥️', labelKey: 'iconrail.office' },
+  { id: 'agents', icon: '👥', labelKey: 'iconrail.agents' },
+  { id: 'kanban', icon: '📋', labelKey: 'iconrail.kanban' },
+  { id: 'stats', icon: '📊', labelKey: 'iconrail.stats' },
+  { id: 'complete', icon: '🎉', labelKey: 'iconrail.complete' },
+  { id: 'workshop', icon: '🔧', labelKey: 'iconrail.workshop' },
+  { id: 'diff', icon: '📝', labelKey: 'iconrail.diff' },
 ];
 
 const UTILITY_ITEMS: NavItem[] = [
-  { id: 'logs', icon: '📋', label: 'Logs' },
-  { id: 'about', icon: 'ℹ️', label: 'About' },
+  { id: 'logs', icon: '📋', labelKey: 'iconrail.logs' },
+  { id: 'about', icon: 'ℹ️', labelKey: 'iconrail.about' },
 ];
 
-const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', label: 'Dev Jump' };
+const DEVJUMP_ITEM: NavItem = { id: 'devjump', icon: '🧪', labelKey: 'iconrail.devjump' };
 const isDevMode = (): boolean =>
   typeof window !== 'undefined' &&
   typeof (window.office as any)?.devJump === 'function';
@@ -43,11 +45,11 @@ const isDevMode = (): boolean =>
 interface ActionItem {
   id: 'settings';
   icon: string;
-  label: string;
+  labelKey: StringKey;
 }
 
 const UTILITY_ACTIONS: ActionItem[] = [
-  { id: 'settings', icon: '⚙️', label: 'Settings' },
+  { id: 'settings', icon: '⚙️', labelKey: 'iconrail.settings' },
 ];
 
 const styles = {
@@ -55,7 +57,7 @@ const styles = {
     width: '40px',
     minWidth: '40px',
     background: colors.bgDark,
-    borderRight: `1px solid ${colors.borderLight}`,
+    borderInlineEnd: `1px solid ${colors.borderLight}`,
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
@@ -91,8 +93,8 @@ const styles = {
     justifyContent: 'center',
     fontSize: '15px',
     background: inWorkspace ? 'rgba(59,130,246,0.1)' : 'transparent',
-    borderLeft: inWorkspace ? `2px solid ${colors.accent}` : '2px solid transparent',
-    borderRight: 'none',
+    borderInlineStart: inWorkspace ? `2px solid ${colors.accent}` : '2px solid transparent',
+    borderInlineEnd: 'none',
     borderTop: 'none',
     borderBottom: 'none',
     borderRadius: '0 4px 4px 0',
@@ -105,7 +107,7 @@ const styles = {
   }),
   tooltip: {
     position: 'absolute' as const,
-    left: '42px',
+    insetInlineStart: '42px',
     top: '50%',
     transform: 'translateY(-50%)',
     background: colors.surface,
@@ -181,6 +183,7 @@ function IconButton({
   onDragStart: (e: React.DragEvent) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const t = useT();
 
   return (
     <button
@@ -198,11 +201,11 @@ function IconButton({
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={item.label}
+      title={t(item.labelKey)}
     >
       {item.icon}
       {badge}
-      {hovered && !inWorkspace && <div style={styles.tooltip}>{item.label}</div>}
+      {hovered && !inWorkspace && <div style={styles.tooltip}>{t(item.labelKey)}</div>}
     </button>
   );
 }
@@ -264,6 +267,8 @@ export function IconRail() {
     if (rl.status === 'allowed_warning' || rl.utilization > 0.8) return 'warning';
     return null;
   });
+
+  const t = useT();
 
   const visiblePrimary = PRIMARY_ITEMS.filter(item => {
     if (item.id === 'kanban') return showKanban;
@@ -351,7 +356,7 @@ export function IconRail() {
           <ActionButton
             key={action.id}
             icon={action.icon}
-            label={action.label}
+            label={t(action.labelKey)}
             onClick={() => useSettingsStore.getState().open()}
           />
         ))}
