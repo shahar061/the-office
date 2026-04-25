@@ -192,7 +192,7 @@ export function BugReportModal() {
             {t('feedback.attached.summary')}
           </summary>
           <div style={styles.detailsBody}>
-            App version: {process.env.npm_package_version ?? 'dev'}<br />
+            App version: {__APP_VERSION__}<br />
             Platform: {window.navigator.platform}<br />
             Language: {language}
           </div>

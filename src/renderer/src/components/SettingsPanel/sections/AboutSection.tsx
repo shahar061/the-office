@@ -52,8 +52,7 @@ const styles = {
 
 export function AboutSection() {
   const t = useT();
-  const version =
-    (typeof process !== 'undefined' && process.env.npm_package_version) || 'dev';
+  const version = __APP_VERSION__;
   const isDevMode = useSettingsStore((s) => s.isDevMode);
   const settings = useSettingsStore((s) => s.settings);
   const bumpVersionTap = useSettingsStore((s) => s.bumpVersionTap);
