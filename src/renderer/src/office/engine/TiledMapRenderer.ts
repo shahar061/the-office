@@ -420,12 +420,12 @@ export class TiledMapRenderer {
       }
 
       this.layerContainers.set(layerName, container)
-
-      if (layerName === 'furniture-above') {
-        this.rootContainer.addChild(this.characterContainer)
-      }
       this.rootContainer.addChild(container)
     }
+    // Characters render above every tile layer (including furniture-above:
+    // monitors, lamps, etc.) so they are never visually obscured or
+    // hit-test-shadowed when sitting at a desk.
+    this.rootContainer.addChild(this.characterContainer)
 
     // Assemble extracted groups from collected tiles
     for (const [name, tiles] of this.extractionCollected) {
