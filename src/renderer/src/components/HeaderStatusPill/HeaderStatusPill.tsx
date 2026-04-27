@@ -16,7 +16,7 @@ function describe(devices: Device[]): { label: string; dotColor: string } {
     const d = devices[0];
     const mode = d.mode === 'lan' ? 'Local' : d.mode === 'relay' ? 'Remote' : 'Idle';
     const color = d.mode === 'lan' ? '#22c55e' : d.mode === 'relay' ? '#6366f1' : '#6b7280';
-    return { label: `● ${d.deviceName} · ${mode}`, dotColor: color };
+    return { label: `${d.deviceName} · ${mode}`, dotColor: color };
   }
   const modes = new Set(devices.map((d) => d.mode));
   const combo = modes.has('lan') && modes.has('relay') ? 'Local+Remote'
@@ -51,7 +51,16 @@ export function HeaderStatusPill() {
         }}
       >
         {dotColor !== 'transparent' && (
-          <span style={{ width: 6, height: 6, background: dotColor, borderRadius: '50%' }} />
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              background: dotColor,
+              borderRadius: '50%',
+              flexShrink: 0,
+              alignSelf: 'center',
+            }}
+          />
         )}
         {label}
       </button>
