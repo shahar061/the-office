@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { AgentInfo } from '../../stores/agents.store';
+import { useT, type StringKey } from '../../i18n';
 import { MarkdownContent } from '../OfficeView/MarkdownContent';
 
 interface AgentDetailPanelProps {
@@ -149,6 +150,7 @@ const styles = {
 
 export function AgentDetailPanel({ agent, onClose }: AgentDetailPanelProps) {
   const [promptExpanded, setPromptExpanded] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -162,15 +164,15 @@ export function AgentDetailPanel({ agent, onClose }: AgentDetailPanelProps) {
     setPromptExpanded(false);
   }, [agent.role]);
 
-  const groupLabel =
-    agent.group === 'leadership' ? 'Leadership' :
-    agent.group === 'coordination' ? 'Coordination' : 'Engineering';
+  const groupKey: StringKey =
+    agent.group === 'leadership' ? 'agents.group.leadership' :
+    agent.group === 'coordination' ? 'agents.group.coordination' : 'agents.group.engineering';
 
   return (
     <>
       <div style={styles.backdrop} onClick={onClose} />
       <div style={styles.panel}>
-        <button style={styles.closeBtn} onClick={onClose} title="Close">
+        <button style={styles.closeBtn} onClick={onClose} title={t('agents.detail.close')}>
           ✕
         </button>
 
@@ -186,32 +188,32 @@ export function AgentDetailPanel({ agent, onClose }: AgentDetailPanelProps) {
           <div style={styles.headerInfo}>
             <span style={styles.displayName}>{agent.displayName}</span>
             <span style={styles.badge(agent.color)}>{agent.role}</span>
-            <span style={styles.groupLabel}>{groupLabel}</span>
+            <span style={styles.groupLabel}>{t(groupKey)}</span>
           </div>
         </div>
 
         <div style={styles.body}>
           <div style={styles.section}>
-            <span style={styles.sectionLabel}>Description</span>
+            <span style={styles.sectionLabel}>{t('agents.detail.section.description')}</span>
             <span style={styles.description}>{agent.description}</span>
           </div>
 
           <div style={styles.section}>
-            <span style={styles.sectionLabel}>Tools</span>
+            <span style={styles.sectionLabel}>{t('agents.detail.section.tools')}</span>
             <div style={styles.toolsList}>
               {agent.tools.map((tool) => (
                 <span key={tool} style={styles.toolPill}>{tool}</span>
               ))}
               {agent.tools.length === 0 && (
-                <span style={{ fontSize: '12px', color: '#475569' }}>No tools defined</span>
+                <span style={{ fontSize: '12px', color: '#475569' }}>{t('agents.detail.tools.none')}</span>
               )}
             </div>
           </div>
 
           <div style={styles.section}>
-            <span style={styles.sectionLabel}>Details</span>
+            <span style={styles.sectionLabel}>{t('agents.detail.section.details')}</span>
             <span style={styles.metaRow}>
-              Sprite: {agent.spriteVariant} &nbsp;·&nbsp; Zone: {agent.idleZone}
+              {t('agents.detail.meta.sprite')}: {agent.spriteVariant} &nbsp;·&nbsp; {t('agents.detail.meta.zone')}: {agent.idleZone}
             </span>
           </div>
 
@@ -220,7 +222,7 @@ export function AgentDetailPanel({ agent, onClose }: AgentDetailPanelProps) {
               style={styles.promptToggle(agent.color)}
               onClick={() => setPromptExpanded(!promptExpanded)}
             >
-              {promptExpanded ? '▼ Hide full prompt' : '▶ View full prompt'}
+              {promptExpanded ? t('agents.detail.prompt.hide') : t('agents.detail.prompt.show')}
             </button>
             {promptExpanded && (
               <div style={styles.promptContent}>

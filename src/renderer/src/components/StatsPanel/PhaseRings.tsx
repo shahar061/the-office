@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PhaseStats } from '@shared/types';
+import { useT, type StringKey } from '../../i18n';
 import { colors } from '../../theme';
 import { ActBreakdown } from './ActBreakdown';
 
@@ -13,10 +14,10 @@ const PHASE_COLORS: Record<string, string> = {
   warroom: '#f59e0b',
   build: '#22c55e',
 };
-const PHASE_LABELS: Record<string, string> = {
-  imagine: 'Imagine',
-  warroom: 'War Room',
-  build: 'Build',
+const PHASE_LABEL_KEYS: Record<string, StringKey> = {
+  imagine: 'phase.imagine',
+  warroom: 'phase.warroom',
+  build: 'phase.build',
 };
 
 const styles = {
@@ -93,6 +94,7 @@ function formatCost(cost: number): string {
 
 export function PhaseRings({ phases }: PhaseRingsProps) {
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+  const t = useT();
 
   return (
     <div style={styles.root}>
@@ -109,7 +111,7 @@ export function PhaseRings({ phases }: PhaseRingsProps) {
                 <div style={styles.emptyRing(color)}>
                   <span style={styles.emptyLabel}>—</span>
                 </div>
-                <div style={styles.phaseName}>{PHASE_LABELS[phase]}</div>
+                <div style={styles.phaseName}>{t(PHASE_LABEL_KEYS[phase])}</div>
               </div>
             );
           }
@@ -127,7 +129,7 @@ export function PhaseRings({ phases }: PhaseRingsProps) {
               <div style={styles.ring(color, !!active, selected)}>
                 <span style={styles.ringCost}>{formatCost(stats.cost)}</span>
               </div>
-              <div style={styles.phaseName}>{PHASE_LABELS[phase]}</div>
+              <div style={styles.phaseName}>{t(PHASE_LABEL_KEYS[phase])}</div>
               <div style={styles.duration}>{formatDuration(stats.startedAt, stats.completedAt)}</div>
             </div>
           );

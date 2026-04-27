@@ -1,48 +1,59 @@
 import { useState } from 'react';
 import { AGENT_COLORS } from '@shared/types';
 import type { AgentRole } from '@shared/types';
+import { useT, type StringKey } from '../../i18n';
 import { colors } from '../../theme';
 
 interface PhaseCard {
-  name: string;
+  nameKey: StringKey;
   color: string;
-  tagline: string;
-  description: string;
+  taglineKey: StringKey;
+  descriptionKey: StringKey;
   agents: AgentRole[];
-  outputs: string[];
+  outputKeys: StringKey[];
 }
 
 const PHASES: PhaseCard[] = [
   {
-    name: 'Imagine',
+    nameKey: 'phase.imagine',
     color: '#f97316',
-    tagline: 'Discovery & product definition',
-    description:
-      'The CEO hosts a discovery phase, exploring your idea through collaborative dialogue. The team then produces four key documents: a Vision Brief capturing the core concept, a PRD detailing requirements, a Market Analysis assessing the landscape, and a System Design outlining the technical architecture.',
+    taglineKey: 'about.phase.imagine.tagline',
+    descriptionKey: 'about.phase.imagine.description',
     agents: ['ceo', 'product-manager', 'market-researcher', 'chief-architect'],
-    outputs: ['Vision Brief', 'PRD', 'Market Analysis', 'System Design'],
+    outputKeys: [
+      'about.output.visionBrief',
+      'about.output.prd',
+      'about.output.marketAnalysis',
+      'about.output.systemDesign',
+    ],
   },
   {
-    name: 'War Room',
+    nameKey: 'phase.warroom',
     color: '#0ea5e9',
-    tagline: 'Planning & architecture',
-    description:
-      'The Project Manager and Team Lead take the design spec and break it into an actionable implementation plan. Milestones are defined, tasks are decomposed with dependencies and acceptance criteria, and a DevOps engineer plans the environment. The result is a battle-ready plan with clear execution order.',
+    taglineKey: 'about.phase.warroom.tagline',
+    descriptionKey: 'about.phase.warroom.description',
     agents: ['project-manager', 'team-lead', 'devops'],
-    outputs: ['Milestones', 'Implementation Plan', 'Task Breakdown'],
+    outputKeys: [
+      'about.output.milestones',
+      'about.output.implementationPlan',
+      'about.output.taskBreakdown',
+    ],
   },
   {
-    name: 'Build',
+    nameKey: 'phase.build',
     color: '#22c55e',
-    tagline: 'Implementation',
-    description:
-      'Autonomous subagents execute the plan task-by-task. Each agent works in an isolated worktree, with two-stage code review (spec compliance + quality). The full engineering team — frontend, backend, mobile, data, DevOps — collaborates to build the software, with only critical blockers escalated to you.',
+    taglineKey: 'about.phase.build.tagline',
+    descriptionKey: 'about.phase.build.description',
     agents: [
       'agent-organizer', 'backend-engineer', 'frontend-engineer',
       'mobile-developer', 'ui-ux-expert', 'data-engineer',
       'devops', 'automation-developer',
     ],
-    outputs: ['Working Software', 'Tests', 'Documentation'],
+    outputKeys: [
+      'about.output.workingSoftware',
+      'about.output.tests',
+      'about.output.documentation',
+    ],
   },
 ];
 
@@ -156,17 +167,18 @@ const styles = {
 
 function PhaseCardComponent({ phase, index }: { phase: PhaseCard; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const t = useT();
 
   return (
     <div style={styles.card(expanded, phase.color)} onClick={() => setExpanded(!expanded)}>
       <div style={styles.cardHeader}>
         <span style={styles.chevron}>{expanded ? '▼' : '▶'}</span>
         <span style={styles.phaseNumber(phase.color)}>
-          {index + 1}. {phase.name}
+          {index + 1}. {t(phase.nameKey)}
         </span>
         {!expanded && (
           <span style={{ fontSize: '10px', color: colors.textDark, marginInlineStart: '4px' }}>
-            {phase.tagline}
+            {t(phase.taglineKey)}
           </span>
         )}
         <div style={styles.dots}>
@@ -177,10 +189,10 @@ function PhaseCardComponent({ phase, index }: { phase: PhaseCard; index: number 
       </div>
       {expanded && (
         <>
-          <div style={styles.expandedBody}>{phase.description}</div>
+          <div style={styles.expandedBody}>{t(phase.descriptionKey)}</div>
           <div style={styles.outputTags}>
-            {phase.outputs.map((o) => (
-              <span key={o} style={styles.outputTag}>{o}</span>
+            {phase.outputKeys.map((k) => (
+              <span key={k} style={styles.outputTag}>{t(k)}</span>
             ))}
           </div>
         </>
@@ -190,27 +202,28 @@ function PhaseCardComponent({ phase, index }: { phase: PhaseCard; index: number 
 }
 
 export function AboutPanel() {
+  const t = useT();
   return (
     <div style={styles.root}>
       <div style={styles.header}>
-        <div style={styles.title}>🏢 The Office</div>
-        <div style={styles.tagline}>Watch your AI team build software</div>
+        <div style={styles.title}>🏢 {t('about.title')}</div>
+        <div style={styles.tagline}>{t('about.tagline')}</div>
         <div style={styles.version}>v{__APP_VERSION__}</div>
       </div>
 
-      <div style={styles.sectionLabel}>How It Works</div>
+      <div style={styles.sectionLabel}>{t('about.howItWorks')}</div>
 
       {PHASES.map((phase, i) => (
-        <PhaseCardComponent key={phase.name} phase={phase} index={i} />
+        <PhaseCardComponent key={phase.nameKey} phase={phase} index={i} />
       ))}
 
       <div style={styles.footer}>
-        <div style={styles.footerText}>Powered by Claude Code</div>
+        <div style={styles.footerText}>{t('about.footer.powered')}</div>
         <button
           style={styles.footerLink}
           onClick={() => window.office.openExternal('https://github.com/shahar061/office')}
         >
-          GitHub →
+          {t('about.footer.github')}
         </button>
       </div>
     </div>

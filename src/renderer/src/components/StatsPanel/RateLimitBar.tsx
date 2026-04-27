@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { RateLimitState } from '@shared/types';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
 interface RateLimitBarProps {
@@ -59,10 +60,10 @@ const styles = {
   }),
 } as const;
 
-function formatResetTime(resetsAt: number | null): string {
-  if (!resetsAt) return 'unknown';
+function formatResetTime(resetsAt: number | null, t: ReturnType<typeof useT>): string {
+  if (!resetsAt) return t('stats.rate.unknown');
   const ms = resetsAt - Date.now();
-  if (ms <= 0) return 'now';
+  if (ms <= 0) return t('stats.rate.now');
   const minutes = Math.floor(ms / 60000);
   const hours = Math.floor(minutes / 60);
   if (hours > 0) return `${hours}h ${minutes % 60}m`;
@@ -71,6 +72,7 @@ function formatResetTime(resetsAt: number | null): string {
 
 export function RateLimitBar({ rateLimit }: RateLimitBarProps) {
   const [expanded, setExpanded] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     if (rateLimit && rateLimit.utilization > 0.8) {
@@ -91,12 +93,12 @@ export function RateLimitBar({ rateLimit }: RateLimitBarProps) {
         onClick={() => setExpanded(!expanded)}
       >
         <span style={styles.icon}>{rejected ? '🔴' : warning ? '🟡' : '⚡'}</span>
-        <span style={styles.label}>Rate Limit</span>
+        <span style={styles.label}>{t('stats.rate.label')}</span>
         <span style={styles.value(warning || rejected)}>
           {Math.round(pct * 100)}%
         </span>
         <span style={{ color: colors.textDim, fontSize: '10px' }}>
-          resets {formatResetTime(rateLimit.resetsAt)}
+          {t('stats.rate.resets', { when: formatResetTime(rateLimit.resetsAt, t) })}
         </span>
       </div>
 
@@ -106,10 +108,10 @@ export function RateLimitBar({ rateLimit }: RateLimitBarProps) {
 
       {expanded && (
         <div style={styles.expanded}>
-          <div>Type: {rateLimit.rateLimitType}</div>
-          <div>Status: {rateLimit.status}</div>
-          {rateLimit.isUsingOverage && <div>Overage: {rateLimit.overageStatus}</div>}
-          <div>Resets: {formatResetTime(rateLimit.resetsAt)}</div>
+          <div>{t('stats.rate.type')}: {rateLimit.rateLimitType}</div>
+          <div>{t('stats.rate.status')}: {rateLimit.status}</div>
+          {rateLimit.isUsingOverage && <div>{t('stats.rate.overage')}: {rateLimit.overageStatus}</div>}
+          <div>{t('stats.rate.resetsLabel')} {formatResetTime(rateLimit.resetsAt, t)}</div>
         </div>
       )}
     </div>

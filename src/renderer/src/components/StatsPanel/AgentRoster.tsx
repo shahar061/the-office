@@ -1,4 +1,5 @@
 import type { AgentStats } from '@shared/types';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 import { AgentStatRow } from './AgentStatRow';
 
@@ -31,14 +32,15 @@ const styles = {
 } as const;
 
 export function AgentRoster({ agents }: AgentRosterProps) {
+  const t = useT();
   const sorted = Object.entries(agents)
     .sort(([, a], [, b]) => b.cost - a.cost);
 
   return (
     <div style={styles.root}>
-      <div style={styles.label}>Agents</div>
+      <div style={styles.label}>{t('stats.agents.label')}</div>
       {sorted.length === 0 ? (
-        <div style={styles.empty}>No agent activity yet</div>
+        <div style={styles.empty}>{t('stats.agents.empty')}</div>
       ) : (
         sorted.map(([role, stats]) => (
           <AgentStatRow key={role} role={role} stats={stats} />

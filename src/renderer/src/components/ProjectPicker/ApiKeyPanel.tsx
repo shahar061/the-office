@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useProjectStore } from '@/stores/project.store';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
 // ── Styles ──
@@ -71,6 +72,7 @@ function Spinner() {
 
 export function ApiKeyPanel({ onConnected }: { onConnected: () => void }) {
   const setAuthStatus = useProjectStore((s) => s.setAuthStatus);
+  const t = useT();
   const [key, setKey] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -117,12 +119,12 @@ export function ApiKeyPanel({ onConnected }: { onConnected: () => void }) {
           onClick={handleConnect}
           disabled={loading || !key.trim()}
         >
-          {loading ? <Spinner /> : 'Connect'}
+          {loading ? <Spinner /> : t('project.picker.connect')}
         </button>
       </div>
       {error && <div style={S.errorText}>{error}</div>}
       <div style={{ fontSize: 11, color: colors.textDark }}>
-        Get your API key at{' '}
+        {t('picker.auth.getApiKey')}{' '}
         <span style={{ color: colors.accent }}>console.anthropic.com</span>
       </div>
     </div>

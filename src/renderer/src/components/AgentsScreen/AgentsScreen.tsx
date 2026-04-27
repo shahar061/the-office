@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAgentsStore } from '../../stores/agents.store';
+import { useT } from '../../i18n';
 import { AgentGrid } from './AgentGrid';
 import { AgentDetailPanel } from './AgentDetailPanel';
 import { AgentOrgChart } from './AgentOrgChart';
@@ -54,6 +55,7 @@ const styles = {
 export function AgentsScreen() {
   const { agents, loaded, loadAgents, selectedAgent, selectAgent, clearSelection } = useAgentsStore();
   const [view, setView] = useState<View>('grid');
+  const t = useT();
 
   useEffect(() => {
     loadAgents();
@@ -68,16 +70,16 @@ export function AgentsScreen() {
       <div style={styles.toolbar}>
         <div style={styles.toggle}>
           <button style={styles.toggleBtn(view === 'grid')} onClick={() => setView('grid')}>
-            Grid
+            {t('agents.toggle.grid')}
           </button>
           <button style={styles.toggleBtn(view === 'orgchart')} onClick={() => setView('orgchart')}>
-            Org Chart
+            {t('agents.toggle.orgchart')}
           </button>
         </div>
       </div>
 
       {!loaded ? (
-        <div style={styles.placeholder}>Loading agents...</div>
+        <div style={styles.placeholder}>{t('agents.loading')}</div>
       ) : view === 'grid' ? (
         <AgentGrid agents={agents} onSelect={(a) => selectAgent(a.role)} />
       ) : (

@@ -1,28 +1,29 @@
 import type { AgentInfo } from '../../stores/agents.store';
 import type { AgentRole } from '@shared/types';
+import { useT, type StringKey } from '../../i18n';
 
 interface AgentOrgChartProps {
   agents: AgentInfo[];
   onSelect: (agent: AgentInfo) => void;
 }
 
-const TIERS: { label: string; roles: AgentRole[]; annotations?: Record<string, string> }[] = [
+const TIERS: { labelKey: StringKey; roles: AgentRole[]; annotationKeys?: Record<string, StringKey> }[] = [
   {
-    label: 'Leadership',
+    labelKey: 'agents.group.leadership',
     roles: ['ceo', 'product-manager', 'market-researcher', 'chief-architect'],
-    annotations: {
-      'ceo': 'Vision Brief',
-      'product-manager': 'PRD',
-      'market-researcher': 'Market Analysis',
-      'chief-architect': 'System Design',
+    annotationKeys: {
+      'ceo': 'agents.orgchart.output.visionBrief',
+      'product-manager': 'agents.orgchart.output.prd',
+      'market-researcher': 'agents.orgchart.output.marketAnalysis',
+      'chief-architect': 'agents.orgchart.output.systemDesign',
     },
   },
   {
-    label: 'Coordination',
+    labelKey: 'agents.group.coordination',
     roles: ['agent-organizer', 'project-manager', 'team-lead'],
   },
   {
-    label: 'Engineering',
+    labelKey: 'agents.group.engineering',
     roles: [
       'backend-engineer', 'frontend-engineer', 'mobile-developer',
       'ui-ux-expert', 'data-engineer', 'devops', 'automation-developer', 'freelancer',
@@ -109,19 +110,20 @@ const styles = {
 
 export function AgentOrgChart({ agents, onSelect }: AgentOrgChartProps) {
   const agentMap = new Map(agents.map((a) => [a.role, a]));
+  const t = useT();
 
   return (
     <div style={styles.container}>
       {TIERS.map((tier, i) => (
-        <div key={tier.label}>
+        <div key={tier.labelKey}>
           {i > 0 && <div style={styles.connector} />}
           <div style={styles.tier}>
-            <span style={styles.tierLabel}>{tier.label}</span>
+            <span style={styles.tierLabel}>{t(tier.labelKey)}</span>
             <div style={styles.tierNodes}>
               {tier.roles.map((role) => {
                 const agent = agentMap.get(role);
                 if (!agent) return null;
-                const annotation = tier.annotations?.[role];
+                const annotationKey = tier.annotationKeys?.[role];
                 return (
                   <button
                     key={role}
@@ -137,7 +139,7 @@ export function AgentOrgChart({ agents, onSelect }: AgentOrgChartProps) {
                       />
                     </div>
                     <span style={styles.nodeName(agent.color)}>{agent.displayName}</span>
-                    {annotation && <span style={styles.annotation}>{annotation} →</span>}
+                    {annotationKey && <span style={styles.annotation}>{t(annotationKey)} →</span>}
                   </button>
                 );
               })}

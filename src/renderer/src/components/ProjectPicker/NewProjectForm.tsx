@@ -147,13 +147,13 @@ export function NewProjectForm({ connected, busy: parentBusy, onProjectOpened }:
 
   return (
     <div style={S.card}>
-      <div style={S.cardTitle}>New Project</div>
+      <div style={S.cardTitle}>{t('picker.newProject.title')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={S.row}>
           <input
             style={{ ...S.input, ...(newNameFocused ? S.inputFocused : {}) }}
             type="text"
-            placeholder="Project name"
+            placeholder={t('picker.newProject.namePlaceholder')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onFocus={() => setNewNameFocused(true)}
@@ -165,9 +165,9 @@ export function NewProjectForm({ connected, busy: parentBusy, onProjectOpened }:
             style={S.btn(false, !connected || busy)}
             onClick={handlePickNewDir}
             disabled={!connected || busy}
-            title="Choose project folder"
+            title={t('picker.newProject.chooseFolderTitle')}
           >
-            {newPath ? 'Change Folder' : 'Choose Folder'}
+            {newPath ? t('picker.newProject.changeFolder') : t('picker.newProject.chooseFolder')}
           </button>
         </div>
         {newPath && <div style={S.pathChip}>{shortPath(newPath)}</div>}

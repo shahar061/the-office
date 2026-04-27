@@ -1,4 +1,5 @@
 import { useStatsStore } from '../../stores/stats.store';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 import { RateLimitBar } from './RateLimitBar';
 import { PhaseRings } from './PhaseRings';
@@ -82,14 +83,15 @@ function formatElapsed(startedAt: number): string {
 
 export function StatsPanel() {
   const stats = useStatsStore((s) => s.stats);
+  const t = useT();
 
   if (!stats) {
     return (
       <div style={styles.root}>
-        <div style={styles.header}>Stats</div>
+        <div style={styles.header}>{t('stats.header')}</div>
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}>📊</div>
-          <div style={styles.emptyText}>Start the Imagine phase to begin tracking stats.</div>
+          <div style={styles.emptyText}>{t('stats.empty')}</div>
         </div>
       </div>
     );
@@ -99,22 +101,22 @@ export function StatsPanel() {
 
   return (
     <div style={styles.root}>
-      <div style={styles.header}>Stats</div>
+      <div style={styles.header}>{t('stats.header')}</div>
 
       <RateLimitBar rateLimit={stats.rateLimit} />
 
       <div style={styles.totals}>
         <div style={styles.totalItem}>
           <div style={styles.totalValue}>{formatCost(stats.session.totalCost)}</div>
-          <div style={styles.totalLabel}>cost</div>
+          <div style={styles.totalLabel}>{t('stats.total.cost')}</div>
         </div>
         <div style={styles.totalItem}>
           <div style={styles.totalValue}>{formatTokens(totalTokens)}</div>
-          <div style={styles.totalLabel}>tokens</div>
+          <div style={styles.totalLabel}>{t('stats.total.tokens')}</div>
         </div>
         <div style={styles.totalItem}>
           <div style={styles.totalValue}>{formatElapsed(stats.session.startedAt)}</div>
-          <div style={styles.totalLabel}>elapsed</div>
+          <div style={styles.totalLabel}>{t('stats.total.elapsed')}</div>
         </div>
       </div>
 

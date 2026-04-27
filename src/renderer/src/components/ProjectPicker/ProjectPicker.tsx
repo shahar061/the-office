@@ -246,7 +246,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
         {/* Logo / title */}
         <div style={S.logo}>
           <div style={S.logoTitle}>The Office</div>
-          <div style={S.logoSub}>AI-powered project studio</div>
+          <div style={S.logoSub}>{t('picker.subtitle')}</div>
         </div>
 
         {/* Auth hint when not connected */}
@@ -262,7 +262,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
             textAlign: 'center' as const,
             lineHeight: 1.5,
           }}>
-            Connect your account to get started — click <strong>Connect</strong> in the bottom-left corner
+            {t('picker.authHint')}
           </div>
         )}
 
@@ -319,7 +319,7 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Authentication
+              {t('picker.auth.title')}
             </span>
             <button
               onClick={closeApiKeyPanel}
@@ -343,13 +343,13 @@ export default function ProjectPicker({ onProjectOpened }: ProjectPickerProps) {
             </button>
           </div>
           <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12, lineHeight: 1.5 }}>
-            <strong style={{ color: '#e5e5e5' }}>Recommended:</strong> Install{' '}
-            <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: colors.accent }}>Claude Code</a>{' '}
-            and run <code style={{ background: colors.surface, padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>claude login</code>{' '}
-            in your terminal. Works with Max/Pro subscriptions.
+            <strong style={{ color: '#e5e5e5' }}>{t('picker.auth.recommended')}</strong>{' '}
+            {t('picker.auth.installInstruction')}
+            {' '}
+            <a href="https://claude.ai/download" target="_blank" rel="noreferrer" style={{ color: colors.accent }}>Claude Code</a>
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-            Or enter API key
+            {t('picker.auth.orEnterKey')}
           </div>
           <ApiKeyPanel onConnected={closeApiKeyPanel} />
         </div>

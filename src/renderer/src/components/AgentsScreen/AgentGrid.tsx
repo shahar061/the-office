@@ -1,4 +1,5 @@
 import type { AgentInfo } from '../../stores/agents.store';
+import { useT, type StringKey } from '../../i18n';
 import { AgentCard } from './AgentCard';
 
 interface AgentGridProps {
@@ -6,10 +7,10 @@ interface AgentGridProps {
   onSelect: (agent: AgentInfo) => void;
 }
 
-const GROUP_ORDER: { key: AgentInfo['group']; label: string }[] = [
-  { key: 'leadership', label: 'Leadership' },
-  { key: 'coordination', label: 'Coordination' },
-  { key: 'engineering', label: 'Engineering' },
+const GROUP_ORDER: { key: AgentInfo['group']; labelKey: StringKey }[] = [
+  { key: 'leadership', labelKey: 'agents.group.leadership' },
+  { key: 'coordination', labelKey: 'agents.group.coordination' },
+  { key: 'engineering', labelKey: 'agents.group.engineering' },
 ];
 
 const styles = {
@@ -37,14 +38,15 @@ const styles = {
 };
 
 export function AgentGrid({ agents, onSelect }: AgentGridProps) {
+  const t = useT();
   return (
     <div style={styles.container}>
-      {GROUP_ORDER.map(({ key, label }) => {
+      {GROUP_ORDER.map(({ key, labelKey }) => {
         const groupAgents = agents.filter((a) => a.group === key);
         if (groupAgents.length === 0) return null;
         return (
           <div key={key}>
-            <div style={styles.groupHeader}>{label}</div>
+            <div style={styles.groupHeader}>{t(labelKey)}</div>
             <div style={styles.grid}>
               {groupAgents.map((agent) => (
                 <AgentCard

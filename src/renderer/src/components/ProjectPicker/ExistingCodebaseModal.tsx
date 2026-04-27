@@ -1,3 +1,4 @@
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
 interface ExistingCodebaseModalProps {
@@ -169,12 +170,12 @@ export function ExistingCodebaseModal({
   onStartFresh,
   onCancel,
 }: ExistingCodebaseModalProps) {
+  const t = useT();
+
   function handleStartFresh() {
     if (fileCount > 3) {
       const confirmed = window.confirm(
-        `This directory contains ${fileCount} files.\n\n` +
-        'Starting fresh may modify or overwrite them based on the plan the AI generates. ' +
-        'Are you absolutely sure?'
+        t('picker.codebaseModal.confirm', { count: fileCount }),
       );
       if (!confirmed) return;
     }
@@ -185,9 +186,9 @@ export function ExistingCodebaseModal({
     <div style={styles.backdrop} onClick={onCancel}>
       <div style={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
-          <h2 style={styles.title}>This directory isn't an Office project yet</h2>
+          <h2 style={styles.title}>{t('picker.codebaseModal.title')}</h2>
           <p style={styles.subtitle}>
-            We found existing files in <span style={styles.path}>{shortenPath(path)}</span>. How would you like to proceed?
+            {t('picker.codebaseModal.subtitle', { path: shortenPath(path) })}
           </p>
         </div>
 
@@ -196,17 +197,15 @@ export function ExistingCodebaseModal({
           <div style={styles.optionPrimary}>
             <div style={styles.optionHeader}>
               <span style={styles.optionIcon}>⚙️</span>
-              <span style={styles.optionTitle}>Work on existing code</span>
-              <span style={styles.recommendedBadge}>Recommended</span>
+              <span style={styles.optionTitle}>{t('picker.codebaseModal.workshop.title')}</span>
+              <span style={styles.recommendedBadge}>{t('picker.codebaseModal.workshop.recommended')}</span>
             </div>
             <div style={styles.optionDescription}>
-              Keep your existing code and submit change requests. An AI team will
-              read your codebase, understand its structure, and make targeted
-              modifications based on what you ask for.
+              {t('picker.codebaseModal.workshop.description')}
             </div>
             <div style={styles.optionFooter}>
               <button style={styles.primaryButton} onClick={onWorkshop}>
-                Continue with Workshop →
+                {t('picker.codebaseModal.workshop.button')}
               </button>
             </div>
           </div>
@@ -215,19 +214,17 @@ export function ExistingCodebaseModal({
           <div style={styles.optionSecondary}>
             <div style={styles.optionHeader}>
               <span style={styles.optionIcon}>🆕</span>
-              <span style={styles.optionTitle}>Start fresh (Imagine phase)</span>
+              <span style={styles.optionTitle}>{t('picker.codebaseModal.fresh.title')}</span>
             </div>
             <div style={styles.optionDescription}>
-              Treat this directory as a new empty project. The AI team will plan
-              and build a new app from scratch.
+              {t('picker.codebaseModal.fresh.description')}
             </div>
             <div style={styles.warningBlock}>
-              ⚠️ <strong>WARNING:</strong> This may modify or overwrite existing files
-              based on the generated plan. Not safe for projects with code you want to keep.
+              {t('picker.codebaseModal.fresh.warning')}
             </div>
             <div style={styles.optionFooter}>
               <button style={styles.secondaryButton} onClick={handleStartFresh}>
-                Start fresh anyway
+                {t('picker.codebaseModal.fresh.button')}
               </button>
             </div>
           </div>
@@ -235,7 +232,7 @@ export function ExistingCodebaseModal({
 
         <div style={styles.footer}>
           <button style={styles.cancelButton} onClick={onCancel}>
-            Cancel
+            {t('picker.codebaseModal.cancel')}
           </button>
         </div>
       </div>
