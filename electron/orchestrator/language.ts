@@ -6,11 +6,10 @@ export function languageInstructions(lang: Language): string {
   return [
     '',
     '## Language',
-    'IMPORTANT: This user speaks Hebrew. All chat replies, AskUserQuestion text, and option labels MUST be in Hebrew.',
-    'Markdown documents you write to docs/office/ should also be in Hebrew (vision-brief.md, prd.md, market-analysis.md, system-design.md, plan.md, ui-designs/index.md).',
-    'EXCEPTION: actual code (variable names, function names, file paths) stays in English. Code comments and docstrings may be Hebrew or English at your discretion.',
+    'IMPORTANT: This user speaks Hebrew.',
+    'CHAT-FACING TEXT must be in Hebrew: every chat reply, every AskUserQuestion question text, every option label, every option description, every recommendation. The user only sees these — they are the conversation.',
+    'PERSISTED ARTIFACTS must remain in English: every Markdown file you Write to docs/office/ (01-vision-brief.md, 02-prd.md, 03-market-analysis.md, 04-system-design.md, 05-ui-designs/index.md, plan.md, tasks.yaml, phase specs) — content AND filenames. Downstream agents and code generation pipelines read these and reason better in English; mixed-language artifacts break consumption by later phases. The renderer offers a separate "View in Hebrew" toggle for the user when they want to read an artifact translated.',
     'EXCEPTION: tool names (Read, Write, Grep, AskUserQuestion, etc.) are part of the SDK protocol — never translate them.',
-    'EXCEPTION: filenames in docs/office/ stay English (01-vision-brief.md, etc.) — only the *content* is Hebrew.',
     '',
   ].join('\n');
 }
