@@ -260,7 +260,12 @@ export interface OfficeAPI {
   respondGitInit(answer: 'yes' | 'no'): Promise<void>;
   onGitRecoveryNote(callback: (note: GitRecoveryNote) => void): () => void;
   onGreenfieldGitNote(
-    callback: (note: { level: 'info' | 'warning'; message: string }) => void,
+    callback: (note: {
+      level: 'info' | 'warning';
+      message: string;
+      key?: string;
+      vars?: Record<string, string | number>;
+    }) => void,
   ): () => void;
   getRequestDiff(requestId: string): Promise<
     | { ok: true; diff: DiffResult }

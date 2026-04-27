@@ -100,6 +100,8 @@ export default function App() {
           id: `greenfield-git-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           level: note.level,
           message: note.message,
+          key: note.key,
+          vars: note.vars,
         });
       }),
       window.office.onProjectStateChanged((state) => {

@@ -3,7 +3,11 @@ import { create } from 'zustand';
 export interface GreenfieldBanner {
   id: string;
   level: 'info' | 'warning';
+  /** English fallback rendered when `key` is absent. */
   message: string;
+  /** When set, the renderer translates this with useT() instead of using `message`. */
+  key?: string;
+  vars?: Record<string, string | number>;
   action?: {
     label: string;
     onClick: () => void;

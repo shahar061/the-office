@@ -11,7 +11,12 @@ const PHASE_ORDER: Phase[] = ['idle', 'imagine', 'warroom', 'build', 'complete']
 
 export interface GreenfieldGitNote {
   level: 'info' | 'warning';
+  /** English fallback rendered if `key` is absent or the renderer can't translate it. */
   message: string;
+  /** Translation key the renderer feeds into useT(). When set, takes precedence over `message`. */
+  key?: string;
+  /** Variables interpolated into the translated string. */
+  vars?: Record<string, string | number>;
 }
 
 type IterationFailReason = 'dirty-tree' | 'no-target-commit' | 'git-error';
@@ -52,6 +57,7 @@ export class GreenfieldGit {
       this.emitNote({
         level: 'warning',
         message: 'git not found on your system — project will not be version-controlled',
+        key: 'git.note.gitNotFound',
       });
       return;
     }
@@ -76,6 +82,8 @@ export class GreenfieldGit {
       this.emitNote({
         level: 'warning',
         message: `git init failed: ${err?.message ?? err}`,
+        key: 'git.note.initFailed',
+        vars: { message: String(err?.message ?? err) },
       });
       this.setGreenfieldGitState({
         initialized: false,
@@ -105,6 +113,8 @@ export class GreenfieldGit {
       this.emitNote({
         level: 'warning',
         message: `initial commit failed: ${err?.message ?? err}`,
+        key: 'git.note.initialCommitFailed',
+        vars: { message: String(err?.message ?? err) },
       });
       return;
     }
@@ -116,7 +126,11 @@ export class GreenfieldGit {
       includeOfficeState,
       lastIterationN: 0,
     });
-    this.emitNote({ level: 'info', message: 'Project initialized with git.' });
+    this.emitNote({
+      level: 'info',
+      message: 'Project initialized with git.',
+      key: 'git.note.initialized',
+    });
   }
 
   private setGreenfieldGitState(
@@ -156,6 +170,8 @@ export class GreenfieldGit {
         this.emitNote({
           level: 'warning',
           message: `Cannot commit ${phase}: no git identity configured`,
+          key: 'git.note.cannotCommitNoIdentity',
+          vars: { phase },
         });
         return;
       }
@@ -172,6 +188,8 @@ export class GreenfieldGit {
         this.emitNote({
           level: 'warning',
           message: `Failed to stage ${phase}: ${err?.message ?? err}`,
+          key: 'git.note.stageFailed',
+          vars: { phase, message: String(err?.message ?? err) },
         });
         return;
       }
@@ -184,6 +202,8 @@ export class GreenfieldGit {
         this.emitNote({
           level: 'warning',
           message: `git status failed for ${phase}: ${err?.message ?? err}`,
+          key: 'git.note.statusFailedForPhase',
+          vars: { phase, message: String(err?.message ?? err) },
         });
         return;
       }
@@ -191,11 +211,18 @@ export class GreenfieldGit {
       const message = this.buildPhaseCommitMessage(phase, outcome);
       try {
         await gitWithEnv.commit(message);
-        this.emitNote({ level: 'info', message: `Saved ${phase} phase to git.` });
+        this.emitNote({
+          level: 'info',
+          message: `Saved ${phase} phase to git.`,
+          key: 'git.note.savedPhase',
+          vars: { phase },
+        });
       } catch (err: any) {
         this.emitNote({
           level: 'warning',
           message: `Failed to commit ${phase}: ${err?.message ?? err}`,
+          key: 'git.note.commitFailed',
+          vars: { phase, message: String(err?.message ?? err) },
         });
       }
     });
@@ -224,6 +251,8 @@ export class GreenfieldGit {
         this.emitNote({
           level: 'warning',
           message: `Retroactive git init failed: ${err?.message ?? err}`,
+          key: 'git.note.retroactiveInitFailed',
+          vars: { message: String(err?.message ?? err) },
         });
         return false;
       }
@@ -246,6 +275,8 @@ export class GreenfieldGit {
       this.emitNote({
         level: 'warning',
         message: `Retroactive initial commit failed: ${err?.message ?? err}`,
+        key: 'git.note.retroactiveCommitFailed',
+        vars: { message: String(err?.message ?? err) },
       });
       return false;
     }
@@ -256,7 +287,11 @@ export class GreenfieldGit {
       includeOfficeState,
       lastIterationN: 0,
     });
-    this.emitNote({ level: 'info', message: 'Project initialized with git (retroactive).' });
+    this.emitNote({
+      level: 'info',
+      message: 'Project initialized with git (retroactive).',
+      key: 'git.note.initializedRetroactive',
+    });
     return true;
   }
 
@@ -413,6 +448,12 @@ export class GreenfieldGit {
       this.emitNote({
         level: 'info',
         message: `Iteration ${nextN} preserved on ${iterationBranch}. Main reset to ${targetPrefix.replace(/:$/, '')}.`,
+        key: 'git.note.iterationDone',
+        vars: {
+          n: nextN,
+          branch: iterationBranch,
+          label: targetPrefix.replace(/:$/, ''),
+        },
       });
 
       return { ok: true, iterationBranch };

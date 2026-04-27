@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGreenfieldBannersStore } from '../../stores/greenfield-banners.store';
+import { useT } from '../../i18n';
 import { colors } from '../../theme';
 
 const styles = {
@@ -69,6 +70,7 @@ const styles = {
 export function GreenfieldBanners() {
   const banners = useGreenfieldBannersStore((s) => s.banners);
   const dismiss = useGreenfieldBannersStore((s) => s.dismissBanner);
+  const t = useT();
 
   if (banners.length === 0) return null;
 
@@ -82,7 +84,9 @@ export function GreenfieldBanners() {
             ...(b.level === 'warning' ? styles.bannerWarning : styles.bannerInfo),
           }}
         >
-          <div style={styles.message}>{b.message}</div>
+          <div style={styles.message}>
+            {b.key ? t(b.key as Parameters<typeof t>[0], b.vars) : b.message}
+          </div>
           {b.action && (
             <button style={styles.actionBtn} onClick={b.action.onClick}>
               {b.action.label}
