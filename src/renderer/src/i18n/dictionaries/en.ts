@@ -225,6 +225,19 @@ export const en = {
   'stats.agents.label': 'Agents',
   'stats.agents.empty': 'No agent activity yet',
 
+  // Mobile bridge pill + popover
+  'mobile.pill.pairPhone': '📱 Pair a phone',
+  'mobile.pill.multi': '📱 {count} phones · {mode}',
+  'mobile.mode.local': 'Local',
+  'mobile.mode.remote': 'Remote',
+  'mobile.mode.idle': 'Idle',
+  'mobile.mode.localRemote': 'Local+Remote',
+  'mobile.popover.empty': 'No phones paired yet.',
+  'mobile.popover.relayPaused': 'Remote access paused',
+  'mobile.popover.pauseRelay': 'Pause remote access',
+  'mobile.popover.pairAnother': 'Pair another phone',
+  'mobile.popover.manage': 'Manage in Settings…',
+
   // Office overlays
   'overlay.uidesign.title': 'UI Designs — Review',
   'overlay.uidesign.approve': 'Approve',

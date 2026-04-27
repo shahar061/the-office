@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMobileBridgeStore } from '../../stores/mobile-bridge.store';
+import { useT, type StringKey } from '../../i18n';
 import { PillPopover } from './PillPopover';
 
 type Device = {
@@ -10,27 +11,36 @@ type Device = {
   remoteAllowed: boolean;
 };
 
-function describe(devices: Device[]): { label: string; dotColor: string } {
-  if (devices.length === 0) return { label: '📱 Pair a phone', dotColor: 'transparent' };
+function modeKey(mode: 'lan' | 'relay' | 'offline'): StringKey {
+  if (mode === 'lan') return 'mobile.mode.local';
+  if (mode === 'relay') return 'mobile.mode.remote';
+  return 'mobile.mode.idle';
+}
+
+function describe(devices: Device[], t: ReturnType<typeof useT>): { label: string; dotColor: string } {
+  if (devices.length === 0) return { label: t('mobile.pill.pairPhone'), dotColor: 'transparent' };
   if (devices.length === 1) {
     const d = devices[0];
-    const mode = d.mode === 'lan' ? 'Local' : d.mode === 'relay' ? 'Remote' : 'Idle';
     const color = d.mode === 'lan' ? '#22c55e' : d.mode === 'relay' ? '#6366f1' : '#6b7280';
-    return { label: `${d.deviceName} · ${mode}`, dotColor: color };
+    return { label: `${d.deviceName} · ${t(modeKey(d.mode))}`, dotColor: color };
   }
   const modes = new Set(devices.map((d) => d.mode));
-  const combo = modes.has('lan') && modes.has('relay') ? 'Local+Remote'
-              : modes.has('lan') ? 'Local'
-              : modes.has('relay') ? 'Remote'
-              : 'Idle';
-  return { label: `📱 ${devices.length} phones · ${combo}`, dotColor: '#a5b4fc' };
+  const comboKey: StringKey = modes.has('lan') && modes.has('relay') ? 'mobile.mode.localRemote'
+                : modes.has('lan') ? 'mobile.mode.local'
+                : modes.has('relay') ? 'mobile.mode.remote'
+                : 'mobile.mode.idle';
+  return {
+    label: t('mobile.pill.multi', { count: devices.length, mode: t(comboKey) }),
+    dotColor: '#a5b4fc',
+  };
 }
 
 export function HeaderStatusPill() {
   const status = useMobileBridgeStore((s) => s.status);
   const devices = status?.devices ?? [];
   const [open, setOpen] = useState(false);
-  const { label, dotColor } = describe(devices);
+  const t = useT();
+  const { label, dotColor } = describe(devices, t);
 
   return (
     <div style={{ position: 'relative' }}>

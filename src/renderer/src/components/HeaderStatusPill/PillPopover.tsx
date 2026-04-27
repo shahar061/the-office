@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useMobileBridgeStore } from '../../stores/mobile-bridge.store';
 import { useSettingsStore } from '../../stores/settings.store';
+import { useT } from '../../i18n';
 
 interface Props {
   onClose: () => void;
@@ -10,6 +11,7 @@ export function PillPopover({ onClose }: Props) {
   const status = useMobileBridgeStore((s) => s.status);
   const pauseRelay = useMobileBridgeStore((s) => s.pauseRelay);
   const settingsStore = useSettingsStore();
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function PillPopover({ onClose }: Props) {
     >
       {devices.length === 0 ? (
         <div style={{ color: '#9ca3af', fontSize: 13, padding: '8px 4px' }}>
-          No phones paired yet.
+          {t('mobile.popover.empty')}
         </div>
       ) : (
         devices.map((d) => (
@@ -70,7 +72,7 @@ export function PillPopover({ onClose }: Props) {
             }} />
             <span style={{ color: '#fff', fontSize: 13, fontWeight: 500, flex: 1 }}>{d.deviceName}</span>
             <span style={{ color: '#9ca3af', fontSize: 11 }}>
-              {d.mode === 'lan' ? 'Local' : d.mode === 'relay' ? 'Remote' : 'Idle'}
+              {d.mode === 'lan' ? t('mobile.mode.local') : d.mode === 'relay' ? t('mobile.mode.remote') : t('mobile.mode.idle')}
             </span>
           </div>
         ))
@@ -87,14 +89,14 @@ export function PillPopover({ onClose }: Props) {
           cursor: 'pointer', textAlign: 'start', fontFamily: 'inherit',
         }}
       >
-        ⏸ {paused ? 'Remote access paused' : 'Pause remote access'}
+        ⏸ {paused ? t('mobile.popover.relayPaused') : t('mobile.popover.pauseRelay')}
       </button>
 
       <button onClick={pairAnother} style={linkStyle}>
-        Pair another phone
+        {t('mobile.popover.pairAnother')}
       </button>
       <button onClick={openMobileTab} style={linkStyle}>
-        Manage in Settings…
+        {t('mobile.popover.manage')}
       </button>
     </div>
   );

@@ -211,6 +211,19 @@ export const he: Partial<Record<StringKey, string>> = {
   'stats.agents.label': 'סוכנים',
   'stats.agents.empty': 'אין עדיין פעילות של סוכנים',
 
+  // Mobile bridge pill + popover
+  'mobile.pill.pairPhone': '📱 התאם טלפון',
+  'mobile.pill.multi': '📱 {count} טלפונים · {mode}',
+  'mobile.mode.local': 'מקומי',
+  'mobile.mode.remote': 'מרחוק',
+  'mobile.mode.idle': 'במצב המתנה',
+  'mobile.mode.localRemote': 'מקומי+מרחוק',
+  'mobile.popover.empty': 'עדיין לא הותאמו טלפונים.',
+  'mobile.popover.relayPaused': 'גישה מרחוק מושהית',
+  'mobile.popover.pauseRelay': 'השהה גישה מרחוק',
+  'mobile.popover.pairAnother': 'התאם טלפון נוסף',
+  'mobile.popover.manage': 'נהל בהגדרות…',
+
   'overlay.uidesign.title': 'עיצובי ממשק — סקירה',
   'overlay.uidesign.approve': 'אישור',
   'overlay.uidesign.feedback.placeholder': 'מה לשנות?',
