@@ -44,7 +44,7 @@ export function PillPopover({ onClose }: Props) {
       style={{
         position: 'absolute',
         top: 40,
-        right: 0,
+        insetInlineEnd: 0,
         width: 320,
         background: '#0f0f14',
         border: '1px solid rgba(255,255,255,0.1)',
