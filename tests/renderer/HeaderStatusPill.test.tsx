@@ -40,16 +40,16 @@ describe('HeaderStatusPill label derivation', () => {
     expect(screen.getByText(/Pair a phone/)).toBeTruthy();
   });
 
-  it('shows "● <name> · Local" for one LAN device', () => {
+  it('shows "<name> · Local" for one LAN device', () => {
     setDevices([{ deviceId: 'd', deviceName: 'iPhone', mode: 'lan', lastSeenAt: 1, remoteAllowed: false }]);
     render(<HeaderStatusPill />);
-    expect(screen.getByText('● iPhone · Local')).toBeTruthy();
+    expect(screen.getByText('iPhone · Local')).toBeTruthy();
   });
 
-  it('shows "● <name> · Remote" for one Relay device', () => {
+  it('shows "<name> · Remote" for one Relay device', () => {
     setDevices([{ deviceId: 'd', deviceName: 'iPhone', mode: 'relay', lastSeenAt: 1, remoteAllowed: true }]);
     render(<HeaderStatusPill />);
-    expect(screen.getByText('● iPhone · Remote')).toBeTruthy();
+    expect(screen.getByText('iPhone · Remote')).toBeTruthy();
   });
 
   it('shows "📱 N phones · Local+Remote" for mixed modes', () => {
