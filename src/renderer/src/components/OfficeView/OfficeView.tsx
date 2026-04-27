@@ -31,10 +31,6 @@ function phaseLabel(phase: string | undefined, status: string | undefined): stri
   return `${phase}${status ? ` — ${status}` : ''}`;
 }
 
-function authDotColor(connected: boolean): string {
-  return connected ? colors.success : colors.error;
-}
-
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = {
@@ -79,13 +75,6 @@ const styles = {
     color: colors.textDim,
     whiteSpace: 'nowrap' as const,
   },
-  authDot: (connected: boolean) => ({
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: authDotColor(connected),
-    flexShrink: 0,
-  }),
   main: {
     display: 'flex',
     flex: 1,
@@ -371,10 +360,6 @@ export default function OfficeView() {
           </span>
           <span style={styles.phaseIndicator}>{phaseText}</span>
         </div>
-        <div
-          style={styles.authDot(authStatus.connected)}
-          title={authStatus.connected ? `Connected${authStatus.account ? ` as ${authStatus.account}` : ''}` : 'Disconnected'}
-        />
       </div>
 
       {/* Phase tracker */}
