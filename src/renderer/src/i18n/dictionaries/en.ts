@@ -238,6 +238,98 @@ export const en = {
   'mobile.popover.pairAnother': 'Pair another phone',
   'mobile.popover.manage': 'Manage in Settings…',
 
+  // Settings panel chrome + nav
+  'settings.nav.general': 'General',
+  'settings.nav.language': 'Language',
+  'settings.nav.agents': 'Agents',
+  'settings.nav.workspace': 'Workspace',
+  'settings.nav.mobile': 'Mobile',
+  'settings.nav.integrations': 'Integrations',
+  'settings.nav.about': 'About',
+
+  // Settings → General (placeholder)
+  'settings.general.placeholder': 'General settings — coming soon.',
+  'settings.general.planned': 'Planned: theme, audio, window behavior, telemetry.',
+
+  // Settings → Agents
+  'settings.agents.loading': 'Loading settings…',
+  'settings.agents.modelPreset.label': 'Default model preset',
+  'settings.agents.modelPreset.description': 'Which model agents use by default. Applied on next session start.',
+  'settings.agents.permissionMode.label': 'Default permission mode',
+  'settings.agents.permissionMode.description': 'How agents handle tool permissions. Applied on next session start.',
+  'settings.agents.maxParallel.label': 'Max parallel Team Leads',
+  'settings.agents.maxParallel.description': 'How many Team Lead agents can run in parallel. Higher = faster but more cost.',
+
+  // Settings → Integrations
+  'settings.integrations.mobileMoved': 'Mobile pairing moved to its own tab — check the Mobile section in the sidebar.',
+
+  // Settings → About
+  'settings.about.version': 'Version',
+  'settings.about.description': 'AI-powered workspace for building software through phases of collaboration.',
+  'settings.about.github': 'GitHub repository',
+
+  // Settings → Mobile
+  'settings.mobile.title': 'Mobile Companion',
+  'settings.mobile.subtitle': 'Pair your phone to watch agents run and reply on the go.',
+  'settings.mobile.actionRequired': 'Action required',
+  'settings.mobile.repair': 'Re-pair your existing phone to upgrade to encrypted v2 pairing.',
+  'settings.mobile.pair': 'Pair a phone',
+  'settings.mobile.openProjectFirst': 'Open a project first to pair a phone.',
+  'settings.mobile.openProjectTooltip': 'Open a project first to pair a phone',
+  'settings.mobile.trustedDevices': 'Trusted devices ({count})',
+  'settings.mobile.empty': 'Get agent updates on your phone.',
+  'settings.mobile.relay.ready': '● Remote ready',
+  'settings.mobile.relay.unreachable': '○ Remote unreachable · Local still works',
+  'settings.mobile.relay.disabled': '● Remote disabled (no remote devices)',
+  'settings.mobile.relay.paused': '⏸ Remote paused',
+  'settings.mobile.advanced': 'Advanced: direct local connection',
+  'settings.mobile.lanHelper': 'Pair over your local network for lower latency. Leave empty to pair via the encrypted relay. Changes take effect on the next QR generation.',
+  'settings.mobile.device.activeNowLocal': 'Active now · Local',
+  'settings.mobile.device.activeNowRemote': 'Active now · Remote',
+  'settings.mobile.device.justNow': 'Just now · Idle',
+  'settings.mobile.device.minutesAgo': '{n}m ago · Idle',
+  'settings.mobile.device.hoursAgo': '{n}h ago · Idle',
+  'settings.mobile.device.daysAgo': '{n}d ago · Idle',
+  'settings.mobile.device.remoteAccess': 'Remote access',
+  'settings.mobile.device.revoke': 'Revoke…',
+  'settings.mobile.device.revokeConfirm': 'Revoke this phone? It will stop receiving updates. You can re-pair anytime.',
+  'settings.mobile.pairing.title': 'Scan with The Office mobile app',
+  'settings.mobile.pairing.instruction': "You'll confirm a 6-digit code on both devices before pairing completes.",
+  'settings.mobile.pairing.expires': 'Code expires in {time}',
+  'settings.mobile.pairing.cancel': 'Cancel',
+
+  // Settings → Integrations → Git Identity
+  'settings.git.identity.loading': 'Loading…',
+  'settings.git.identity.header': 'Git Identity',
+  'settings.git.identity.description': 'Who The Office commits as on your behalf.',
+  'settings.git.identity.importPrompt': 'No identities yet. Import from ~/.gitconfig?',
+  'settings.git.identity.import': 'Import',
+  'settings.git.identity.addManually': 'Add manually',
+  'settings.git.identity.aria': 'Default git identity',
+  'settings.git.identity.deleteConfirm': "Delete this identity? Projects currently assigned to it will fall back to the default. This can't be undone.",
+  'settings.git.identity.cancel': 'Cancel',
+  'settings.git.identity.delete': 'Delete',
+  'settings.git.identity.label.placeholder': 'Label (e.g. Work)',
+  'settings.git.identity.name.placeholder': 'Name (e.g. Jane Doe)',
+  'settings.git.identity.email.placeholder': 'Email (e.g. jane@acme.com)',
+  'settings.git.identity.save': 'Save',
+  'settings.git.identity.add': '+ Add identity',
+  'settings.git.identity.imported': 'Imported',
+  'settings.git.identity.default': 'Default',
+  'settings.git.identity.setAsDefault': 'Set as default',
+  'settings.git.identity.editTitle': 'Edit',
+  'settings.git.identity.deleteTitle': 'Delete',
+
+  // Settings → Integrations → Git Preferences
+  'settings.git.preferences.header': 'Git Preferences',
+  'settings.git.preferences.includeOfficeState': 'Include The Office project state in git commits',
+  'settings.git.preferences.descriptionPrefix': 'Includes chat history, agent logs, layouts, and project config in git commits.',
+  'settings.git.preferences.warning': 'Only enable if you trust where this repo is pushed',
+  'settings.git.preferences.descriptionSuffix': 'chat messages may contain credentials or secrets you typed.',
+  'settings.git.preferences.confirmText': 'Got it — project state will be committed from the next phase onward. Existing commits are not affected.',
+  'settings.git.preferences.cancel': 'Cancel',
+  'settings.git.preferences.enable': 'Enable',
+
   // Office overlays
   'overlay.uidesign.title': 'UI Designs — Review',
   'overlay.uidesign.approve': 'Approve',

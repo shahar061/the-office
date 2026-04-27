@@ -90,7 +90,7 @@ export function AboutSection() {
     <div style={styles.root}>
       <div style={styles.title}>The Office</div>
       <div style={styles.version} onClick={handleVersionClick}>
-        Version {version}
+        {t('settings.about.version')} {version}
         {toast && <span style={styles.toast}>{toast}</span>}
       </div>
 
@@ -113,12 +113,12 @@ export function AboutSection() {
       )}
 
       <div style={styles.section}>
-        AI-powered workspace for building software through phases of collaboration.
+        {t('settings.about.description')}
       </div>
 
       <div style={styles.section}>
         <button style={styles.link} onClick={() => openExternal('https://github.com/shahar061/the-office')}>
-          GitHub repository
+          {t('settings.about.github')}
         </button>
       </div>
     </div>

@@ -1,13 +1,15 @@
 import React from 'react';
+import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 
 export function GeneralSection() {
+  const t = useT();
   return (
     <div style={{ padding: '24px', color: colors.textMuted, fontSize: '13px', fontStyle: 'italic' }}>
-      General settings — coming soon.
+      {t('settings.general.placeholder')}
       <br />
       <br />
-      Planned: theme, audio, window behavior, telemetry.
+      {t('settings.general.planned')}
     </div>
   );
 }

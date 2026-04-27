@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useMobileBridgeStore } from '../../../stores/mobile-bridge.store';
 import { useProjectStore } from '../../../stores/project.store';
+import { useT, type StringKey } from '../../../i18n';
 import { PairingView } from './mobile/PairingView';
 import { DeviceCard } from './mobile/DeviceCard';
 
 export function MobileSection() {
   const store = useMobileBridgeStore();
   const [pairing, setPairing] = useState<{ qrPayload: string; expiresAt: number } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     void store.refresh();
@@ -27,12 +29,13 @@ export function MobileSection() {
   const v1DeviceCount = status?.v1DeviceCount ?? 0;
   const relay = status?.relay ?? 'disabled';
 
-  const relayLabel = {
-    ready: '● Remote ready',
-    unreachable: '○ Remote unreachable · Local still works',
-    disabled: '● Remote disabled (no remote devices)',
-    paused: '⏸ Remote paused',
-  }[relay];
+  const relayLabelKey: StringKey = {
+    ready: 'settings.mobile.relay.ready',
+    unreachable: 'settings.mobile.relay.unreachable',
+    disabled: 'settings.mobile.relay.disabled',
+    paused: 'settings.mobile.relay.paused',
+  }[relay] as StringKey;
+  const relayLabel = t(relayLabelKey);
 
   const relayColor = {
     ready: '#86efac',
@@ -43,9 +46,9 @@ export function MobileSection() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <div style={{ fontSize: 22, fontWeight: 600, color: '#fff', marginBottom: 6 }}>Mobile Companion</div>
+      <div style={{ fontSize: 22, fontWeight: 600, color: '#fff', marginBottom: 6 }}>{t('settings.mobile.title')}</div>
       <div style={{ color: '#9ca3af', fontSize: 13, marginBottom: 20 }}>
-        Pair your phone to watch agents run and reply on the go.
+        {t('settings.mobile.subtitle')}
       </div>
 
       {v1DeviceCount > 0 && (
@@ -53,9 +56,9 @@ export function MobileSection() {
           padding: 12, background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.3)',
           borderRadius: 8, marginBottom: 16,
         }}>
-          <div style={{ color: '#fdba74', fontWeight: 600, fontSize: 13 }}>Action required</div>
+          <div style={{ color: '#fdba74', fontWeight: 600, fontSize: 13 }}>{t('settings.mobile.actionRequired')}</div>
           <div style={{ color: '#d1d5db', fontSize: 12, marginTop: 4 }}>
-            Re-pair your existing phone to upgrade to encrypted v2 pairing.
+            {t('settings.mobile.repair')}
           </div>
         </div>
       )}
@@ -64,7 +67,7 @@ export function MobileSection() {
         <button
           onClick={startPair}
           disabled={!inSession}
-          title={!inSession ? 'Open a project first to pair a phone' : undefined}
+          title={!inSession ? t('settings.mobile.openProjectTooltip') : undefined}
           style={{
             background: inSession ? '#6366f1' : 'rgba(99,102,241,0.3)',
             color: '#fff',
@@ -76,12 +79,12 @@ export function MobileSection() {
             cursor: inSession ? 'pointer' : 'not-allowed',
           }}
         >
-          Pair a phone
+          {t('settings.mobile.pair')}
         </button>
       )}
       {!pairing && !inSession && (
         <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 8 }}>
-          Open a project first to pair a phone.
+          {t('settings.mobile.openProjectFirst')}
         </div>
       )}
 
@@ -99,7 +102,7 @@ export function MobileSection() {
           <div style={{
             color: '#a5b4fc', fontSize: 11, textTransform: 'uppercase',
             letterSpacing: '0.08em', fontWeight: 700, marginBottom: 10,
-          }}>Trusted devices ({devices.length})</div>
+          }}>{t('settings.mobile.trustedDevices', { count: devices.length })}</div>
           {devices.map((d) => <DeviceCard key={d.deviceId} device={d} />)}
         </div>
       )}
@@ -110,7 +113,7 @@ export function MobileSection() {
           border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 10, textAlign: 'center',
         }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>📱</div>
-          <div style={{ color: '#d1d5db', fontSize: 14 }}>Get agent updates on your phone.</div>
+          <div style={{ color: '#d1d5db', fontSize: 14 }}>{t('settings.mobile.empty')}</div>
         </div>
       )}
 
@@ -118,7 +121,7 @@ export function MobileSection() {
 
       <details style={{ marginTop: 24, color: '#9ca3af' }}>
         <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          Advanced: direct local connection
+          {t('settings.mobile.advanced')}
         </summary>
         <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
@@ -142,8 +145,7 @@ export function MobileSection() {
           />
         </div>
         <div style={{ marginTop: 6, fontSize: 11 }}>
-          Pair over your local network for lower latency. Leave empty to pair via the encrypted relay.
-          Changes take effect on the next QR generation.
+          {t('settings.mobile.lanHelper')}
         </div>
       </details>
     </div>

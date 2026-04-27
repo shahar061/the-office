@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMobileBridgeStore } from '../../../../stores/mobile-bridge.store';
+import { useT } from '../../../../i18n';
 
 interface Props {
   device: {
@@ -11,20 +12,21 @@ interface Props {
   };
 }
 
-function formatLastSeen(ts: number, mode: string): string {
-  if (mode === 'lan') return 'Active now · Local';
-  if (mode === 'relay') return 'Active now · Remote';
+function formatLastSeen(ts: number, mode: string, t: ReturnType<typeof useT>): string {
+  if (mode === 'lan') return t('settings.mobile.device.activeNowLocal');
+  if (mode === 'relay') return t('settings.mobile.device.activeNowRemote');
   const secs = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (secs < 60) return `Just now · Idle`;
-  if (secs < 3600) return `${Math.floor(secs / 60)}m ago · Idle`;
-  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago · Idle`;
-  return `${Math.floor(secs / 86400)}d ago · Idle`;
+  if (secs < 60) return t('settings.mobile.device.justNow');
+  if (secs < 3600) return t('settings.mobile.device.minutesAgo', { n: Math.floor(secs / 60) });
+  if (secs < 86400) return t('settings.mobile.device.hoursAgo', { n: Math.floor(secs / 3600) });
+  return t('settings.mobile.device.daysAgo', { n: Math.floor(secs / 86400) });
 }
 
 export function DeviceCard({ device }: Props) {
   const { renameDevice, setRemoteAccess, revoke } = useMobileBridgeStore();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(device.deviceName);
+  const t = useT();
 
   const dotColor = device.mode === 'lan' ? '#22c55e'
                  : device.mode === 'relay' ? '#6366f1'
@@ -64,7 +66,7 @@ export function DeviceCard({ device }: Props) {
         )}
         <div style={{ color: '#9ca3af', fontSize: 11, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 6, height: 6, background: dotColor, borderRadius: '50%' }} />
-          {formatLastSeen(device.lastSeenAt, device.mode)}
+          {formatLastSeen(device.lastSeenAt, device.mode, t)}
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end', fontSize: 11 }}>
@@ -73,16 +75,16 @@ export function DeviceCard({ device }: Props) {
             type="checkbox" checked={device.remoteAllowed}
             onChange={e => setRemoteAccess(device.deviceId, e.target.checked)}
           />
-          Remote access
+          {t('settings.mobile.device.remoteAccess')}
         </label>
         <button
           onClick={() => {
-            if (confirm('Revoke this phone? It will stop receiving updates. You can re-pair anytime.')) {
+            if (confirm(t('settings.mobile.device.revokeConfirm'))) {
               revoke(device.deviceId);
             }
           }}
           style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 11, padding: 0 }}>
-          Revoke…
+          {t('settings.mobile.device.revoke')}
         </button>
       </div>
     </div>

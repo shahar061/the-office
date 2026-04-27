@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSettingsStore } from '../../../stores/settings.store';
+import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 import { SegmentedControl } from '../SegmentedControl';
 import type { AppSettings, BuildConfig } from '@shared/types';
@@ -46,9 +47,10 @@ const styles = {
 
 export function AgentsSection() {
   const settings = useSettingsStore((s) => s.settings);
+  const t = useT();
 
   if (!settings) {
-    return <div style={styles.loading}>Loading settings…</div>;
+    return <div style={styles.loading}>{t('settings.agents.loading')}</div>;
   }
 
   async function save(patch: Partial<AppSettings>) {
@@ -62,9 +64,9 @@ export function AgentsSection() {
   return (
     <div style={styles.root}>
       <div style={styles.field}>
-        <div style={styles.label}>Default model preset</div>
+        <div style={styles.label}>{t('settings.agents.modelPreset.label')}</div>
         <div style={styles.description}>
-          Which model agents use by default. Applied on next session start.
+          {t('settings.agents.modelPreset.description')}
         </div>
         <SegmentedControl
           name="modelPreset"
@@ -78,9 +80,9 @@ export function AgentsSection() {
       </div>
 
       <div style={styles.field}>
-        <div style={styles.label}>Default permission mode</div>
+        <div style={styles.label}>{t('settings.agents.permissionMode.label')}</div>
         <div style={styles.description}>
-          How agents handle tool permissions. Applied on next session start.
+          {t('settings.agents.permissionMode.description')}
         </div>
         <SegmentedControl
           name="permissionMode"
@@ -94,9 +96,9 @@ export function AgentsSection() {
       </div>
 
       <div style={styles.field}>
-        <div style={styles.label}>Max parallel Team Leads</div>
+        <div style={styles.label}>{t('settings.agents.maxParallel.label')}</div>
         <div style={styles.description}>
-          How many Team Lead agents can run in parallel. Higher = faster but more cost.
+          {t('settings.agents.maxParallel.description')}
         </div>
         <input
           type="number"

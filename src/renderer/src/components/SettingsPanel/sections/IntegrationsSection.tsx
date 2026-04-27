@@ -1,6 +1,7 @@
 import React from 'react';
 import { GitIdentitySubsection } from './GitIdentitySubsection';
 import { GitPreferencesSubsection } from './GitPreferencesSubsection';
+import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 
 const styles = {
@@ -21,12 +22,13 @@ const styles = {
 } as const;
 
 export function IntegrationsSection() {
+  const t = useT();
   return (
     <div style={styles.root}>
       <GitIdentitySubsection />
       <GitPreferencesSubsection />
       <div style={styles.note}>
-        Mobile pairing moved to its own tab — check the <strong>Mobile</strong> section in the sidebar.
+        {t('settings.integrations.mobileMoved')}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { GitIdentity } from '@shared/types';
 import { useSettingsStore } from '../../../stores/settings.store';
+import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 
 const styles = {
@@ -202,6 +203,7 @@ export function GitIdentitySubsection() {
   const settings = useSettingsStore((s) => s.settings);
   const identities = settings?.gitIdentities ?? [];
   const defaultId = settings?.defaultGitIdentityId ?? null;
+  const t = useT();
 
   const [importCandidate, setImportCandidate] = useState<{ name: string; email: string } | null>(null);
   const [importChecked, setImportChecked] = useState(false);
@@ -227,7 +229,7 @@ export function GitIdentitySubsection() {
   async function handleImport() {
     if (!importCandidate) return;
     await window.office.addGitIdentity({
-      label: 'Imported',
+      label: t('settings.git.identity.imported'),
       name: importCandidate.name,
       email: importCandidate.email,
     });
@@ -285,26 +287,26 @@ export function GitIdentitySubsection() {
   }
 
   if (!settings) {
-    return <div style={{ color: colors.textMuted, fontStyle: 'italic' }}>Loading…</div>;
+    return <div style={{ color: colors.textMuted, fontStyle: 'italic' }}>{t('settings.git.identity.loading')}</div>;
   }
 
   return (
     <div style={styles.root}>
-      <div style={styles.header}>Git Identity</div>
-      <div style={styles.description}>Who The Office commits as on your behalf.</div>
+      <div style={styles.header}>{t('settings.git.identity.header')}</div>
+      <div style={styles.description}>{t('settings.git.identity.description')}</div>
 
       {/* Import prompt */}
       {identities.length === 0 && importCandidate && (
         <div style={styles.importPrompt}>
-          No identities yet. Import from <code>~/.gitconfig</code>?
+          {t('settings.git.identity.importPrompt')}
           <br />
-          Found: <strong>{importCandidate.name}</strong> &lt;{importCandidate.email}&gt;
+          <strong>{importCandidate.name}</strong> &lt;{importCandidate.email}&gt;
           <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
             <button style={styles.saveBtn} onClick={handleImport}>
-              Import
+              {t('settings.git.identity.import')}
             </button>
             <button style={styles.cancelBtn} onClick={startAdd}>
-              Add manually
+              {t('settings.git.identity.addManually')}
             </button>
           </div>
         </div>
@@ -312,7 +314,7 @@ export function GitIdentitySubsection() {
 
       {/* Identities list */}
       {identities.length > 0 && (
-        <div style={styles.list} role="radiogroup" aria-label="Default git identity">
+        <div style={styles.list} role="radiogroup" aria-label={t('settings.git.identity.aria')}>
           {identities.map((identity, idx) => (
             <IdentityRow
               key={identity.id}
@@ -330,17 +332,16 @@ export function GitIdentitySubsection() {
       {/* Delete confirm */}
       {deleteConfirmId && (
         <div style={styles.deleteConfirm}>
-          Delete this identity? Projects currently assigned to it will fall back to the default.
-          This can't be undone.
+          {t('settings.git.identity.deleteConfirm')}
           <div style={styles.deleteButtons}>
             <button style={styles.cancelBtn} onClick={() => setDeleteConfirmId(null)}>
-              Cancel
+              {t('settings.git.identity.cancel')}
             </button>
             <button
               style={{ ...styles.saveBtn, background: '#ef4444' }}
               onClick={() => confirmDelete(deleteConfirmId)}
             >
-              Delete
+              {t('settings.git.identity.delete')}
             </button>
           </div>
         </div>
@@ -351,28 +352,28 @@ export function GitIdentitySubsection() {
         <div style={styles.form}>
           <input
             style={styles.input}
-            placeholder="Label (e.g. Work)"
+            placeholder={t('settings.git.identity.label.placeholder')}
             value={form.label}
             onChange={(e) => setForm({ ...form, label: e.target.value })}
           />
           <input
             style={styles.input}
-            placeholder="Name (e.g. Jane Doe)"
+            placeholder={t('settings.git.identity.name.placeholder')}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <input
             style={styles.input}
-            placeholder="Email (e.g. jane@acme.com)"
+            placeholder={t('settings.git.identity.email.placeholder')}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <div style={styles.formButtons}>
             <button style={styles.cancelBtn} onClick={cancelForm}>
-              Cancel
+              {t('settings.git.identity.cancel')}
             </button>
             <button style={styles.saveBtn} onClick={saveForm}>
-              Save
+              {t('settings.git.identity.save')}
             </button>
           </div>
         </div>
@@ -381,14 +382,14 @@ export function GitIdentitySubsection() {
       {/* Add button when not already showing the form */}
       {!addOpen && identities.length > 0 && (
         <button style={styles.addBtn} onClick={startAdd}>
-          + Add identity
+          {t('settings.git.identity.add')}
         </button>
       )}
 
       {/* "Add manually" shortcut when no identities and no import candidate */}
       {identities.length === 0 && !importCandidate && !addOpen && (
         <button style={styles.addBtn} onClick={startAdd}>
-          + Add identity
+          {t('settings.git.identity.add')}
         </button>
       )}
     </div>
@@ -413,6 +414,7 @@ function IdentityRow({
   onDelete,
 }: IdentityRowProps) {
   const [hovered, setHovered] = useState(false);
+  const t = useT();
 
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't hijack clicks on inner buttons (edit/delete)
@@ -430,7 +432,7 @@ function IdentityRow({
       onMouseLeave={() => setHovered(false)}
       onClick={handleRowClick}
     >
-      <label style={styles.radioWrap} title="Set as default">
+      <label style={styles.radioWrap} title={t('settings.git.identity.setAsDefault')}>
         <input
           type="radio"
           name="default-git-identity"
@@ -446,11 +448,11 @@ function IdentityRow({
       <span style={styles.meta}>
         {identity.name} · {identity.email}
       </span>
-      {isDefault && <span style={styles.defaultPill}>Default</span>}
-      <button style={styles.iconBtn} onClick={onEdit} title="Edit">
+      {isDefault && <span style={styles.defaultPill}>{t('settings.git.identity.default')}</span>}
+      <button style={styles.iconBtn} onClick={onEdit} title={t('settings.git.identity.editTitle')}>
         ✎
       </button>
-      <button style={styles.iconBtn} onClick={onDelete} title="Delete">
+      <button style={styles.iconBtn} onClick={onDelete} title={t('settings.git.identity.deleteTitle')}>
         🗑
       </button>
     </div>

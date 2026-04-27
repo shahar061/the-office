@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSettingsStore, type SettingsSection } from '../../stores/settings.store';
+import { useT, type StringKey } from '../../i18n';
 import { GeneralSection } from './sections/GeneralSection';
 import { WorkspaceSection } from './sections/WorkspaceSection';
 import { AboutSection } from './sections/AboutSection';
@@ -11,18 +12,18 @@ import { colors } from '../../theme';
 
 interface NavItem {
   id: SettingsSection;
-  label: string;
+  labelKey: StringKey;
   icon: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'general', label: 'General', icon: '⚙' },
-  { id: 'language', label: 'Language', icon: '🌐' },
-  { id: 'agents', label: 'Agents', icon: '👥' },
-  { id: 'workspace', label: 'Workspace', icon: '🗂' },
-  { id: 'mobile', label: 'Mobile', icon: '📱' },
-  { id: 'integrations', label: 'Integrations', icon: '🔌' },
-  { id: 'about', label: 'About', icon: 'ℹ' },
+  { id: 'general', labelKey: 'settings.nav.general', icon: '⚙' },
+  { id: 'language', labelKey: 'settings.nav.language', icon: '🌐' },
+  { id: 'agents', labelKey: 'settings.nav.agents', icon: '👥' },
+  { id: 'workspace', labelKey: 'settings.nav.workspace', icon: '🗂' },
+  { id: 'mobile', labelKey: 'settings.nav.mobile', icon: '📱' },
+  { id: 'integrations', labelKey: 'settings.nav.integrations', icon: '🔌' },
+  { id: 'about', labelKey: 'settings.nav.about', icon: 'ℹ' },
 ];
 
 const styles = {
@@ -105,6 +106,7 @@ export function SettingsPanel() {
   const activeSection = useSettingsStore((s) => s.activeSection);
   const setActiveSection = useSettingsStore((s) => s.setActiveSection);
   const close = useSettingsStore((s) => s.close);
+  const t = useT();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -123,7 +125,7 @@ export function SettingsPanel() {
         <div style={styles.header}>
           <div style={styles.title}>
             <span>⚙</span>
-            <span>Settings</span>
+            <span>{t('app.menu.settings')}</span>
           </div>
           <button style={styles.closeBtn} onClick={close}>
             ✕
@@ -139,7 +141,7 @@ export function SettingsPanel() {
                 onClick={() => setActiveSection(item.id)}
               >
                 <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </div>
             ))}
           </div>

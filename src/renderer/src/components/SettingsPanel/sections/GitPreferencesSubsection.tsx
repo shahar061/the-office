@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSettingsStore } from '../../../stores/settings.store';
+import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 
 const styles = {
@@ -79,6 +80,7 @@ const styles = {
 export function GitPreferencesSubsection() {
   const settings = useSettingsStore((s) => s.settings);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const t = useT();
 
   if (!settings) return null;
 
@@ -104,7 +106,7 @@ export function GitPreferencesSubsection() {
 
   return (
     <div style={styles.root}>
-      <div style={styles.header}>Git Preferences</div>
+      <div style={styles.header}>{t('settings.git.preferences.header')}</div>
       <div style={styles.field}>
         <label style={styles.checkboxRow}>
           <input
@@ -112,25 +114,24 @@ export function GitPreferencesSubsection() {
             checked={current}
             onChange={(e) => handleToggle(e.target.checked)}
           />
-          <span>Include The Office project state in git commits</span>
+          <span>{t('settings.git.preferences.includeOfficeState')}</span>
         </label>
         <div style={styles.description}>
-          Includes chat history, agent logs, layouts, and project config in git commits.{' '}
-          <span style={styles.strong}>Only enable if you trust where this repo is pushed</span> —
-          chat messages may contain credentials or secrets you typed.
+          {t('settings.git.preferences.descriptionPrefix')}{' '}
+          <span style={styles.strong}>{t('settings.git.preferences.warning')}</span> —{' '}
+          {t('settings.git.preferences.descriptionSuffix')}
         </div>
       </div>
 
       {confirmOpen && (
         <div style={styles.confirmBlock}>
-          Got it — project state will be committed from the next phase onward.
-          Existing commits are not affected.
+          {t('settings.git.preferences.confirmText')}
           <div style={styles.confirmButtons}>
             <button style={styles.cancelBtn} onClick={() => setConfirmOpen(false)}>
-              Cancel
+              {t('settings.git.preferences.cancel')}
             </button>
             <button style={styles.primaryBtn} onClick={confirmEnable}>
-              Enable
+              {t('settings.git.preferences.enable')}
             </button>
           </div>
         </div>
