@@ -27,3 +27,9 @@ tr.row:hover { background: rgba(99,102,241,0.08); }
 .badge.status-wont-fix { background: rgba(107,114,128,0.2); color: #cbd5e1; }
 .empty { padding: 48px; text-align: center; color: #6b7280; }
 .error { padding: 12px; background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 4px; margin-bottom: 12px; }
+.filters button {
+  background: #6366f1; border: none; color: #fff; padding: 6px 12px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-family: inherit;
+}
+.filters button:disabled { opacity: 0.5; cursor: default; }
+#copy-status { color: #94a3b8; font-size: 12px; }

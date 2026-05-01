@@ -1,5 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
+let currentReports = [];
+
 async function loadReports() {
   const status = $('filter-status').value;
   const type = $('filter-type').value;
@@ -16,10 +18,12 @@ async function loadReports() {
       throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json();
+    currentReports = data.reports;
     renderRows(data.reports);
   } catch (err) {
     $('error-box').innerHTML = `<div class="error">Failed to load: ${err.message}</div>`;
     $('rows').innerHTML = '';
+    currentReports = [];
   }
 }
 
@@ -67,4 +71,41 @@ function escapeHtml(s) {
 
 $('filter-status').addEventListener('change', loadReports);
 $('filter-type').addEventListener('change', loadReports);
+$('copy-all').addEventListener('click', copyAllForClaude);
 loadReports();
+
+function formatReport(r) {
+  const typeLabel = r.type === 'bug' ? 'Bug' : 'Feature';
+  const lines = [
+    `# Issue #${r.id} — ${r.title} (${typeLabel})`,
+    `- App version: ${r.appVersion}`,
+    `- OS: ${r.osPlatform}`,
+    `- Language: ${r.language}`,
+    `- Submitted: ${new Date(r.submittedAt).toISOString()}`,
+    `- Status: ${r.status}`,
+    '',
+    '## Body',
+    r.body,
+  ];
+  const note = (r.triageNote ?? '').trim();
+  if (note) {
+    lines.push('', '## Triage note', note);
+  }
+  return lines.join('\n');
+}
+
+async function copyAllForClaude() {
+  if (currentReports.length === 0) {
+    $('copy-status').textContent = 'No reports to copy';
+    setTimeout(() => { $('copy-status').textContent = ''; }, 2000);
+    return;
+  }
+  const text = currentReports.map(formatReport).join('\n\n---\n\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    $('copy-status').textContent = `✓ Copied ${currentReports.length} reports`;
+  } catch (err) {
+    $('copy-status').textContent = `Failed: ${err.message}`;
+  }
+  setTimeout(() => { $('copy-status').textContent = ''; }, 2000);
+}

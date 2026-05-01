@@ -63,6 +63,40 @@ async function save(field) {
 
 $('save').addEventListener('click', () => save('status'));
 $('save-note').addEventListener('click', () => save('triageNote'));
+$('copy').addEventListener('click', copyForClaude);
+
+function formatReport(r) {
+  const typeLabel = r.type === 'bug' ? 'Bug' : 'Feature';
+  const lines = [
+    `# Issue #${r.id} — ${r.title} (${typeLabel})`,
+    `- App version: ${r.appVersion}`,
+    `- OS: ${r.osPlatform}`,
+    `- Language: ${r.language}`,
+    `- Submitted: ${new Date(r.submittedAt).toISOString()}`,
+    `- Status: ${r.status}`,
+    '',
+    '## Body',
+    r.body,
+  ];
+  const note = (r.triageNote ?? '').trim();
+  if (note) {
+    lines.push('', '## Triage note', note);
+  }
+  return lines.join('\n');
+}
+
+async function copyForClaude() {
+  if (!currentReport) return;
+  const btn = $('copy');
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(formatReport(currentReport));
+    btn.textContent = '✓ Copied';
+  } catch (err) {
+    btn.textContent = `Failed: ${err.message}`;
+  }
+  setTimeout(() => { btn.textContent = original; }, 2000);
+}
 
 function escapeHtml(s) {
   return String(s)
