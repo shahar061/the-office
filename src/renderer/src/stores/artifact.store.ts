@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentRole } from '@shared/types';
+import type { AgentRole, UIDesignMockup } from '@shared/types';
 
 export interface ArtifactInfo {
   key: string;
@@ -12,11 +12,13 @@ export interface ArtifactInfo {
 interface ArtifactStoreState {
   artifacts: ArtifactInfo[];
   openArtifact: { key: string; content: string } | null;
+  uiDesigns: UIDesignMockup[];
   markAvailable: (key: string) => void;
   openDocument: (key: string, content: string) => void;
   closeDocument: () => void;
   reset: () => void;
   hydrateFromStatus: (status: Record<string, boolean>) => void;
+  setUIDesigns: (mockups: UIDesignMockup[]) => void;
 }
 
 const INITIAL_ARTIFACTS: ArtifactInfo[] = [
@@ -29,6 +31,7 @@ const INITIAL_ARTIFACTS: ArtifactInfo[] = [
 export const useArtifactStore = create<ArtifactStoreState>((set) => ({
   artifacts: INITIAL_ARTIFACTS.map((a) => ({ ...a })),
   openArtifact: null,
+  uiDesigns: [],
 
   markAvailable: (key) =>
     set((state) => ({
@@ -42,6 +45,7 @@ export const useArtifactStore = create<ArtifactStoreState>((set) => ({
     set({
       artifacts: INITIAL_ARTIFACTS.map((a) => ({ ...a })),
       openArtifact: null,
+      uiDesigns: [],
     }),
 
   hydrateFromStatus: (status) =>
@@ -51,4 +55,6 @@ export const useArtifactStore = create<ArtifactStoreState>((set) => ({
         available: status[a.filename] === true,
       })),
     })),
+
+  setUIDesigns: (mockups) => set({ uiDesigns: mockups }),
 }));

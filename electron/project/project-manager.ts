@@ -29,10 +29,13 @@ export class ProjectManager {
       fs.mkdirSync(projectPath, { recursive: true });
     }
 
+    // Reusing an existing path must produce a fully fresh project. Without
+    // this, leftovers like .the-office/pending-question.json get re-emitted
+    // on the next OPEN_PROJECT and the user appears to "resume" a prior run.
+    this.wipeOfficeStateAtPath(projectPath);
+
     const officeDir = path.join(projectPath, OFFICE_DIR);
-    if (!fs.existsSync(officeDir)) {
-      fs.mkdirSync(officeDir, { recursive: true });
-    }
+    fs.mkdirSync(officeDir, { recursive: true });
 
     const configPath = path.join(officeDir, CONFIG_FILE);
     const initialState: ProjectState = {
@@ -48,6 +51,17 @@ export class ProjectManager {
     fs.writeFileSync(configPath, JSON.stringify(initialState, null, 2), 'utf-8');
 
     this.addToRecentProjects(name, projectPath, null);
+  }
+
+  private wipeOfficeStateAtPath(projectPath: string): void {
+    const officeDir = path.join(projectPath, OFFICE_DIR);
+    if (fs.existsSync(officeDir)) {
+      fs.rmSync(officeDir, { recursive: true, force: true });
+    }
+    const docsOffice = path.join(projectPath, 'docs', 'office');
+    if (fs.existsSync(docsOffice)) {
+      fs.rmSync(docsOffice, { recursive: true, force: true });
+    }
   }
 
   openProject(projectPath: string): void {

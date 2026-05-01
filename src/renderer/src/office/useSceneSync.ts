@@ -3,6 +3,7 @@ import { useOfficeStore, type CharacterInfo } from '../stores/office.store';
 import { useProjectStore } from '../stores/project.store';
 import { useArtifactStore } from '../stores/artifact.store';
 import { useWarTableStore } from '../stores/war-table.store';
+import { useChatStore } from '../stores/chat.store';
 import type { OfficeScene } from './OfficeScene';
 import { AGENT_GROUPS, type AgentRole } from '../../../../shared/types';
 import { audioManager } from '../audio/AudioManager';
@@ -162,6 +163,7 @@ export function useSceneSync(scene: OfficeScene | null) {
       // Detect deactivated agents (closed)
       for (const role of prevActive) {
         if (!current.has(role)) {
+          console.log('[syncActiveAgents] hiding character', role);
           scene!.hideCharacter(role);
         }
       }
@@ -175,6 +177,35 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     const unsub = useOfficeStore.subscribe((state) => {
       syncActiveAgents(state.activeAgents);
+    });
+
+    return unsub;
+  }, [scene]);
+
+  // Restore character presence when reopening a project with a pending
+  // question. The orchestrator isn't running, so no agent:created fires,
+  // but the persisted question's role is in chat.store.waitingAgentRole.
+  // Place the sprite at the desk directly — no entrance walk.
+  useEffect(() => {
+    if (!scene) return;
+
+    const showAtDeskIfNeeded = (role: AgentRole | null) => {
+      if (!role) return;
+      const character = scene.getCharacter(role);
+      if (!character || character.isVisible) return;
+      scene.showCharacterAtDesk(role);
+      // Match what the live AskUserQuestion flow shows: typing animation
+      // at the desk plus the tool bubble overhead.
+      character.setWorking('type');
+      character.showToolBubble('AskUserQuestion', 'AskUserQuestion');
+    };
+
+    showAtDeskIfNeeded(useChatStore.getState().waitingAgentRole);
+
+    const unsub = useChatStore.subscribe((state, prev) => {
+      if (state.waitingAgentRole && state.waitingAgentRole !== prev.waitingAgentRole) {
+        showAtDeskIfNeeded(state.waitingAgentRole);
+      }
     });
 
     return unsub;

@@ -36,6 +36,7 @@ export default function App() {
   const handleAgentEvent = useOfficeStore((s) => s.handleAgentEvent);
   const markArtifactAvailable = useArtifactStore((s) => s.markAvailable);
   const hydrateArtifacts = useArtifactStore((s) => s.hydrateFromStatus);
+  const setUIDesigns = useArtifactStore((s) => s.setUIDesigns);
   const setStats = useStatsStore((s) => s.setStats);
   const settings = useSettingsStore((s) => s.settings);
 
@@ -72,6 +73,9 @@ export default function App() {
       window.office.onArtifactAvailable((payload) => {
         markArtifactAvailable(payload.key);
         audioManager.playSfx('artifact-written');
+        if (payload.key === 'ui-designs') {
+          window.office.listUIDesigns().then((d) => setUIDesigns(d.mockups));
+        }
       }),
       window.office.onAgentWaiting((payload) => {
         audioManager.playSfx('agent-waiting');
@@ -156,6 +160,7 @@ export default function App() {
   useEffect(() => {
     if (projectState) {
       window.office.getArtifactStatus().then(hydrateArtifacts);
+      window.office.listUIDesigns().then((d) => setUIDesigns(d.mockups));
       window.office.getStatsState().then((s: any) => { if (s) setStats(s); });
     }
   }, [projectState?.path]);
@@ -242,6 +247,7 @@ export default function App() {
             setProjectState(state);
             // Re-hydrate artifacts from disk (reset cleared them, effect may not re-fire for same path)
             window.office.getArtifactStatus().then(hydrateArtifacts);
+            window.office.listUIDesigns().then((d) => setUIDesigns(d.mockups));
           }} />
         ) : (
           <OfficeView />

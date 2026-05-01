@@ -364,6 +364,16 @@ export class OfficeScene {
     character.show(this.characterLayer);
   }
 
+  /** Place a character directly at its desk and fade in — no entrance walk.
+   *  Used to restore presence when a project is reopened with a pending question. */
+  showCharacterAtDesk(role: AgentRole): void {
+    const character = this.characters.get(role);
+    if (!character || character.isVisible) return;
+    const desk = character.getDeskTile();
+    character.repositionTo(desk.x, desk.y);
+    character.show(this.characterLayer);
+  }
+
   hideCharacter(role: AgentRole): void {
     const character = this.characters.get(role);
     if (!character || !character.isVisible) return;

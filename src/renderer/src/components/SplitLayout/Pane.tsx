@@ -77,8 +77,13 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
     e.dataTransfer.effectAllowed = 'move';
   }, [panelId]);
 
+  // Logs are intentionally always rendered in English; force LTR so the
+  // header, list, and footer don't get reversed under a Hebrew document.
+  const forceLtr = panelId === 'logs';
+
   return (
     <div
+      {...(forceLtr ? { dir: 'ltr' as const } : {})}
       style={{
         display: 'flex',
         flexDirection: 'column',

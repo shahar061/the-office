@@ -4,6 +4,7 @@ import type { StringKey } from './en';
 export const he: Partial<Record<StringKey, string>> = {
   'app.menu.settings': 'הגדרות',
   'app.menu.about': 'אודות',
+  'officeView.backToMenu': 'חזרה לתפריט הראשי',
   'project.picker.openProject': 'פתח פרויקט',
   'project.picker.recentProjects': 'פרויקטים אחרונים',
   'project.picker.browseFolder': 'דפדף לתיקיית פרויקט…',
@@ -327,6 +328,8 @@ export const he: Partial<Record<StringKey, string>> = {
   'overlay.requestplan.title': 'בקשת סדנה — תכנית מוכנה',
   'overlay.requestplan.approve': 'אישור',
   'overlay.artifact.close': 'סגור',
+  'overlay.artifact.expand': 'הרחב למסך מלא',
+  'overlay.artifact.collapse': 'חזרה לגודל המקורי',
   'overlay.greenfield.recovery': 'נקודת שחזור נוצרה.',
   'build.intro.title': 'מוכן לבנייה',
   'build.intro.start': 'התחל בנייה',

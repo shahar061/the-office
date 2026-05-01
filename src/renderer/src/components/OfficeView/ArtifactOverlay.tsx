@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useArtifactStore } from '../../stores/artifact.store';
 import { AGENT_COLORS } from '@shared/types';
 import { MarkdownContent } from './MarkdownContent';
@@ -14,18 +14,30 @@ const backdropStyle: React.CSSProperties = {
   justifyContent: 'center',
 };
 
-const panelStyle: React.CSSProperties = {
+const basePanelStyle: React.CSSProperties = {
   background: 'rgba(15,15,26,0.96)',
   backdropFilter: 'blur(12px)',
   border: '1px solid #333',
   borderRadius: '12px',
   boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-  width: '90%',
-  maxWidth: '480px',
-  maxHeight: '90%',
   display: 'flex',
   flexDirection: 'column',
   overflow: 'hidden',
+};
+
+const panelDefault: React.CSSProperties = {
+  ...basePanelStyle,
+  width: '90%',
+  maxWidth: '480px',
+  maxHeight: '90%',
+};
+
+const panelFullscreen: React.CSSProperties = {
+  ...basePanelStyle,
+  width: '96%',
+  height: '96%',
+  maxWidth: 'none',
+  maxHeight: 'none',
 };
 
 const headerStyle: React.CSSProperties = {
@@ -63,6 +75,12 @@ export function ArtifactOverlay() {
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const artifacts = useArtifactStore((s) => s.artifacts);
   const closeDocument = useArtifactStore((s) => s.closeDocument);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Reset to original size whenever a new artifact opens
+  useEffect(() => {
+    if (!openArtifact) setIsFullscreen(false);
+  }, [openArtifact?.key]);
 
   // Close on Escape key
   useEffect(() => {
@@ -83,7 +101,11 @@ export function ArtifactOverlay() {
 
   return (
     <div style={backdropStyle} onClick={closeDocument}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+      <div
+        dir="ltr"
+        style={isFullscreen ? panelFullscreen : panelDefault}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
@@ -100,7 +122,17 @@ export function ArtifactOverlay() {
               {agentDisplayName(artifactInfo.agentRole)}
             </span>
           </div>
-          <button style={closeButtonStyle} onClick={closeDocument} aria-label={t('overlay.artifact.close')}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button
+              style={closeButtonStyle}
+              onClick={() => setIsFullscreen((f) => !f)}
+              aria-label={t(isFullscreen ? 'overlay.artifact.collapse' : 'overlay.artifact.expand')}
+              title={t(isFullscreen ? 'overlay.artifact.collapse' : 'overlay.artifact.expand')}
+            >
+              {isFullscreen ? '⤡' : '⤢'}
+            </button>
+            <button style={closeButtonStyle} onClick={closeDocument} aria-label={t('overlay.artifact.close')} title={t('overlay.artifact.close')}>✕</button>
+          </div>
         </div>
         <div style={contentStyle}>
           {openArtifact.content

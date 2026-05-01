@@ -110,6 +110,7 @@ export const IPC_CHANNELS = {
   ARTIFACT_AVAILABLE: 'office:artifact-available',
   READ_ARTIFACT: 'office:read-artifact',
   GET_ARTIFACT_STATUS: 'office:get-artifact-status',
+  LIST_UI_DESIGNS: 'office:list-ui-designs',
   // Agents
   GET_AGENT_DEFINITIONS: 'office:get-agent-definitions',
   // War Table
@@ -224,6 +225,7 @@ export interface OfficeAPI {
   onArtifactAvailable(callback: (payload: ArtifactAvailablePayload) => void): () => void;
   readArtifact(filename: string): Promise<{ content: string } | { error: string }>;
   getArtifactStatus(): Promise<Record<string, boolean>>;
+  listUIDesigns(): Promise<UIDesignReviewPayload>;
   getAgentDefinitions(): Promise<Record<string, AgentDefinitionPayload>>;
 
   // War Table

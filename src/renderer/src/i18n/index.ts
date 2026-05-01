@@ -56,3 +56,10 @@ export function useT() {
     [lang],
   );
 }
+
+export function useLang(): Language {
+  return useSyncExternalStore(
+    (cb) => subscribeToLanguage(cb),
+    () => currentLang,
+  );
+}

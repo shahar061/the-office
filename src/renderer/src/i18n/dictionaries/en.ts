@@ -3,6 +3,9 @@ export const en = {
   'app.menu.settings': 'Settings',
   'app.menu.about': 'About',
 
+  // Office view
+  'officeView.backToMenu': 'Back to main menu',
+
   // Project picker
   'project.picker.openProject': 'Open Project',
   'project.picker.recentProjects': 'Recent Projects',
@@ -342,6 +345,8 @@ export const en = {
   'overlay.requestplan.title': 'Workshop request — Plan ready',
   'overlay.requestplan.approve': 'Approve',
   'overlay.artifact.close': 'Close',
+  'overlay.artifact.expand': 'Expand to full screen',
+  'overlay.artifact.collapse': 'Restore original size',
   'overlay.greenfield.recovery': 'Recovery point created.',
 
   // Build

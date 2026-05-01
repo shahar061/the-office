@@ -14,7 +14,7 @@ import { PhaseTracker } from './PhaseTracker';
 import { IntroSequence } from './IntroSequence';
 import { useIntro, useCeoIntroSteps } from './useIntro';
 import { useWarRoomIntro, WARROOM_SPEAKER_COLOR } from './useWarRoomIntro';
-import { useT } from '../../i18n';
+import { useT, useLang } from '../../i18n';
 import { useWarTableStore } from '../../stores/war-table.store';
 import { IconRail } from '../IconRail/IconRail';
 import { useLogStore } from '../../stores/log.store';
@@ -114,6 +114,7 @@ export default function OfficeView() {
   } = useWarRoomIntro(officeScene);
   const ceoIntroSteps = useCeoIntroSteps();
   const t = useT();
+  const lang = useLang();
 
   // Keep a stable ref to the current scene so useCharStream's interval
   // closure always reads the live value without re-starting on each render.
@@ -188,6 +189,8 @@ export default function OfficeView() {
       // Re-hydrate artifacts from disk (imagine artifacts may still exist)
       const status = await window.office.getArtifactStatus();
       useArtifactStore.getState().hydrateFromStatus(status);
+      const uiDesigns = await window.office.listUIDesigns();
+      useArtifactStore.getState().setUIDesigns(uiDesigns.mockups);
     });
     return cleanup;
   }, []);
@@ -351,9 +354,9 @@ export default function OfficeView() {
               display: 'flex',
               alignItems: 'center',
             }}
-            title="Back to project picker"
+            title={t('officeView.backToMenu')}
           >
-            ←
+            {lang === 'he' ? '→' : '←'}
           </button>
           <span style={styles.projectName} title={projectName}>
             {projectName}

@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld('office', {
   onArtifactAvailable: (cb: (payload: any) => void) => onEvent(IPC_CHANNELS.ARTIFACT_AVAILABLE, cb),
   readArtifact: (filename: string) => ipcRenderer.invoke(IPC_CHANNELS.READ_ARTIFACT, filename),
   getArtifactStatus: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ARTIFACT_STATUS),
+  listUIDesigns: () => ipcRenderer.invoke(IPC_CHANNELS.LIST_UI_DESIGNS),
 
   // Agents
   getAgentDefinitions: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AGENT_DEFINITIONS),

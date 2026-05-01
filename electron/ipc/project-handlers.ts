@@ -36,6 +36,8 @@ import {
   dataDir,
   settingsStore,
   refreshMobileArchivedRuns,
+  clearWaitingState,
+  clearPendingReview,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -224,6 +226,12 @@ export function initProjectHandlers(): void {
       resetSessionState();
       projectManager.createProject(name, projectPath);
       setCurrentProjectDir(projectPath);
+      // Defensive: createProject already wiped the folder, but the
+      // SDK bridge can flush a buffered onWaiting after resetSessionState
+      // and that callback persists into the now-current dir. Clearing
+      // again here ensures the new project starts truly empty.
+      clearWaitingState(projectPath);
+      clearPendingReview(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
       setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();
@@ -368,6 +376,11 @@ export function initProjectHandlers(): void {
       }
     }
     return status;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LIST_UI_DESIGNS, async () => {
+    if (!artifactStore) return { designDirection: '', mockups: [] };
+    return artifactStore.listUIDesigns();
   });
 
   // ── Layouts ──

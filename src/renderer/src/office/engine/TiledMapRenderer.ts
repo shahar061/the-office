@@ -193,14 +193,24 @@ export class TiledMapRenderer {
     }
   }
 
-  /** Spawn points prefixed with these names override collision to be walkable. */
-  private static readonly WALKABLE_SPAWN_POINTS = ['warroom-seat']
+  /** Spawn points whose names match these are forced walkable so agents can
+   *  pathfind onto seats/desks even when the underlying tile (a chair, the
+   *  conference table, etc.) is marked non-walkable in the collision layer. */
+  private static readonly WALKABLE_SPAWN_NAMES = ['warroom-seat']
+  private static readonly WALKABLE_SPAWN_PREFIXES = ['desk-']
 
   private markWalkableSpawnPoints(): void {
-    for (const name of TiledMapRenderer.WALKABLE_SPAWN_POINTS) {
-      const point = this.spawnPoints.get(name)
+    const force = (point: Point | undefined) => {
       if (point && point.y >= 0 && point.y < this.height && point.x >= 0 && point.x < this.width) {
         this.walkabilityGrid[point.y][point.x] = true
+      }
+    }
+    for (const name of TiledMapRenderer.WALKABLE_SPAWN_NAMES) {
+      force(this.spawnPoints.get(name))
+    }
+    for (const [name, point] of this.spawnPoints) {
+      if (TiledMapRenderer.WALKABLE_SPAWN_PREFIXES.some(p => name.startsWith(p))) {
+        force(point)
       }
     }
   }
