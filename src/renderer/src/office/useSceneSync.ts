@@ -189,6 +189,11 @@ export function useSceneSync(scene: OfficeScene | null) {
   useEffect(() => {
     if (!scene) return;
 
+    // Roles we restored via this effect (and therefore are responsible for
+    // tearing down). Characters that became visible through the normal
+    // agent:created → activeAgents path are managed by syncActiveAgents.
+    const restored = new Set<AgentRole>();
+
     const showAtDeskIfNeeded = (role: AgentRole | null) => {
       if (!role) return;
       const character = scene.getCharacter(role);
@@ -198,13 +203,27 @@ export function useSceneSync(scene: OfficeScene | null) {
       // at the desk plus the tool bubble overhead.
       character.setWorking('type');
       character.showToolBubble('AskUserQuestion', 'AskUserQuestion');
+      restored.add(role);
+    };
+
+    const teardownIfRestored = (role: AgentRole) => {
+      if (!restored.has(role)) return;
+      restored.delete(role);
+      // Skip if the live orchestrator has since picked this agent up — the
+      // normal agent:closed pipeline owns the hide in that case.
+      if (useOfficeStore.getState().activeAgents.has(role)) return;
+      const character = scene.getCharacter(role);
+      if (!character) return;
+      character.hideToolBubble();
+      scene.hideCharacter(role);
     };
 
     showAtDeskIfNeeded(useChatStore.getState().waitingAgentRole);
 
     const unsub = useChatStore.subscribe((state, prev) => {
-      if (state.waitingAgentRole && state.waitingAgentRole !== prev.waitingAgentRole) {
-        showAtDeskIfNeeded(state.waitingAgentRole);
+      if (state.waitingAgentRole !== prev.waitingAgentRole) {
+        if (prev.waitingAgentRole) teardownIfRestored(prev.waitingAgentRole);
+        if (state.waitingAgentRole) showAtDeskIfNeeded(state.waitingAgentRole);
       }
     });
 

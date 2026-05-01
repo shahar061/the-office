@@ -33,9 +33,8 @@ function ImagineToolbox() {
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const openDocument = useArtifactStore((s) => s.openDocument);
   const closeDocument = useArtifactStore((s) => s.closeDocument);
-  const uiDesigns = useArtifactStore((s) => s.uiDesigns);
 
-  const hasAny = artifacts.some((a) => a.available) || uiDesigns.length > 0;
+  const hasAny = artifacts.some((a) => a.available);
   if (!hasAny) return null;
 
   async function handleClick(artifact: ArtifactInfo) {
@@ -49,12 +48,6 @@ function ImagineToolbox() {
       openDocument(artifact.key, result.content);
     }
   }
-
-  function handleOpenMockup(filename: string) {
-    void window.office.openFileInBrowser(`docs/office/05-ui-designs/${filename}`);
-  }
-
-  const uiUxColor = AGENT_COLORS['ui-ux-expert'];
 
   return (
     <DraggablePanel id="imagine-artifacts" title="Artifacts" defaultPosition={{ top: 12, right: 12 }}>
@@ -72,23 +65,33 @@ function ImagineToolbox() {
           </div>
         );
       })}
+    </DraggablePanel>
+  );
+}
 
-      {uiDesigns.length > 0 && (
-        <>
-          <div style={{ fontSize: '9px', color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '8px', paddingInlineStart: '2px' }}>
-            UI Mockups
-          </div>
-          {uiDesigns.map((m) => (
-            <div key={m.filename} style={rowStyle(true, uiUxColor)} onClick={() => handleOpenMockup(m.filename)} title={m.caption}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: uiUxColor, flexShrink: 0 }} />
-              <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {m.caption}
-              </span>
-              <span style={{ fontSize: '8px', color: uiUxColor }}>UX</span>
-            </div>
-          ))}
-        </>
-      )}
+// ── UI Mockups (separate collapsible panel) ──
+
+function UIMockupsToolbox() {
+  const uiDesigns = useArtifactStore((s) => s.uiDesigns);
+  if (uiDesigns.length === 0) return null;
+
+  const uiUxColor = AGENT_COLORS['ui-ux-expert'];
+
+  function handleOpen(filename: string) {
+    void window.office.openFileInBrowser(`docs/office/05-ui-designs/${filename}`);
+  }
+
+  return (
+    <DraggablePanel id="imagine-ui-mockups" title="UI Mockups" defaultPosition={{ top: 200, right: 12 }}>
+      {uiDesigns.map((m) => (
+        <div key={m.filename} style={rowStyle(true, uiUxColor)} onClick={() => handleOpen(m.filename)} title={m.caption}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: uiUxColor, flexShrink: 0 }} />
+          <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {m.caption}
+          </span>
+          <span style={{ fontSize: '8px', color: uiUxColor }}>UX</span>
+        </div>
+      ))}
     </DraggablePanel>
   );
 }
@@ -161,10 +164,16 @@ function WarRoomToolbox() {
 export function ArtifactToolbox() {
   const phase = useProjectStore((s) => s.projectState?.currentPhase ?? 'idle');
 
-  if (phase === 'imagine') return <ImagineToolbox />;
+  if (phase === 'imagine') return (
+    <>
+      <ImagineToolbox />
+      <UIMockupsToolbox />
+    </>
+  );
   if (phase === 'warroom') return (
     <>
       <ImagineToolbox />
+      <UIMockupsToolbox />
       <WarRoomToolbox />
     </>
   );

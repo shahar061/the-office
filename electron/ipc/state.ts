@@ -431,6 +431,48 @@ export function loadPendingReview(projectDir: string): PersistedReview | null {
   }
 }
 
+// ── Pending UI design review persistence (UI/UX mockup approval gate) ──
+
+const PENDING_UI_REVIEW_FILE = 'pending-ui-review.json';
+
+function pendingUIReviewPath(projectDir: string): string {
+  return path.join(projectDir, OFFICE_DIR, PENDING_UI_REVIEW_FILE);
+}
+
+export function persistPendingUIReview(
+  projectDir: string,
+  payload: import('../../shared/types').UIDesignReviewPayload,
+): void {
+  try {
+    const dir = path.join(projectDir, OFFICE_DIR);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(pendingUIReviewPath(projectDir), JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[State] Failed to persist pending UI review:', err);
+  }
+}
+
+export function clearPendingUIReview(projectDir: string): void {
+  try {
+    const fp = pendingUIReviewPath(projectDir);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  } catch (err) {
+    console.error('[State] Failed to clear pending UI review:', err);
+  }
+}
+
+export function loadPendingUIReview(
+  projectDir: string,
+): import('../../shared/types').UIDesignReviewPayload | null {
+  try {
+    const fp = pendingUIReviewPath(projectDir);
+    if (!fs.existsSync(fp)) return null;
+    return JSON.parse(fs.readFileSync(fp, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
 /** Reset all session state when switching projects. */
 export function resetSessionState(): void {
   // Abort any active agent session

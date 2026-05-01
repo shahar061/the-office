@@ -10,7 +10,7 @@ import { ArtifactStore } from '../project/artifact-store';
 import { ChatHistoryStore } from '../project/chat-history-store';
 import { RequestStore } from '../project/request-store';
 import { ProjectScanner } from '../project/project-scanner';
-import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, handleStartWarroom, handleStartBuild } from './phase-handlers';
+import { resumePhase, resumeWarroomAfterReview, resumeAwaitingReview, resumeImagineAfterUIReview, handleStartWarroom, handleStartBuild } from './phase-handlers';
 import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 import { resolverForRestoredQuestion } from '../orchestrator/phase-advance';
 import {
@@ -33,6 +33,9 @@ import {
   loadWaitingState,
   loadPendingReview,
   setPendingReview,
+  loadPendingUIReview,
+  setPendingUIReview,
+  clearPendingUIReview,
   dataDir,
   settingsStore,
   refreshMobileArchivedRuns,
@@ -184,6 +187,15 @@ export function initProjectHandlers(): void {
         setTimeout(() => send(IPC_CHANNELS.AGENT_WAITING, saved), 100);
       }
 
+      // Restore persisted UI design review (survives app restart)
+      const savedUIReview = loadPendingUIReview(projectPath);
+      if (savedUIReview) {
+        setPendingUIReview({
+          resolve: (response) => { void resumeImagineAfterUIReview(response); },
+        });
+        setTimeout(() => send(IPC_CHANNELS.UI_DESIGN_REVIEW_READY, savedUIReview), 100);
+      }
+
       // Restore persisted warroom plan review (survives app restart)
       const savedReview = loadPendingReview(projectPath);
       if (savedReview) {
@@ -232,6 +244,7 @@ export function initProjectHandlers(): void {
       // again here ensures the new project starts truly empty.
       clearWaitingState(projectPath);
       clearPendingReview(projectPath);
+      clearPendingUIReview(projectPath);
       setArtifactStore(new ArtifactStore(projectPath));
       setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();

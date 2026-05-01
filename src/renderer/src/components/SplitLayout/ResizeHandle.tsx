@@ -26,10 +26,16 @@ export function ResizeHandle({ direction, onResize }: ResizeHandleProps) {
 
     const parentRect = parent.getBoundingClientRect();
 
+    // Under RTL, flexbox lays out children right-to-left, so the first pane
+    // is visually on the right. Mirror the horizontal ratio so dragging the
+    // handle moves the boundary in the same direction the cursor moves.
+    const isRTL = (parent.ownerDocument || document).documentElement.dir === 'rtl';
+
     const onMove = (ev: PointerEvent) => {
       let ratio: number;
       if (direction === 'horizontal') {
-        ratio = (ev.clientX - parentRect.left) / parentRect.width;
+        const raw = (ev.clientX - parentRect.left) / parentRect.width;
+        ratio = isRTL ? 1 - raw : raw;
       } else {
         ratio = (ev.clientY - parentRect.top) / parentRect.height;
       }

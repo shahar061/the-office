@@ -75,6 +75,8 @@ import {
   clearWaitingState,
   persistPendingReview,
   clearPendingReview,
+  persistPendingUIReview,
+  clearPendingUIReview,
   requestStore,
   pendingRequestPlanReview,
   setPendingRequestPlanReview,
@@ -198,6 +200,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
       onUIReviewReady: (payload) => {
         return new Promise<UIDesignReviewResponse>((resolve) => {
           setPendingUIReview({ resolve });
+          if (currentProjectDir) persistPendingUIReview(currentProjectDir, payload);
           send(IPC_CHANNELS.UI_DESIGN_REVIEW_READY, payload);
         });
       },
@@ -426,6 +429,26 @@ export async function resumePhase(phase: Phase): Promise<void> {
  * Resume the warroom after the user responds to a restored plan review.
  * Skips intro + PM (plan already exists) and continues from the TL step.
  */
+/** Restore-flow handler for the UI design review when the project is reopened
+ *  after closing the app mid-review. On approval, just resume imagine — the
+ *  UI/UX act is idempotent and will be skipped because index.md exists. On
+ *  revise-with-feedback, the existing UI designs are cleared so the UI/UX
+ *  agent runs again from scratch with the feedback in context. */
+export async function resumeImagineAfterUIReview(response: UIDesignReviewResponse): Promise<void> {
+  if (!currentProjectDir) return;
+  if (!response.approved && response.feedback) {
+    try {
+      const uiDir = path.join(currentProjectDir, 'docs', 'office', '05-ui-designs');
+      if (fs.existsSync(uiDir)) {
+        fs.rmSync(uiDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.error('[resumeImagineAfterUIReview] Failed to clear UI designs:', err);
+    }
+  }
+  await resumePhase('imagine');
+}
+
 export async function resumeWarroomAfterReview(reviewResponse: WarTableReviewResponse): Promise<void> {
   if (!currentProjectDir) return;
 
@@ -631,6 +654,8 @@ export function initPhaseHandlers(): void {
     }
     rejectPendingQuestions('Phase restart', true);
     setPendingReview(null);
+    setPendingUIReview(null);
+    if (currentProjectDir) clearPendingUIReview(currentProjectDir);
 
     // 1b. Greenfield iteration — create backup branch + reset main before destructive clear
     const currentState = projectManager.getProjectState(currentProjectDir);
@@ -950,6 +975,7 @@ export function initPhaseHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.UI_DESIGN_REVIEW_RESPONSE, async (_event, response: UIDesignReviewResponse) => {
+    if (currentProjectDir) clearPendingUIReview(currentProjectDir);
     if (pendingUIReview) {
       pendingUIReview.resolve(response);
       setPendingUIReview(null);

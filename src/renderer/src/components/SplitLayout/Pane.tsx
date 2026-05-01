@@ -67,7 +67,12 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
       replacePanelAction(paneId, pid);
     } else {
       const direction = (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical';
-      const position = (zone === 'left' || zone === 'top') ? 'before' : 'after';
+      // Under RTL, flexbox reverses the visual order of children, so the
+      // dropped pane needs the opposite array position to land on the side
+      // the user pointed at. Vertical drops are unaffected.
+      const isRTL = direction === 'horizontal' && document.documentElement.dir === 'rtl';
+      const visualBefore = zone === 'left' || zone === 'top';
+      const position = (isRTL ? !visualBefore : visualBefore) ? 'before' : 'after';
       splitPane(paneId, direction, pid, position);
     }
   }, [paneId, splitPane, replacePanelAction]);
