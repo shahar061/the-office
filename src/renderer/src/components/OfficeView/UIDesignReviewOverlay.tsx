@@ -26,6 +26,22 @@ const styles = {
     flexDirection: 'column' as const,
     overflow: 'hidden',
   },
+  panelFullscreen: {
+    background: colors.surface,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '12px',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+    width: '96%',
+    height: '96%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
   header: {
     display: 'flex',
     alignItems: 'center',
@@ -162,10 +178,14 @@ export function UIDesignReviewOverlay() {
   const closeReview = useUIDesignReviewStore((s) => s.closeReview);
 
   const [feedback, setFeedback] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Reset feedback when dialog opens
+  // Reset feedback + size when dialog opens
   useEffect(() => {
-    if (isOpen) setFeedback('');
+    if (isOpen) {
+      setFeedback('');
+      setIsFullscreen(false);
+    }
   }, [isOpen]);
 
   // Close on Escape — treat as implicit approval (prevents orchestrator hang)
@@ -203,10 +223,20 @@ export function UIDesignReviewOverlay() {
 
   return (
     <div style={styles.backdrop}>
-      <div style={styles.panel}>
+      <div style={isFullscreen ? styles.panelFullscreen : styles.panel}>
         <div style={styles.header}>
           <span style={styles.title}>{t('overlay.uidesign.title')}</span>
-          <button style={styles.close} onClick={handleApprove} aria-label="Close (approve)">✕</button>
+          <div style={styles.headerActions}>
+            <button
+              style={styles.close}
+              onClick={() => setIsFullscreen((f) => !f)}
+              aria-label={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
+              title={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
+            >
+              {isFullscreen ? '⤡' : '⤢'}
+            </button>
+            <button style={styles.close} onClick={handleApprove} aria-label="Close (approve)" title={t('overlay.uidesign.approve')}>✕</button>
+          </div>
         </div>
         <div style={styles.body}>
           {designDirection && (

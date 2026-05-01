@@ -15,18 +15,28 @@ const backdropStyle: React.CSSProperties = {
   justifyContent: 'center',
 };
 
-const panelStyle: React.CSSProperties = {
+const basePanelStyle: React.CSSProperties = {
   background: 'rgba(15,15,26,0.96)',
   backdropFilter: 'blur(12px)',
   border: '1px solid #333',
   borderRadius: '12px',
   boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-  width: '90%',
-  maxWidth: '520px',
-  maxHeight: '90%',
   display: 'flex',
   flexDirection: 'column',
   overflow: 'hidden',
+};
+
+const panelDefaultStyle: React.CSSProperties = {
+  ...basePanelStyle,
+  width: '90%',
+  maxWidth: '520px',
+  maxHeight: '90%',
+};
+
+const panelFullscreenStyle: React.CSSProperties = {
+  ...basePanelStyle,
+  width: '96%',
+  height: '96%',
 };
 
 const headerStyle: React.CSSProperties = {
@@ -98,6 +108,7 @@ export function PlanOverlay() {
   const closeReview = useWarTableStore((s) => s.closeReview);
 
   const [feedback, setFeedback] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Close on Escape — during plan review, treat as implicit approval
   useEffect(() => {
@@ -109,9 +120,12 @@ export function PlanOverlay() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [reviewOpen, closeReview]);
 
-  // Reset feedback when opening
+  // Reset feedback + size when opening
   useEffect(() => {
-    if (reviewOpen) setFeedback('');
+    if (reviewOpen) {
+      setFeedback('');
+      setIsFullscreen(false);
+    }
   }, [reviewOpen]);
 
   if (!reviewOpen || !reviewContent) return null;
@@ -140,7 +154,7 @@ export function PlanOverlay() {
 
   return (
     <div style={backdropStyle} onClick={handleDismiss}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+      <div style={isFullscreen ? panelFullscreenStyle : panelDefaultStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: agentColor }} />
@@ -157,7 +171,17 @@ export function PlanOverlay() {
               {isPlanReview ? 'Project Manager' : 'Team Lead'}
             </span>
           </div>
-          <button style={closeButtonStyle} onClick={handleDismiss}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button
+              style={closeButtonStyle}
+              onClick={() => setIsFullscreen((f) => !f)}
+              aria-label={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
+              title={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
+            >
+              {isFullscreen ? '⤡' : '⤢'}
+            </button>
+            <button style={closeButtonStyle} onClick={handleDismiss}>✕</button>
+          </div>
         </div>
         <div style={contentStyle}>
           <MarkdownContent text={reviewContent} />

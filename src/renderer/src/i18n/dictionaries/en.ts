@@ -345,8 +345,8 @@ export const en = {
   'overlay.requestplan.title': 'Workshop request — Plan ready',
   'overlay.requestplan.approve': 'Approve',
   'overlay.artifact.close': 'Close',
-  'overlay.artifact.expand': 'Expand to full screen',
-  'overlay.artifact.collapse': 'Restore original size',
+  'overlay.expand': 'Expand to full screen',
+  'overlay.collapse': 'Restore original size',
   'overlay.greenfield.recovery': 'Recovery point created.',
 
   // Build

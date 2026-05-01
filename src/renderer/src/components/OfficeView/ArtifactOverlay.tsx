@@ -126,8 +126,8 @@ export function ArtifactOverlay() {
             <button
               style={closeButtonStyle}
               onClick={() => setIsFullscreen((f) => !f)}
-              aria-label={t(isFullscreen ? 'overlay.artifact.collapse' : 'overlay.artifact.expand')}
-              title={t(isFullscreen ? 'overlay.artifact.collapse' : 'overlay.artifact.expand')}
+              aria-label={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
+              title={t(isFullscreen ? 'overlay.collapse' : 'overlay.expand')}
             >
               {isFullscreen ? '⤡' : '⤢'}
             </button>
