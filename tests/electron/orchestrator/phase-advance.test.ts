@@ -24,13 +24,13 @@ describe('runAdvanceAfter', () => {
 
   it('imagine → synthesizes question with CEO role and "Continue to War Room" option', async () => {
     (state.handleAgentWaiting as any).mockResolvedValue({
-      [PHASE_ADVANCE_OPTIONS.imagine.question]: PHASE_ADVANCE_OPTIONS.imagine.label,
+      [PHASE_ADVANCE_OPTIONS.imagine.copy.en.question]: PHASE_ADVANCE_OPTIONS.imagine.copy.en.label,
     });
     await runAdvanceAfter('imagine', dispatch);
     expect(state.handleAgentWaiting).toHaveBeenCalledWith('ceo', [
       expect.objectContaining({
-        question: PHASE_ADVANCE_OPTIONS.imagine.question,
-        options: [expect.objectContaining({ label: PHASE_ADVANCE_OPTIONS.imagine.label })],
+        question: PHASE_ADVANCE_OPTIONS.imagine.copy.en.question,
+        options: [expect.objectContaining({ label: PHASE_ADVANCE_OPTIONS.imagine.copy.en.label })],
         multiSelect: false,
       }),
     ]);
@@ -39,13 +39,13 @@ describe('runAdvanceAfter', () => {
 
   it('warroom → synthesizes question with project-manager role', async () => {
     (state.handleAgentWaiting as any).mockResolvedValue({
-      [PHASE_ADVANCE_OPTIONS.warroom.question]: PHASE_ADVANCE_OPTIONS.warroom.label,
+      [PHASE_ADVANCE_OPTIONS.warroom.copy.en.question]: PHASE_ADVANCE_OPTIONS.warroom.copy.en.label,
     });
     await runAdvanceAfter('warroom', dispatch);
     expect(state.handleAgentWaiting).toHaveBeenCalledWith('project-manager', [
       expect.objectContaining({
-        question: PHASE_ADVANCE_OPTIONS.warroom.question,
-        options: [expect.objectContaining({ label: PHASE_ADVANCE_OPTIONS.warroom.label })],
+        question: PHASE_ADVANCE_OPTIONS.warroom.copy.en.question,
+        options: [expect.objectContaining({ label: PHASE_ADVANCE_OPTIONS.warroom.copy.en.label })],
       }),
     ]);
     expect(dispatch).toHaveBeenCalledOnce();
@@ -75,7 +75,7 @@ describe('resolverForRestoredQuestion', () => {
   }
 
   it('returns the toWarroom dispatcher when the saved question matches the imagine-advance text', () => {
-    const saved = { questions: [q(PHASE_ADVANCE_OPTIONS.imagine.question)], phase: 'imagine' as const };
+    const saved = { questions: [q(PHASE_ADVANCE_OPTIONS.imagine.copy.en.question)], phase: 'imagine' as const };
     const resolver = resolverForRestoredQuestion(saved, dispatchers);
     resolver();
     expect(toWarroom).toHaveBeenCalledOnce();
@@ -84,7 +84,7 @@ describe('resolverForRestoredQuestion', () => {
   });
 
   it('returns the toBuild dispatcher when the saved question matches the warroom-advance text', () => {
-    const saved = { questions: [q(PHASE_ADVANCE_OPTIONS.warroom.question)], phase: 'warroom' as const };
+    const saved = { questions: [q(PHASE_ADVANCE_OPTIONS.warroom.copy.en.question)], phase: 'warroom' as const };
     const resolver = resolverForRestoredQuestion(saved, dispatchers);
     resolver();
     expect(toBuild).toHaveBeenCalledOnce();

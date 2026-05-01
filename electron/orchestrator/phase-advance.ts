@@ -17,34 +17,74 @@
 
 import type { AgentRole, AskQuestion, Phase } from '../../shared/types';
 import { handleAgentWaiting } from '../ipc/state';
+import { currentLanguageFromEnv, type Language } from './language';
 
-export const PHASE_ADVANCE_OPTIONS = {
+interface PhaseAdvanceCopy {
+  question: string;
+  header: string;
+  label: string;
+}
+
+interface PhaseAdvanceSpec {
+  role: AgentRole;
+  copy: Record<Language, PhaseAdvanceCopy>;
+}
+
+export const PHASE_ADVANCE_OPTIONS: Record<'imagine' | 'warroom', PhaseAdvanceSpec> = {
   imagine: {
-    role: 'ceo' as AgentRole,
-    question: 'Imagine phase complete. Ready to move to the War Room?',
-    header: 'Continue',
-    label: 'Continue to War Room',
+    role: 'ceo',
+    copy: {
+      en: {
+        question: 'Imagine phase complete. Ready to move to the War Room?',
+        header: 'Continue',
+        label: 'Continue to War Room',
+      },
+      he: {
+        question: 'שלב ה-Imagine הושלם. ממשיכים לחדר המלחמה?',
+        header: 'המשך',
+        label: 'המשך לחדר המלחמה',
+      },
+    },
   },
   warroom: {
-    role: 'project-manager' as AgentRole,
-    question: 'Plan is locked. Ready to build it?',
-    header: 'Continue',
-    label: 'Start Build',
+    role: 'project-manager',
+    copy: {
+      en: {
+        question: 'Plan is locked. Ready to build it?',
+        header: 'Continue',
+        label: 'Start Build',
+      },
+      he: {
+        question: 'התוכנית ננעלה. מתחילים בבנייה?',
+        header: 'המשך',
+        label: 'התחל בנייה',
+      },
+    },
   },
 } as const;
 
 export type PhaseAdvanceFrom = keyof typeof PHASE_ADVANCE_OPTIONS;
+
+/** Returns true if the saved question text matches a known phase-advance
+ *  prompt for the given source phase, in any supported language. Used by
+ *  resolverForRestoredQuestion so a Hebrew-localised question still routes
+ *  to the correct dispatcher after an app restart. */
+function isPhaseAdvanceQuestion(from: PhaseAdvanceFrom, text: string): boolean {
+  const langs: Language[] = ['en', 'he'];
+  return langs.some(l => PHASE_ADVANCE_OPTIONS[from].copy[l].question === text);
+}
 
 export async function runAdvanceAfter(
   from: PhaseAdvanceFrom,
   dispatchNext: () => Promise<void>,
 ): Promise<void> {
   const spec = PHASE_ADVANCE_OPTIONS[from];
+  const copy = spec.copy[currentLanguageFromEnv()];
   try {
     await handleAgentWaiting(spec.role, [{
-      question: spec.question,
-      header: spec.header,
-      options: [{ label: spec.label }],
+      question: copy.question,
+      header: copy.header,
+      options: [{ label: copy.label }],
       multiSelect: false,
     }]);
   } catch (err) {
@@ -83,8 +123,8 @@ export function resolverForRestoredQuestion(
 ): () => void {
   const q = saved.questions[0];
   if (q) {
-    if (q.question === PHASE_ADVANCE_OPTIONS.imagine.question) return dispatchers.toWarroom;
-    if (q.question === PHASE_ADVANCE_OPTIONS.warroom.question) return dispatchers.toBuild;
+    if (isPhaseAdvanceQuestion('imagine', q.question)) return dispatchers.toWarroom;
+    if (isPhaseAdvanceQuestion('warroom', q.question)) return dispatchers.toBuild;
   }
   const savedPhase = saved.phase ?? 'imagine';
   return () => dispatchers.fallback(savedPhase as Phase);
