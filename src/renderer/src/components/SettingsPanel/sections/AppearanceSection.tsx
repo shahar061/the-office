@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import { useSettingsStore } from '../../../stores/settings.store';
 import { useT } from '../../../i18n';
 import { colors } from '../../../theme';
 import { THEME_IDS, type ThemeId } from '@shared/types';
 import type { StringKey } from '../../../i18n/dictionaries/en';
-
-const PREVIEW_SECONDS = 60;
 
 const styles = {
   root: {
@@ -31,7 +28,6 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
     gap: 12,
-    marginBottom: 16,
   },
   card: (selected: boolean) => ({
     background: colors.surface,
@@ -156,45 +152,11 @@ const styles = {
     borderRadius: 2,
     lineHeight: 1.3,
   }),
-  previewBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    padding: '10px 12px',
-    background: colors.surfaceLight,
-    border: `1px solid ${colors.border}`,
-    borderRadius: 6,
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  previewMessage: { flex: 1 },
-  previewBtn: {
-    background: 'transparent',
-    border: `1px solid ${colors.border}`,
-    color: colors.text,
-    padding: '4px 10px',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontSize: 11,
-    fontFamily: 'inherit',
-  },
-  previewBtnPrimary: {
-    background: colors.accent,
-    border: 'none',
-    color: '#fff',
-    padding: '4px 10px',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontSize: 11,
-    fontWeight: 600 as const,
-    fontFamily: 'inherit',
-  },
   helper: {
     fontSize: 11,
     color: colors.textDim,
     fontStyle: 'italic' as const,
-    marginTop: 8,
+    marginTop: 16,
   },
 } as const;
 
@@ -247,68 +209,6 @@ export function AppearanceSection() {
   const persistedTheme = useSettingsStore((s) => (s.settings?.appearance?.theme ?? 'dark') as ThemeId);
   const setTheme = useSettingsStore((s) => s.setTheme);
 
-  // Two pieces of state: what's stored on disk vs. what's currently visible.
-  // While previewing, `previewing` holds the candidate theme and we apply
-  // it to <html data-theme> directly without persisting. On Keep we save
-  // it; on Cancel we restore the persisted value.
-  const [previewing, setPreviewing] = useState<ThemeId | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(PREVIEW_SECONDS);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Apply preview to the live <html data-theme> so the entire app reflects
-  // the candidate while previewing. Cleanup restores persisted on unmount.
-  useEffect(() => {
-    if (previewing) {
-      document.documentElement.dataset.theme = previewing;
-    } else {
-      document.documentElement.dataset.theme = persistedTheme;
-    }
-  }, [previewing, persistedTheme]);
-
-  // 60-second countdown.
-  useEffect(() => {
-    if (!previewing) return;
-    setSecondsLeft(PREVIEW_SECONDS);
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(timerRef.current!);
-          setPreviewing(null);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [previewing]);
-
-  function handleSelect(id: ThemeId) {
-    if (previewing) {
-      // Re-target the active preview to the newly clicked theme.
-      setPreviewing(id);
-      return;
-    }
-    void setTheme(id);
-  }
-
-  function handlePreview() {
-    setPreviewing(persistedTheme);
-  }
-
-  function handleKeep() {
-    if (!previewing) return;
-    void setTheme(previewing);
-    setPreviewing(null);
-  }
-
-  function handleCancel() {
-    setPreviewing(null);
-  }
-
-  const visible = previewing ?? persistedTheme;
-
   return (
     <div style={styles.root}>
       <h2 style={styles.heading}>{t('settings.appearance.title')}</h2>
@@ -316,13 +216,13 @@ export function AppearanceSection() {
 
       <div style={styles.grid}>
         {THEME_IDS.map((id) => {
-          const selected = visible === id;
+          const selected = persistedTheme === id;
           return (
             <button
               key={id}
               type="button"
               style={styles.card(selected)}
-              onClick={() => handleSelect(id)}
+              onClick={() => { void setTheme(id); }}
               aria-pressed={selected}
             >
               <ThemeThumbnail themeId={id} t={t} />
@@ -335,24 +235,6 @@ export function AppearanceSection() {
           );
         })}
       </div>
-
-      {previewing ? (
-        <div style={styles.previewBar}>
-          <span style={styles.previewMessage}>
-            {t('settings.appearance.previewActive', { seconds: secondsLeft })}
-          </span>
-          <button style={styles.previewBtn} onClick={handleCancel}>
-            {t('settings.appearance.previewCancel')}
-          </button>
-          <button style={styles.previewBtnPrimary} onClick={handleKeep}>
-            {t('settings.appearance.previewKeep')}
-          </button>
-        </div>
-      ) : (
-        <button style={styles.previewBtn} onClick={handlePreview}>
-          {t('settings.appearance.previewSession')}
-        </button>
-      )}
 
       <p style={styles.helper}>{t('settings.language.note')}</p>
     </div>

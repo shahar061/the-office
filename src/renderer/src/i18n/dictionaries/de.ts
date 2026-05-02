@@ -243,10 +243,6 @@ export const de: Partial<Record<StringKey, string>> = {
 
   'settings.appearance.title': 'Erscheinungsbild',
   'settings.appearance.subtitle': 'Wähle ein Theme. Das Pixel-Art-Büro bleibt gleich — nur die umgebende Oberfläche ändert sich.',
-  'settings.appearance.previewSession': '60s Vorschau',
-  'settings.appearance.previewActive': 'Vorschau — noch {seconds}s',
-  'settings.appearance.previewKeep': 'Behalten',
-  'settings.appearance.previewCancel': 'Abbrechen',
   'settings.appearance.theme.dark': 'Dunkel',
   'settings.appearance.theme.dark.description': 'Der Standard. Kühles Schiefer mit Indigo, augenfreundlich für lange Sitzungen.',
   'settings.appearance.theme.light': 'Hell',

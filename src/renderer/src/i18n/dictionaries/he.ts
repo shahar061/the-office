@@ -236,10 +236,6 @@ export const he: Partial<Record<StringKey, string>> = {
 
   'settings.appearance.title': 'מראה',
   'settings.appearance.subtitle': 'בחר ערכת נושא. המפה הפיקסלית של המשרד נשארת כפי שהיא — רק הסביבה משתנה.',
-  'settings.appearance.previewSession': 'תצוגה מקדימה ל-60 שניות',
-  'settings.appearance.previewActive': 'בתצוגה מקדימה — נותרו {seconds} שניות',
-  'settings.appearance.previewKeep': 'שמור',
-  'settings.appearance.previewCancel': 'ביטול',
   'settings.appearance.theme.dark': 'כהה',
   'settings.appearance.theme.dark.description': 'ברירת המחדל. אפור-כחול קריר עם אינדיגו, נוח לעיניים לאורך זמן.',
   'settings.appearance.theme.light': 'בהיר',

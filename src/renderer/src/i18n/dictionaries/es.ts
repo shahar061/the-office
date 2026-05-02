@@ -243,10 +243,6 @@ export const es: Partial<Record<StringKey, string>> = {
 
   'settings.appearance.title': 'Apariencia',
   'settings.appearance.subtitle': 'Elige un tema. La oficina pixelada se mantiene igual — solo cambia la interfaz alrededor.',
-  'settings.appearance.previewSession': 'Vista previa por 60s',
-  'settings.appearance.previewActive': 'Vista previa — quedan {seconds}s',
-  'settings.appearance.previewKeep': 'Mantener',
-  'settings.appearance.previewCancel': 'Cancelar',
   'settings.appearance.theme.dark': 'Oscuro',
   'settings.appearance.theme.dark.description': 'El predeterminado. Pizarra fría con índigo, suave para sesiones largas.',
   'settings.appearance.theme.light': 'Claro',

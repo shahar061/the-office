@@ -243,10 +243,6 @@ export const it: Partial<Record<StringKey, string>> = {
 
   'settings.appearance.title': 'Aspetto',
   'settings.appearance.subtitle': 'Scegli un tema. L\'ufficio pixel art resta uguale — cambia solo l\'interfaccia intorno.',
-  'settings.appearance.previewSession': 'Anteprima per 60s',
-  'settings.appearance.previewActive': 'In anteprima — {seconds}s rimasti',
-  'settings.appearance.previewKeep': 'Mantieni',
-  'settings.appearance.previewCancel': 'Annulla',
   'settings.appearance.theme.dark': 'Scuro',
   'settings.appearance.theme.dark.description': 'Il predefinito. Ardesia fredda con indaco, riposante per lunghe sessioni.',
   'settings.appearance.theme.light': 'Chiaro',

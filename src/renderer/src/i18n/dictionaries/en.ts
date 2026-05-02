@@ -252,10 +252,6 @@ export const en = {
 
   'settings.appearance.title': 'Appearance',
   'settings.appearance.subtitle': 'Pick a theme. The pixel-art office stays the same — only the surrounding chrome changes.',
-  'settings.appearance.previewSession': 'Preview for 60s',
-  'settings.appearance.previewActive': 'Previewing — {seconds}s left',
-  'settings.appearance.previewKeep': 'Keep',
-  'settings.appearance.previewCancel': 'Cancel',
   'settings.appearance.theme.dark': 'Dark',
   'settings.appearance.theme.dark.description': 'The default. Cool slate + indigo, easy on the eyes for long sessions.',
   'settings.appearance.theme.light': 'Light',

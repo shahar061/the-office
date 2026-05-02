@@ -243,10 +243,6 @@ export const pt: Partial<Record<StringKey, string>> = {
 
   'settings.appearance.title': 'Aparência',
   'settings.appearance.subtitle': 'Escolha um tema. O escritório em pixel art continua igual — só a interface ao redor muda.',
-  'settings.appearance.previewSession': 'Pré-visualizar por 60s',
-  'settings.appearance.previewActive': 'Pré-visualizando — {seconds}s restantes',
-  'settings.appearance.previewKeep': 'Manter',
-  'settings.appearance.previewCancel': 'Cancelar',
   'settings.appearance.theme.dark': 'Escuro',
   'settings.appearance.theme.dark.description': 'O padrão. Ardósia fria com índigo, suave para sessões longas.',
   'settings.appearance.theme.light': 'Claro',
