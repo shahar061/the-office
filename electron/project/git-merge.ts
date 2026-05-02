@@ -35,6 +35,29 @@ export async function acceptRequest(
     return { ok: false, conflict: false, message: `Could not checkout ${request.baseBranch}: ${err?.message || err}` };
   }
 
+  // `.the-office/` holds the renderer's runtime state (config.json, chat
+  // history, request log, pending-question.json). Workshop projects whose
+  // initial commit predates the gitignore for it end up with two sources of
+  // truth — the working-tree copy on `main` and the snapshot committed on
+  // the request branch. The merge then aborts with one of:
+  //   "Your local changes to the following files would be overwritten by
+  //    merge: .the-office/config.json"
+  //   "The following untracked working tree files would be overwritten by
+  //    merge: .the-office/requests.json"
+  // Both versions are derivable, so before merging we discard the working
+  // copy: tracked office-state files get reset to HEAD, untracked ones get
+  // removed. The orchestrator rewrites whatever is needed after the merge.
+  try {
+    await git.raw(['checkout', '--', '.the-office/']);
+  } catch {
+    // Nothing tracked under .the-office/ — fine.
+  }
+  try {
+    await git.raw(['clean', '-fd', '.the-office/']);
+  } catch {
+    // No untracked files there — also fine.
+  }
+
   // Attempt the merge (no --ff-only, no --no-ff — let git decide)
   // simple-git's git.raw() does NOT throw on conflict — it returns the output string.
   // We must check both for a throw (unexpected errors) and for CONFLICT in the output.

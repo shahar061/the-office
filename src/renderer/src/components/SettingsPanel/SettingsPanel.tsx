@@ -8,6 +8,7 @@ import { AgentsSection } from './sections/AgentsSection';
 import { IntegrationsSection } from './sections/IntegrationsSection';
 import { MobileSection } from './sections/MobileSection';
 import { LanguageSection } from './sections/LanguageSection';
+import { AppearanceSection } from './sections/AppearanceSection';
 import { colors } from '../../theme';
 
 interface NavItem {
@@ -19,6 +20,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'general', labelKey: 'settings.nav.general', icon: '⚙' },
   { id: 'language', labelKey: 'settings.nav.language', icon: '🌐' },
+  { id: 'appearance', labelKey: 'settings.nav.appearance', icon: '🎨' },
   { id: 'agents', labelKey: 'settings.nav.agents', icon: '👥' },
   { id: 'workspace', labelKey: 'settings.nav.workspace', icon: '🗂' },
   { id: 'mobile', labelKey: 'settings.nav.mobile', icon: '📱' },
@@ -149,6 +151,7 @@ export function SettingsPanel() {
           <div style={styles.content}>
             {activeSection === 'general' && <GeneralSection />}
             {activeSection === 'language' && <LanguageSection />}
+            {activeSection === 'appearance' && <AppearanceSection />}
             {activeSection === 'agents' && <AgentsSection />}
             {activeSection === 'workspace' && <WorkspaceSection />}
             {activeSection === 'mobile' && <MobileSection />}

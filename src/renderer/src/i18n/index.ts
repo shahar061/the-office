@@ -1,8 +1,20 @@
 import { en, type StringKey } from './dictionaries/en';
 import { he } from './dictionaries/he';
+import { es } from './dictionaries/es';
+import { it } from './dictionaries/it';
+import { de } from './dictionaries/de';
+import { pt } from './dictionaries/pt';
 
-export type Language = 'en' | 'he';
+export type Language = 'en' | 'he' | 'es' | 'it' | 'de' | 'pt';
 export type { StringKey } from './dictionaries/en';
+
+const NON_EN_DICTIONARIES: Record<Exclude<Language, 'en'>, Partial<Record<StringKey, string>>> = {
+  he,
+  es,
+  it,
+  de,
+  pt,
+};
 
 let currentLang: Language = 'en';
 const listeners = new Set<() => void>();
@@ -27,9 +39,9 @@ export function t(key: StringKey, vars?: Record<string, string | number>): strin
 }
 
 function lookup(lang: Language, key: StringKey): string {
-  if (lang === 'he') {
-    const heValue = he[key];
-    if (heValue !== undefined) return heValue;
+  if (lang !== 'en') {
+    const localized = NON_EN_DICTIONARIES[lang][key];
+    if (localized !== undefined) return localized;
   }
   const enValue = en[key];
   if (enValue !== undefined) return enValue;

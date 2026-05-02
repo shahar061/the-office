@@ -37,9 +37,15 @@ export interface AppSettings {
     musicMuted: boolean;
     sfxMuted: boolean;
   };
-  language: 'en' | 'he';
+  language: 'en' | 'he' | 'es' | 'it' | 'de' | 'pt';
+  appearance?: {
+    theme: ThemeId;
+  };
   devMode: boolean;
 }
+
+export type ThemeId = 'dark' | 'light' | 'neon' | 'dusk' | 'terminal';
+export const THEME_IDS: readonly ThemeId[] = ['dark', 'light', 'neon', 'dusk', 'terminal'] as const;
 
 export interface AppSettingsForRenderer extends AppSettings {
   /** Derived: process.env.OFFICE_DEV === '1' || settings.devMode === true.

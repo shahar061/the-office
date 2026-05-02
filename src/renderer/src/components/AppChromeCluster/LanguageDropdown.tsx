@@ -65,7 +65,7 @@ export function LanguageDropdown() {
         aria-label={t('cluster.language.aria')}
         aria-expanded={open}
       >
-        {language === 'he' ? 'HE' : 'EN'} ▾
+        {language.toUpperCase()} ▾
       </button>
       {open && (
         <div style={styles.dropdown}>
@@ -77,6 +77,22 @@ export function LanguageDropdown() {
             onClick={() => { setLanguage('he'); setOpen(false); }}
             style={styles.item(language === 'he')}
           >עברית</button>
+          <button
+            onClick={() => { setLanguage('es'); setOpen(false); }}
+            style={styles.item(language === 'es')}
+          >Español</button>
+          <button
+            onClick={() => { setLanguage('it'); setOpen(false); }}
+            style={styles.item(language === 'it')}
+          >Italiano</button>
+          <button
+            onClick={() => { setLanguage('de'); setOpen(false); }}
+            style={styles.item(language === 'de')}
+          >Deutsch</button>
+          <button
+            onClick={() => { setLanguage('pt'); setOpen(false); }}
+            style={styles.item(language === 'pt')}
+          >Português</button>
         </div>
       )}
     </div>

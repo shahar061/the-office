@@ -293,9 +293,19 @@ export class Character {
     this.workGlow.zIndex = this.py - 1;
     if (isWorking) {
       this.workGlowElapsed += dt;
-      // Pulse 0.18 → 0.45 alpha at ~1.2s period, scale 0.95 → 1.1
-      const phase = (Math.sin(this.workGlowElapsed * Math.PI / 0.6) + 1) / 2;
-      const baseAlpha = 0.18 + 0.27 * phase;
+      // Pulse alpha + scale at the active theme's halo cadence. Each
+      // theme defines --halo-alpha-min / --halo-alpha-max / --halo-pulse-ms
+      // on <html data-theme>; we read them per frame (cheap — getComputedStyle
+      // on the documentElement is constant-time and cached by the browser
+      // once theme stops changing). Falls back to the Dark defaults if a
+      // var is missing.
+      const cs = getComputedStyle(document.documentElement);
+      const aMin = parseFloat(cs.getPropertyValue('--halo-alpha-min')) || 0.18;
+      const aMax = parseFloat(cs.getPropertyValue('--halo-alpha-max')) || 0.45;
+      const pulseMs = parseFloat(cs.getPropertyValue('--halo-pulse-ms')) || 1200;
+      const halfPeriodSec = pulseMs / 2000;
+      const phase = (Math.sin(this.workGlowElapsed * Math.PI / halfPeriodSec) + 1) / 2;
+      const baseAlpha = aMin + (aMax - aMin) * phase;
       this.workGlow.alpha = baseAlpha * this.sprite.container.alpha;
       const scale = 0.95 + 0.15 * phase;
       this.workGlow.scale.set(scale);

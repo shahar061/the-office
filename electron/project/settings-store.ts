@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     sfxMuted: false,
   },
   language: 'en',
+  appearance: { theme: 'dark' },
   devMode: false,
 };
 
@@ -141,6 +142,7 @@ export class SettingsStore {
         mobile: parsed.mobile ?? DEFAULT_SETTINGS.mobile,
         audio: parsed.audio ?? DEFAULT_SETTINGS.audio,
         language: parsed.language ?? DEFAULT_SETTINGS.language,
+        appearance: parsed.appearance ?? DEFAULT_SETTINGS.appearance,
         devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
       };
     } catch (err) {

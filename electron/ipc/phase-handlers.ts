@@ -938,6 +938,12 @@ export function initPhaseHandlers(): void {
       }
       return { ok: false, error: result.message };
     }
+    // Re-assert the authoritative project state on disk in case the
+    // merged commit carried a stale `.the-office/config.json` from when
+    // the request branch was forked. The pre-merge snapshot we captured
+    // above is the truth — write it back so OPEN_PROJECT picks up the
+    // right currentPhase / mode / scanStatus next time.
+    projectManager.updateProjectState(currentProjectDir, projectState);
     const updated = requestStore.update(request.id, {
       mergedAt: result.mergedAt,
       branchName: null,

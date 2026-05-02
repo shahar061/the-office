@@ -2,7 +2,7 @@
 
 export type ReportType = 'bug' | 'feature';
 export type ReportStatus = 'open' | 'in-progress' | 'done' | 'wont-fix';
-export type ReportLanguage = 'en' | 'he';
+export type ReportLanguage = 'en' | 'he' | 'es' | 'it' | 'de' | 'pt';
 
 export interface SubmitReportRequest {
   type: ReportType;

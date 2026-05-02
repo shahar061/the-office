@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,19 +9,141 @@
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
       .hide-scrollbar::-webkit-scrollbar { display: none; }
 
-      /* Themed scrollbars — match the app palette (dark surface + slate). */
+      /* ── Theme palettes ────────────────────────────────────────────────
+       * Each block declares the same custom properties; switching themes
+       * is a single attribute change on <html data-theme="…"> (or on any
+       * subtree, e.g. a settings thumbnail). The Pixi office canvas is
+       * intentionally NOT themed — only the React/DOM chrome reacts.
+       *
+       * Halo tokens are read by the Pixi work-glow effect (one-shot at
+       * clone spawn) so per-theme intensity is honoured without per-frame
+       * overhead.
+       * ────────────────────────────────────────────────────────────────── */
+      [data-theme="dark"] {
+        --theme-bg: #0f0f1a;
+        --theme-bg-dark: #0d0d1a;
+        --theme-surface: #1a1a2e;
+        --theme-surface-light: #151528;
+        --theme-surface-dark: #111122;
+        --theme-border: #333;
+        --theme-border-light: #2a2a3a;
+        --theme-text: #e2e8f0;
+        --theme-text-light: #cbd5e1;
+        --theme-text-muted: #94a3b8;
+        --theme-text-dim: #64748b;
+        --theme-text-dark: #4b5563;
+        --theme-accent: #3b82f6;
+        --theme-accent-purple: #6366f1;
+        --theme-success: #22c55e;
+        --theme-error: #ef4444;
+        --theme-warning: #f59e0b;
+        --halo-alpha-min: 0.18;
+        --halo-alpha-max: 0.45;
+        --halo-pulse-ms: 1200;
+      }
+      [data-theme="light"] {
+        --theme-bg: #f8fafc;
+        --theme-bg-dark: #eef2f7;
+        --theme-surface: #ffffff;
+        --theme-surface-light: #fbfcfd;
+        --theme-surface-dark: #f1f5f9;
+        --theme-border: #cbd5e1;
+        --theme-border-light: #e2e8f0;
+        --theme-text: #0f172a;
+        --theme-text-light: #1e293b;
+        --theme-text-muted: #475569;
+        --theme-text-dim: #64748b;
+        --theme-text-dark: #94a3b8;
+        --theme-accent: #2563eb;
+        --theme-accent-purple: #4f46e5;
+        --theme-success: #16a34a;
+        --theme-error: #dc2626;
+        --theme-warning: #d97706;
+        --halo-alpha-min: 0.35;
+        --halo-alpha-max: 0.55;
+        --halo-pulse-ms: 1200;
+      }
+      [data-theme="neon"] {
+        --theme-bg: #0a0014;
+        --theme-bg-dark: #050008;
+        --theme-surface: #16002a;
+        --theme-surface-light: #1f0a36;
+        --theme-surface-dark: #0d001a;
+        --theme-border: #3a0066;
+        --theme-border-light: #2a0050;
+        --theme-text: #f0f0ff;
+        --theme-text-light: #e0d6ff;
+        --theme-text-muted: #b48cff;
+        --theme-text-dim: #8856d4;
+        --theme-text-dark: #553a85;
+        --theme-accent: #ff2bd6;
+        --theme-accent-purple: #00f5ff;
+        --theme-success: #39ff14;
+        --theme-error: #ff3860;
+        --theme-warning: #ffae00;
+        --halo-alpha-min: 0.12;
+        --halo-alpha-max: 0.28;
+        --halo-pulse-ms: 1400;
+      }
+      [data-theme="dusk"] {
+        --theme-bg: #1f1a17;
+        --theme-bg-dark: #15110f;
+        --theme-surface: #2b2320;
+        --theme-surface-light: #332925;
+        --theme-surface-dark: #1f1815;
+        --theme-border: #4a3d36;
+        --theme-border-light: #3a302a;
+        --theme-text: #f4e4d0;
+        --theme-text-light: #e8d3b8;
+        --theme-text-muted: #a89788;
+        --theme-text-dim: #7a6a5e;
+        --theme-text-dark: #5a4d44;
+        --theme-accent: #f59e0b;
+        --theme-accent-purple: #e879a3;
+        --theme-success: #84cc16;
+        --theme-error: #ef4444;
+        --theme-warning: #fb923c;
+        --halo-alpha-min: 0.22;
+        --halo-alpha-max: 0.50;
+        --halo-pulse-ms: 1400;
+      }
+      [data-theme="terminal"] {
+        --theme-bg: #020c02;
+        --theme-bg-dark: #000800;
+        --theme-surface: #0a1a0a;
+        --theme-surface-light: #0e220e;
+        --theme-surface-dark: #061206;
+        --theme-border: #1f4d1f;
+        --theme-border-light: #163516;
+        --theme-text: #7fff7f;
+        --theme-text-light: #a4ffb4;
+        --theme-text-muted: #5fbf5f;
+        --theme-text-dim: #3a8a3a;
+        --theme-text-dark: #225522;
+        --theme-accent: #a4ffb4;
+        --theme-accent-purple: #7fff7f;
+        --theme-success: #7fff7f;
+        --theme-error: #ff4444;
+        --theme-warning: #ccff66;
+        --halo-alpha-min: 0.20;
+        --halo-alpha-max: 0.40;
+        --halo-pulse-ms: 1300;
+      }
+
+      /* Themed scrollbars — match the app palette via the active theme. */
       *::-webkit-scrollbar { width: 10px; height: 10px; }
       *::-webkit-scrollbar-track { background: transparent; }
       *::-webkit-scrollbar-thumb {
-        background-color: rgba(148, 163, 184, 0.18);
+        background-color: var(--theme-text-muted);
+        opacity: 0.18;
         border-radius: 5px;
         border: 2px solid transparent;
         background-clip: padding-box;
       }
-      *::-webkit-scrollbar-thumb:hover { background-color: rgba(148, 163, 184, 0.4); }
-      *::-webkit-scrollbar-thumb:active { background-color: rgba(99, 102, 241, 0.55); }
+      *::-webkit-scrollbar-thumb:hover { opacity: 0.4; }
+      *::-webkit-scrollbar-thumb:active { background-color: var(--theme-accent-purple); }
       *::-webkit-scrollbar-corner { background: transparent; }
-      * { scrollbar-color: rgba(148, 163, 184, 0.3) transparent; scrollbar-width: thin; }
+      * { scrollbar-color: var(--theme-text-muted) transparent; scrollbar-width: thin; }
     </style>
   </head>
   <body>

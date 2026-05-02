@@ -8,6 +8,7 @@ const TAP_RESET_MS = 2000;
 export type SettingsSection =
   | 'general'
   | 'language'
+  | 'appearance'
   | 'agents'
   | 'workspace'
   | 'mobile'
@@ -29,7 +30,8 @@ interface SettingsStoreState {
   setActiveSection: (section: SettingsSection) => void;
   hydrate: () => Promise<void>;
   setFromEvent: (settings: AppSettingsForRenderer) => void;
-  setLanguage: (lang: 'en' | 'he') => Promise<void>;
+  setLanguage: (lang: 'en' | 'he' | 'es' | 'it' | 'de' | 'pt') => Promise<void>;
+  setTheme: (theme: import('@shared/types').ThemeId) => Promise<void>;
   bumpVersionTap: () => Promise<{ unlocked: boolean; remaining: number }>;
   enableDevMode: () => Promise<void>;
   disableDevMode: () => Promise<void>;
@@ -73,6 +75,11 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   setLanguage: async (lang) => {
     setCurrentLanguage(lang);
     const next = (await window.office.saveSettings({ language: lang })) as AppSettingsForRenderer;
+    set({ settings: next, isDevMode: next._isDevMode === true });
+  },
+
+  setTheme: async (theme) => {
+    const next = (await window.office.saveSettings({ appearance: { theme } } as Partial<AppSettings>)) as AppSettingsForRenderer;
     set({ settings: next, isDevMode: next._isDevMode === true });
   },
 

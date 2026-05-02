@@ -12,7 +12,7 @@ export interface FeedbackDeps {
   fetch: typeof globalThis.fetch;
   getAppVersion: () => string;
   getPlatform: () => string;
-  getLanguage: () => 'en' | 'he';
+  getLanguage: () => 'en' | 'he' | 'es' | 'it' | 'de' | 'pt';
   getNow: () => number;
   workerUrl: string;
 }

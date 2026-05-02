@@ -44,6 +44,26 @@ export const PHASE_ADVANCE_OPTIONS: Record<'imagine' | 'warroom', PhaseAdvanceSp
         header: 'המשך',
         label: 'המשך לחדר המלחמה',
       },
+      es: {
+        question: 'Fase Imaginar completada. ¿Pasamos a la Sala de Guerra?',
+        header: 'Continuar',
+        label: 'Continuar a la Sala de Guerra',
+      },
+      it: {
+        question: 'Fase Immagina completata. Passiamo alla Sala di Guerra?',
+        header: 'Continua',
+        label: 'Continua alla Sala di Guerra',
+      },
+      de: {
+        question: 'Vorstellen-Phase abgeschlossen. Weiter zum Lagezentrum?',
+        header: 'Weiter',
+        label: 'Weiter zum Lagezentrum',
+      },
+      pt: {
+        question: 'Fase Imaginar concluída. Vamos para a Sala de Guerra?',
+        header: 'Continuar',
+        label: 'Continuar para a Sala de Guerra',
+      },
     },
   },
   warroom: {
@@ -59,6 +79,26 @@ export const PHASE_ADVANCE_OPTIONS: Record<'imagine' | 'warroom', PhaseAdvanceSp
         header: 'המשך',
         label: 'התחל בנייה',
       },
+      es: {
+        question: 'El plan está cerrado. ¿Listo para construirlo?',
+        header: 'Continuar',
+        label: 'Empezar build',
+      },
+      it: {
+        question: 'Il piano è bloccato. Pronto per costruirlo?',
+        header: 'Continua',
+        label: 'Avvia build',
+      },
+      de: {
+        question: 'Der Plan steht. Bereit zu bauen?',
+        header: 'Weiter',
+        label: 'Build starten',
+      },
+      pt: {
+        question: 'O plano está fechado. Pronto para construí-lo?',
+        header: 'Continuar',
+        label: 'Começar build',
+      },
     },
   },
 } as const;
@@ -70,7 +110,7 @@ export type PhaseAdvanceFrom = keyof typeof PHASE_ADVANCE_OPTIONS;
  *  resolverForRestoredQuestion so a Hebrew-localised question still routes
  *  to the correct dispatcher after an app restart. */
 function isPhaseAdvanceQuestion(from: PhaseAdvanceFrom, text: string): boolean {
-  const langs: Language[] = ['en', 'he'];
+  const langs: Language[] = ['en', 'he', 'es', 'it', 'de', 'pt'];
   return langs.some(l => PHASE_ADVANCE_OPTIONS[from].copy[l].question === text);
 }
 

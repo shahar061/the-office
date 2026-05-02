@@ -53,6 +53,14 @@ export default function App() {
     document.documentElement.lang = language;
   }, [settings?.language]);
 
+  // Apply the active appearance theme. The CSS custom properties cascade
+  // down from <html data-theme="…">; switching themes is a single attribute
+  // write with no React re-render.
+  useEffect(() => {
+    const theme = settings?.appearance?.theme ?? 'dark';
+    document.documentElement.dataset.theme = theme;
+  }, [settings?.appearance?.theme]);
+
   useEffect(() => {
     void useMobileBridgeStore.getState().refresh();
     // Apply the status payload directly from the push event — avoids a race

@@ -34,6 +34,46 @@ export function LanguageSection() {
           />
           <span>{t('settings.language.hebrew')}</span>
         </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="language"
+            value="es"
+            checked={language === 'es'}
+            onChange={() => setLanguage('es')}
+          />
+          <span>{t('settings.language.spanish')}</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="language"
+            value="it"
+            checked={language === 'it'}
+            onChange={() => setLanguage('it')}
+          />
+          <span>{t('settings.language.italian')}</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="language"
+            value="de"
+            checked={language === 'de'}
+            onChange={() => setLanguage('de')}
+          />
+          <span>{t('settings.language.german')}</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="language"
+            value="pt"
+            checked={language === 'pt'}
+            onChange={() => setLanguage('pt')}
+          />
+          <span>{t('settings.language.portuguese')}</span>
+        </label>
       </div>
 
       <p style={{ fontSize: 11, color: colors.textMuted, fontStyle: 'italic' }}>
