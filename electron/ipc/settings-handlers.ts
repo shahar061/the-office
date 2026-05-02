@@ -66,10 +66,13 @@ export function initSettingsHandlers(): void {
     IPC_CHANNELS.SET_PROJECT_GIT_IDENTITY,
     async (_event, projectPath: string, id: string | null) => {
       projectManager.updateProjectState(projectPath, { gitIdentityId: id });
+      const updated = projectManager.getProjectState(projectPath);
+      // Broadcast so the renderer's project store and any banners
+      // gated on `gitIdentityId` (e.g. FirstRunIdentityBanner) refresh.
+      send(IPC_CHANNELS.PROJECT_STATE_CHANGED, updated);
       // Write-through to .git/config best-effort
       try {
-        const state = projectManager.getProjectState(projectPath);
-        const resolved = settingsStore.resolveIdentityForProject(state);
+        const resolved = settingsStore.resolveIdentityForProject(updated);
         const gm = new GitManager(projectPath);
         await writeRepoIdentity(gm.getSimpleGitInstance(), resolved);
       } catch (err) {

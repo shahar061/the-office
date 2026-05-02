@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   EngineerCloneManager,
   type SceneLike,
@@ -90,10 +90,24 @@ describe('EngineerCloneManager', () => {
   let mock: ReturnType<typeof makeMockScene>;
   let manager: EngineerCloneManager;
 
+  // Despawn is debounced via setTimeout. Fake timers let us assert both
+  // the immediate path (refCount stays 0 inside the window) and the
+  // post-debounce despawn without waiting in real time.
   beforeEach(() => {
+    vi.useFakeTimers();
     mock = makeMockScene();
     manager = new EngineerCloneManager(mock.scene, ENGINEERING_ROLES);
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Push past the manager's despawn debounce window so end()'s scheduled
+   *  cleanup runs synchronously inside the test. */
+  function flushDespawn(): void {
+    vi.advanceTimersByTime(1000);
+  }
 
   it('start spawns a clone, hides base, and glows monitor', () => {
     manager.start('backend-engineer');
@@ -133,9 +147,15 @@ describe('EngineerCloneManager', () => {
     expect(manager.getRefCount('backend-engineer')).toBe(1);
   });
 
-  it('end with refCount === 1 despawns the clone and restores base', () => {
+  it('end with refCount === 1 despawns the clone and restores base after the debounce', () => {
     manager.start('backend-engineer');
     manager.end('backend-engineer');
+
+    // Inside the debounce window, despawn has NOT fired yet.
+    expect(mock.calls.destroyClone).toHaveLength(0);
+    expect(mock.calls.showCharacter).toEqual([]);
+
+    flushDespawn();
 
     expect(mock.calls.setMonitorGlow).toEqual([
       { seat: 'pc-1', on: true },
@@ -190,13 +210,32 @@ describe('EngineerCloneManager', () => {
     // Extra close event (shouldn't happen but defensive)
     manager.end('backend-engineer');
     expect(manager.getRefCount('backend-engineer')).toBe(0);
-    // No second destroy call
+    flushDespawn();
+    // Despawn fires exactly once even after a duplicate end().
     expect(mock.calls.destroyClone).toHaveLength(1);
   });
 
-  it('restart after end reuses available seat', () => {
+  it('start arriving inside the debounce window cancels the despawn and reuses the existing clone', () => {
     manager.start('backend-engineer');
     manager.end('backend-engineer');
+    // Mid-window: a new session for the same role lands.
+    manager.start('backend-engineer');
+
+    flushDespawn();
+
+    // Same clone reused — only one createClone, monitor stays glowing,
+    // base never re-shown, no destroy/release churn.
+    expect(mock.calls.createClone).toHaveLength(1);
+    expect(mock.calls.destroyClone).toHaveLength(0);
+    expect(mock.calls.showCharacter).toEqual([]);
+    expect(mock.calls.setMonitorGlow).toEqual([{ seat: 'pc-1', on: true }]);
+    expect(manager.getRefCount('backend-engineer')).toBe(1);
+  });
+
+  it('restart after the debounce window elapses gets a fresh seat reservation', () => {
+    manager.start('backend-engineer');
+    manager.end('backend-engineer');
+    flushDespawn();
     manager.start('backend-engineer');
 
     expect(mock.calls.createClone).toHaveLength(2);

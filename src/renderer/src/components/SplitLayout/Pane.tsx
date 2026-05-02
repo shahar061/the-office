@@ -28,18 +28,21 @@ import { CompletionPanel } from '../CompletionPanel/CompletionPanel';
 import { WorkshopPanel } from '../WorkshopPanel/WorkshopPanel';
 import { DevJumpPanel } from '../DevJumpPanel';
 
-const PANEL_META: Record<PanelId, { icon: string; label: string }> = {
-  chat: { icon: '💬', label: 'Chat' },
-  office: { icon: '🖥️', label: 'Office' },
-  agents: { icon: '👥', label: 'Agents' },
-  kanban: { icon: '📋', label: 'Kanban' },
-  stats: { icon: '📊', label: 'Stats' },
-  logs: { icon: '📋', label: 'Logs' },
-  about: { icon: 'ℹ️', label: 'About' },
-  complete: { icon: '🎉', label: 'Complete' },
-  workshop: { icon: '🔧', label: 'Workshop' },
-  diff: { icon: '📝', label: 'Diff' },
-  devjump: { icon: '🧪', label: 'Dev Jump' },
+import type { StringKey } from '../../i18n/dictionaries/en';
+import { useT } from '../../i18n';
+
+const PANEL_META: Record<PanelId, { icon: string; labelKey: StringKey }> = {
+  chat: { icon: '💬', labelKey: 'iconrail.chat' },
+  office: { icon: '🖥️', labelKey: 'iconrail.office' },
+  agents: { icon: '👥', labelKey: 'iconrail.agents' },
+  kanban: { icon: '📋', labelKey: 'iconrail.kanban' },
+  stats: { icon: '📊', labelKey: 'iconrail.stats' },
+  logs: { icon: '📋', labelKey: 'iconrail.logs' },
+  about: { icon: 'ℹ️', labelKey: 'iconrail.about' },
+  complete: { icon: '🎉', labelKey: 'iconrail.complete' },
+  workshop: { icon: '🔧', labelKey: 'iconrail.workshop' },
+  diff: { icon: '📝', labelKey: 'iconrail.diff' },
+  devjump: { icon: '🧪', labelKey: 'iconrail.devjump' },
 };
 
 interface PaneProps {
@@ -50,6 +53,7 @@ interface PaneProps {
 }
 
 export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
+  const t = useT();
   const [isDragOver, setIsDragOver] = useState(false);
   const splitPane = useLayoutStore((s) => s.splitPane);
   const closePane = useLayoutStore((s) => s.closePane);
@@ -124,7 +128,7 @@ export function Pane({ paneId, panelId, isOnly, onSceneReady }: PaneProps) {
       >
         <span style={{ fontSize: '11px', color: colors.textMuted, display: 'flex', gap: '4px', alignItems: 'center' }}>
           <span>{meta.icon}</span>
-          <span>{meta.label}</span>
+          <span>{t(meta.labelKey)}</span>
         </span>
         {!isOnly && (
           <button

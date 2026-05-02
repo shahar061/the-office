@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsStore } from '../../stores/settings.store';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 
 const styles = {
   root: {
@@ -61,6 +62,7 @@ const styles = {
 } as const;
 
 export function FirstRunIdentityBanner() {
+  const t = useT();
   const settings = useSettingsStore((s) => s.settings);
   const isFirstRunBannerDismissed = useSettingsStore((s) => s.isFirstRunBannerDismissed);
   const dismissFirstRunBanner = useSettingsStore((s) => s.dismissFirstRunBanner);
@@ -99,19 +101,27 @@ export function FirstRunIdentityBanner() {
     dismissFirstRunBanner(projectState.path);
   }
 
+  // Build the message with a bolded label inline. We expand the
+  // {label}/{email} placeholders manually so the label can wear its own
+  // <span> styling.
+  const template = t('workshop.git.firstRun.message', { label: '\u0000LABEL\u0000', email: defaultIdentity.email });
+  const [before, after] = template.split('\u0000LABEL\u0000');
+
   return (
     <div style={styles.root}>
       <div style={styles.message}>
-        Commits will be authored as <span style={styles.strong}>{defaultIdentity.label}</span> ({defaultIdentity.email}), your global default.
+        {before}
+        <span style={styles.strong}>{defaultIdentity.label}</span>
+        {after}
       </div>
       <div style={styles.actions}>
         <button style={styles.primaryBtn} onClick={handleUseDefault}>
-          Use default
+          {t('workshop.git.useDefault')}
         </button>
         <button style={styles.btn} onClick={handleChange}>
-          Change
+          {t('workshop.git.change')}
         </button>
-        <button style={styles.dismissBtn} onClick={handleDismiss} title="Dismiss">
+        <button style={styles.dismissBtn} onClick={handleDismiss} title={t('workshop.git.dismiss')}>
           ✕
         </button>
       </div>

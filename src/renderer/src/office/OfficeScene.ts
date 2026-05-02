@@ -292,16 +292,21 @@ export class OfficeScene {
     const color = parseInt(config.color.slice(1), 16);
     const pos = character.getPixelPosition();
 
-    // For clones, show a label like "Team Lead #2" instead of just "Team Lead"
+    // For clones, show a label like "Team Lead (spec: foo)" instead of
+    // just "Team Lead". Engineer clone IDs are internal (`engineer-{role}-
+    // {timestamp}`) and add no information beyond the role, so we suppress
+    // the suffix for them.
     const isClone = agentId !== role;
-    const displayName = isClone
-      ? `${config.displayName} (${agentId.replace('tl-clone-tl-', 'spec: ')})`
-      : config.displayName;
+    const isTLClone = isClone && agentId.startsWith('tl-clone-tl-');
+    let displayName = config.displayName;
+    if (isTLClone) {
+      displayName = `${config.displayName} (${agentId.replace('tl-clone-tl-', 'spec: ')})`;
+    }
 
     const popup = new Container();
     popup.label = 'character-popup';
 
-    const bgW = isClone ? 160 : 120;
+    const bgW = isTLClone ? 200 : 120;
     const bgH = 52;
     const bg = new Graphics();
     bg.setStrokeStyle({ width: 1, color });
@@ -309,10 +314,19 @@ export class OfficeScene {
     bg.fill({ color: 0x1a1a2e, alpha: 0.95 });
     bg.stroke();
 
-    const nameText = new Text({
-      text: displayName,
-      style: { fontSize: 9, fill: config.color, fontWeight: 'bold', fontFamily: 'monospace' },
-    });
+    const titleStyle = { fontSize: 9, fill: config.color, fontWeight: 'bold' as const, fontFamily: 'monospace' };
+    const nameText = new Text({ text: displayName, style: titleStyle });
+    // Width-based ellipsis: shrink the title until it fits inside the
+    // popup's text area, regardless of label format (TL clone with
+    // spec phase, engineer clone with internal id, etc.).
+    const maxTextWidth = bgW - 16; // 8px left padding + 8px right padding
+    if (nameText.width > maxTextWidth) {
+      let trimmed = displayName;
+      while (trimmed.length > 1 && nameText.width > maxTextWidth) {
+        trimmed = trimmed.slice(0, -1);
+        nameText.text = trimmed + '…';
+      }
+    }
     nameText.x = 8;
     nameText.y = 6;
 
@@ -411,6 +425,16 @@ export class OfficeScene {
     });
 
     this.characters.set(cloneId, clone);
+
+    // Mount the clone at the entrance so the sprite is on stage. Callers
+    // typically follow up with `walkToAndThen(clone.getDeskTile(), …)`.
+    // Previously this was the caller's responsibility, but only the
+    // team-lead path remembered to do it; engineer clones were created
+    // invisible and never rendered.
+    const entrance = this.getEntrancePosition();
+    clone.repositionTo(entrance.x, entrance.y);
+    clone.show(this.characterLayer);
+
     return clone;
   }
 

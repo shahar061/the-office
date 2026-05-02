@@ -9,6 +9,7 @@ import { useUIDesignReviewStore } from './stores/ui-design-review.store';
 import { useLogStore } from './stores/log.store';
 import { useStatsStore } from './stores/stats.store';
 import { useLayoutStore, setCurrentLayoutPhase } from './stores/layout.store';
+import { findLeafByPanelId } from './components/SplitLayout/layout-utils';
 import { useRequestStore } from './stores/request.store';
 import { useRequestPlanReviewStore } from './stores/request-plan-review.store';
 import { useGitInitModalStore } from './stores/git-init-modal.store';
@@ -174,8 +175,16 @@ export default function App() {
     setCurrentLayoutPhase(layoutKey);
 
     window.office.getLayouts().then((saved: Record<string, unknown> | null) => {
-      if (saved && saved[layoutKey]) {
-        useLayoutStore.getState().loadLayout(saved[layoutKey] as any);
+      const candidate = saved?.[layoutKey];
+      if (candidate) {
+        useLayoutStore.getState().loadLayout(candidate as any);
+        // Build phase shows the start-build intro inside the Kanban pane —
+        // if the user's saved layout omits Kanban, the dialog has nowhere to
+        // mount, so fall back to the default layout (which includes it).
+        if (layoutKey === 'build') {
+          const hasKanban = !!findLeafByPanelId(useLayoutStore.getState().tree, 'kanban');
+          if (!hasKanban) useLayoutStore.getState().resetToDefault('build');
+        }
       } else {
         useLayoutStore.getState().resetToDefault(layoutKey as any);
       }

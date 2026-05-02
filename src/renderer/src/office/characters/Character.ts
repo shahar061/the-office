@@ -1,8 +1,8 @@
-import { Texture } from 'pixi.js';
+import { Graphics, Texture } from 'pixi.js';
 import { CharacterSprite, type Direction, type AnimState } from './CharacterSprite';
 import { findPath } from '../engine/pathfinding';
 import type { TiledMapRenderer } from '../engine/TiledMapRenderer';
-import type { AgentRole, CharacterState } from '@shared/types';
+import { AGENT_COLORS, type AgentRole, type CharacterState } from '@shared/types';
 import { ToolBubble } from './ToolBubble';
 
 export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
@@ -57,6 +57,8 @@ export class Character {
   private fadeElapsed: number = 0;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private toolBubble: ToolBubble;
+  private workGlow: Graphics;
+  private workGlowElapsed = 0;
 
   constructor(options: CharacterOptions) {
     this.agentId = options.agentId;
@@ -76,6 +78,16 @@ export class Character {
     this.py = pos.y + this.mapRenderer.tileSize;
     this.sprite.setPosition(this.px, this.py);
     this.toolBubble = new ToolBubble();
+
+    // Soft pulsing halo shown behind the sprite while the character is
+    // typing/reading — gives the user a clear "this agent is working" cue
+    // even when no tool bubble is visible (e.g. during long writes).
+    const haloColor = parseInt((AGENT_COLORS[options.role] ?? '#a5b4fc').slice(1), 16);
+    this.workGlow = new Graphics();
+    this.workGlow.circle(0, 0, 18);
+    this.workGlow.fill({ color: haloColor, alpha: 1 });
+    this.workGlow.alpha = 0;
+    this.workGlow.eventMode = 'none';
   }
 
   getAnimation(): CharacterAnimation {
@@ -217,6 +229,7 @@ export class Character {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.isVisible = true;
     this.sprite.setAlpha(0);
+    parent.addChild(this.workGlow);
     parent.addChild(this.sprite.container);
     parent.addChild(this.toolBubble.container);
     this.enableClick();
@@ -249,6 +262,7 @@ export class Character {
           this.sprite.container.parent?.removeChild(this.sprite.container);
           this.toolBubble.hide();
           this.toolBubble.container.parent?.removeChild(this.toolBubble.container);
+          this.workGlow.parent?.removeChild(this.workGlow);
         }
       }
     }
@@ -268,6 +282,27 @@ export class Character {
     // Bubble floats above all characters
     this.toolBubble.setPosition(this.px, this.py);
     this.toolBubble.container.zIndex = 100000;
+
+    // Working halo: pulses while typing/reading; sits centred under the
+    // sprite torso (a half tile above the character's feet) and renders
+    // just below the sprite via zIndex.
+    const isWorking = this.state === 'type' || this.state === 'read';
+    const ts = this.mapRenderer.tileSize;
+    this.workGlow.x = this.px;
+    this.workGlow.y = this.py - ts / 2;
+    this.workGlow.zIndex = this.py - 1;
+    if (isWorking) {
+      this.workGlowElapsed += dt;
+      // Pulse 0.18 → 0.45 alpha at ~1.2s period, scale 0.95 → 1.1
+      const phase = (Math.sin(this.workGlowElapsed * Math.PI / 0.6) + 1) / 2;
+      const baseAlpha = 0.18 + 0.27 * phase;
+      this.workGlow.alpha = baseAlpha * this.sprite.container.alpha;
+      const scale = 0.95 + 0.15 * phase;
+      this.workGlow.scale.set(scale);
+    } else {
+      this.workGlow.alpha = 0;
+      this.workGlowElapsed = 0;
+    }
   }
 
   private updateWalk(dt: number): void {
@@ -349,5 +384,6 @@ export class Character {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.toolBubble.destroy();
     this.sprite.destroy();
+    this.workGlow.destroy();
   }
 }

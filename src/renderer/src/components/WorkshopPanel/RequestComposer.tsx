@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRequestStore } from '../../stores/request.store';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 
 const styles = {
   root: {
@@ -112,6 +113,7 @@ const styles = {
 } as const;
 
 export function RequestComposer() {
+  const t = useT();
   const requests = useRequestStore((s) => s.requests);
   const addOrUpdate = useRequestStore((s) => s.addOrUpdate);
   const scanStatus = useProjectStore((s) => s.projectState?.scanStatus);
@@ -137,10 +139,10 @@ export function RequestComposer() {
         addOrUpdate(response.request);
         setText('');
       } else {
-        setError(response.error || 'Failed to create request');
+        setError(response.error || t('workshop.composer.errorDefault'));
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to create request');
+      setError(err?.message || t('workshop.composer.errorDefault'));
     } finally {
       setSubmitting(false);
     }
@@ -148,15 +150,15 @@ export function RequestComposer() {
 
   return (
     <div style={styles.root}>
-      <div style={styles.label}>New request</div>
+      <div style={styles.label}>{t('workshop.composer.newRequest')}</div>
       {isSkipped && (
         <div style={styles.notScannedBanner}>
-          <span>⚠️ Project not scanned — agent routing may be less accurate.</span>
+          <span>{t('workshop.composer.notScanned')}</span>
           <button
             style={styles.bannerButton}
             onClick={() => window.office.runOnboardingScan()}
           >
-            Scan now
+            {t('workshop.composer.scanNow')}
           </button>
         </div>
       )}
@@ -165,7 +167,7 @@ export function RequestComposer() {
           ...styles.textarea,
           ...(disabled ? styles.textareaDisabled : {}),
         }}
-        placeholder="Describe what you want — e.g., 'add a dark mode toggle to the settings page'"
+        placeholder={t('workshop.composer.placeholder')}
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={disabled}
@@ -175,20 +177,20 @@ export function RequestComposer() {
           style={styles.skipLink}
           onClick={() => window.office.skipOnboardingScan()}
         >
-          Skip scan
+          {t('workshop.composer.skipScan')}
         </button>
       )}
       <div style={styles.footer}>
         <div style={styles.statusLine}>
-          {isScanning && 'Scanning your project — this takes about 30 seconds. Watch the Chief Architect at work on the map!'}
-          {!isScanning && isRunning && 'Request in progress — wait for it to finish'}
+          {isScanning && t('workshop.composer.scanning')}
+          {!isScanning && isRunning && t('workshop.composer.inProgress')}
         </div>
         <button
           style={disabled || !text.trim() ? styles.submitButtonDisabled : styles.submitButton}
           onClick={handleSubmit}
           disabled={disabled || !text.trim()}
         >
-          Submit
+          {t('workshop.composer.submit')}
         </button>
       </div>
       {error && <div style={styles.error}>{error}</div>}

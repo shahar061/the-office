@@ -43,9 +43,9 @@ const styles = {
     gap: '4px',
   },
   header: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: '14px 18px',
     borderBottom: `1px solid ${colors.border}`,
     flexShrink: 0,
@@ -54,6 +54,12 @@ const styles = {
     fontSize: '14px',
     fontWeight: 700,
     color: colors.text,
+    gridColumn: 2,
+    textAlign: 'center' as const,
+  },
+  headerActionsCell: {
+    gridColumn: 3,
+    justifySelf: 'end' as const,
   },
   close: {
     background: 'none',
@@ -223,10 +229,10 @@ export function UIDesignReviewOverlay() {
 
   return (
     <div style={styles.backdrop}>
-      <div style={isFullscreen ? styles.panelFullscreen : styles.panel}>
+      <div dir="ltr" style={isFullscreen ? styles.panelFullscreen : styles.panel}>
         <div style={styles.header}>
           <span style={styles.title}>{t('overlay.uidesign.title')}</span>
-          <div style={styles.headerActions}>
+          <div style={{ ...styles.headerActions, ...styles.headerActionsCell }}>
             <button
               style={styles.close}
               onClick={() => setIsFullscreen((f) => !f)}

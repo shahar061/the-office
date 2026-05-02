@@ -40,9 +40,9 @@ const panelFullscreenStyle: React.CSSProperties = {
 };
 
 const headerStyle: React.CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: '1fr auto 1fr',
   alignItems: 'center',
-  justifyContent: 'space-between',
   padding: '12px 16px',
   borderBottom: '1px solid #222',
   background: 'rgba(26,26,46,0.5)',
@@ -154,9 +154,9 @@ export function PlanOverlay() {
 
   return (
     <div style={backdropStyle} onClick={handleDismiss}>
-      <div style={isFullscreen ? panelFullscreenStyle : panelDefaultStyle} onClick={(e) => e.stopPropagation()}>
+      <div dir="ltr" style={isFullscreen ? panelFullscreenStyle : panelDefaultStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ gridColumn: 2, display: 'flex', alignItems: 'center', gap: '8px', justifySelf: 'center' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: agentColor }} />
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>
               {title}
@@ -171,7 +171,7 @@ export function PlanOverlay() {
               {isPlanReview ? 'Project Manager' : 'Team Lead'}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ gridColumn: 3, justifySelf: 'end', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
               style={closeButtonStyle}
               onClick={() => setIsFullscreen((f) => !f)}

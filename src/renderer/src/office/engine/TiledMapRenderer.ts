@@ -197,7 +197,7 @@ export class TiledMapRenderer {
    *  pathfind onto seats/desks even when the underlying tile (a chair, the
    *  conference table, etc.) is marked non-walkable in the collision layer. */
   private static readonly WALKABLE_SPAWN_NAMES = ['warroom-seat']
-  private static readonly WALKABLE_SPAWN_PREFIXES = ['desk-']
+  private static readonly WALKABLE_SPAWN_PREFIXES = ['desk-', 'pc-']
 
   private markWalkableSpawnPoints(): void {
     const force = (point: Point | undefined) => {

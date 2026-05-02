@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsStore } from '../../stores/settings.store';
 import { useProjectStore } from '../../stores/project.store';
 import { colors } from '../../theme';
+import { useT } from '../../i18n';
 
 const styles = {
   root: {
@@ -44,6 +45,7 @@ const styles = {
 } as const;
 
 export function GitIdentityChip() {
+  const t = useT();
   const settings = useSettingsStore((s) => s.settings);
   const openSettings = useSettingsStore((s) => s.open);
   const projectState = useProjectStore((s) => s.projectState);
@@ -69,11 +71,11 @@ export function GitIdentityChip() {
     return (
       <div style={{ ...styles.root, ...styles.rootUnset }} onClick={handleClick}>
         <span>
-          <span style={styles.label}>Git identity:</span>
-          <span style={styles.value}>not configured</span>
+          <span style={styles.label}>{t('workshop.git.label')}</span>
+          <span style={styles.value}>{t('workshop.git.notConfigured')}</span>
         </span>
         <button style={styles.changeBtn} onClick={(e) => { e.stopPropagation(); handleClick(); }}>
-          Set up
+          {t('workshop.git.setup')}
         </button>
       </div>
     );
@@ -82,13 +84,13 @@ export function GitIdentityChip() {
   return (
     <div style={styles.root} onClick={handleClick}>
       <span>
-        <span style={styles.label}>Git identity:</span>
+        <span style={styles.label}>{t('workshop.git.label')}</span>
         <span style={styles.value}>
           {resolved.label} · {resolved.email}
         </span>
       </span>
       <button style={styles.changeBtn} onClick={(e) => { e.stopPropagation(); handleClick(); }}>
-        Change
+        {t('workshop.git.change')}
       </button>
     </div>
   );

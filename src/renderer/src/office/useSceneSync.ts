@@ -163,7 +163,6 @@ export function useSceneSync(scene: OfficeScene | null) {
       // Detect deactivated agents (closed)
       for (const role of prevActive) {
         if (!current.has(role)) {
-          console.log('[syncActiveAgents] hiding character', role);
           scene!.hideCharacter(role);
         }
       }
@@ -418,9 +417,7 @@ export function useSceneSync(scene: OfficeScene | null) {
 
           const clone = scene!.createClone(characterId, 'team-lead', seat);
           if (clone) {
-            const entrance = scene!.getEntrancePosition();
-            clone.repositionTo(entrance.x, entrance.y);
-            clone.show(scene!.getMapRenderer().getCharacterContainer());
+            // createClone already mounts the clone at the entrance.
             // Walk to desk, then mark as arrived and re-check if we should glow
             clone.walkToAndThen(clone.getDeskTile(), () => {
               const info = cloneMap.get(spawnedCloneId);
@@ -517,7 +514,12 @@ export function useSceneSync(scene: OfficeScene | null) {
     );
 
     const unsub = window.office.onAgentEvent((event) => {
-      if (event.type === 'agent:created' && event.isTopLevel) {
+      // Engineering agents are spawned as sub-tasks during Build (the
+      // team-lead delegates via the Agent tool), so isTopLevel=false. Track
+      // every agent:created/closed pair regardless of nesting so each
+      // engineering session gets a PC seat + clone instead of stranding the
+      // base character at the entrance with an unreachable desk tile.
+      if (event.type === 'agent:created') {
         manager.start(event.agentRole);
       } else if (event.type === 'agent:closed') {
         manager.end(event.agentRole);
@@ -526,6 +528,7 @@ export function useSceneSync(scene: OfficeScene | null) {
 
     return () => {
       unsub();
+      manager.dispose();
     };
   }, [scene]);
 }

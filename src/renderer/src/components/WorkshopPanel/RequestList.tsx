@@ -5,6 +5,7 @@ import { AGENT_COLORS } from '@shared/types';
 import { colors } from '../../theme';
 import { RequestDetail } from './RequestDetail';
 import type { Request } from '@shared/types';
+import { useT } from '../../i18n';
 
 const styles = {
   root: {
@@ -102,6 +103,7 @@ function relativeTime(ts: number): string {
 }
 
 export function RequestList() {
+  const t = useT();
   const requests = useRequestStore((s) => s.requests);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -111,7 +113,7 @@ export function RequestList() {
   if (sorted.length === 0) {
     return (
       <div style={styles.root}>
-        <div style={styles.empty}>No requests yet — type one above to get started.</div>
+        <div style={styles.empty}>{t('workshop.list.empty')}</div>
       </div>
     );
   }

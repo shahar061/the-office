@@ -5,6 +5,7 @@ import { AGENT_COLORS, type KanbanTask } from '@shared/types';
 import { colors } from '../../theme';
 import { computeLayout, type LayoutNode } from './graph-layout';
 import { getUpstreamChain, getDownstreamChain } from './graph-traversal';
+import { useT } from '../../i18n';
 
 const STATUS_FILL: Record<KanbanTask['status'], string> = {
   queued: '#333',
@@ -156,6 +157,7 @@ const styles = {
 } as const;
 
 export function DependencyGraph() {
+  const t = useT();
   const tasks = useKanbanStore((s) => s.kanban.tasks);
   const layout = useMemo(() => computeLayout(tasks), [tasks]);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -271,8 +273,8 @@ export function DependencyGraph() {
       <button
         style={styles.infoButton}
         onClick={() => setShowInfo(true)}
-        title="How to read this graph"
-        aria-label="Graph info"
+        title={t('kanban.graphInfo.title')}
+        aria-label={t('kanban.graphInfo.title')}
       >
         i
       </button>
@@ -379,6 +381,7 @@ export function DependencyGraph() {
 }
 
 function GraphInfoModal({ onClose }: { onClose: () => void }) {
+  const t = useT();
   // Small helper: an inline SVG mini-node matching the real GraphNode style
   const MiniNode = ({ status, label, agentColor = '#3b82f6', className }: {
     status: KanbanTask['status'];
@@ -414,51 +417,49 @@ function GraphInfoModal({ onClose }: { onClose: () => void }) {
     <div style={styles.modalBackdrop} onClick={onClose}>
       <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
-          <span style={styles.modalTitle}>How to read this graph</span>
-          <button style={styles.modalClose} onClick={onClose} aria-label="Close">✕</button>
+          <span style={styles.modalTitle}>{t('kanban.graphInfo.title')}</span>
+          <button style={styles.modalClose} onClick={onClose} aria-label={t('kanban.graphInfo.close')}>✕</button>
         </div>
         <div style={styles.modalBody}>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>What am I looking at?</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.intro.title')}</div>
             <div style={styles.sectionText}>
-              Each box is a build task. Tasks are grouped into columns by phase and flow left to right.
-              Arrows show dependencies — a task can't start until all tasks pointing to it are done.
+              {t('kanban.graphInfo.section.intro.text')}
             </div>
           </div>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Task status (color)</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.status.title')}</div>
             <div style={styles.sectionText}>
-              The fill color tells you what state the task is in.
+              {t('kanban.graphInfo.section.status.text')}
             </div>
             <div style={styles.legendRow}>
-              <MiniNode status="queued" label="Waiting to start" />
-              <div style={styles.legendLabel}>Queued — waiting on dependencies</div>
+              <MiniNode status="queued" label={t('kanban.graphInfo.status.queued.short')} />
+              <div style={styles.legendLabel}>{t('kanban.graphInfo.status.queued.full')}</div>
             </div>
             <div style={styles.legendRow}>
-              <MiniNode status="active" label="Running now" className="graph-node-active" />
-              <div style={styles.legendLabel}>Active — agent is working (pulses)</div>
+              <MiniNode status="active" label={t('kanban.graphInfo.status.active.short')} className="graph-node-active" />
+              <div style={styles.legendLabel}>{t('kanban.graphInfo.status.active.full')}</div>
             </div>
             <div style={styles.legendRow}>
-              <MiniNode status="review" label="Under review" />
-              <div style={styles.legendLabel}>In Review — self-review step</div>
+              <MiniNode status="review" label={t('kanban.graphInfo.status.review.short')} />
+              <div style={styles.legendLabel}>{t('kanban.graphInfo.status.review.full')}</div>
             </div>
             <div style={styles.legendRow}>
-              <MiniNode status="done" label="Finished" />
-              <div style={styles.legendLabel}>Done — completed successfully</div>
+              <MiniNode status="done" label={t('kanban.graphInfo.status.done.short')} />
+              <div style={styles.legendLabel}>{t('kanban.graphInfo.status.done.full')}</div>
             </div>
             <div style={styles.legendRow}>
-              <MiniNode status="failed" label="Failed" />
-              <div style={styles.legendLabel}>Failed — task errored out</div>
+              <MiniNode status="failed" label={t('kanban.graphInfo.status.failed.short')} />
+              <div style={styles.legendLabel}>{t('kanban.graphInfo.status.failed.full')}</div>
             </div>
           </div>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Agent badge (colored dot)</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.badge.title')}</div>
             <div style={styles.sectionText}>
-              The small colored dot in the top-left corner identifies which agent owns the task.
-              Each agent role (backend, frontend, etc.) has its own color.
+              {t('kanban.graphInfo.section.badge.text')}
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {Object.entries(AGENT_COLORS).slice(0, 8).map(([role, color]) => (
@@ -471,10 +472,9 @@ function GraphInfoModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Dependencies (arrows)</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.deps.title')}</div>
             <div style={styles.sectionText}>
-              Arrows go from the task that must finish first (source) to the task that depends on it (target).
-              If A → B, then B cannot start until A is done.
+              {t('kanban.graphInfo.section.deps.text')}
             </div>
             <svg width={320} height={60}>
               <defs>
@@ -497,28 +497,26 @@ function GraphInfoModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Hover to trace a chain</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.hover.title')}</div>
             <div style={styles.sectionText}>
-              Hover any task to highlight its full dependency chain — every task it depends on (upstream)
-              and every task that depends on it (downstream). Everything else dims. Perfect for answering
-              "why is this task stuck?"
+              {t('kanban.graphInfo.section.hover.text')}
             </div>
           </div>
 
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Navigation</div>
+            <div style={styles.sectionTitle}>{t('kanban.graphInfo.section.nav.title')}</div>
             <div style={styles.sectionText}>
               <div style={{ marginBottom: '6px' }}>
-                <span style={styles.kbd}>scroll</span>
-                zoom in / out around the cursor
+                <span style={styles.kbd}>{t('kanban.graphInfo.nav.scroll.kbd')}</span>
+                {t('kanban.graphInfo.nav.scroll.text')}
               </div>
               <div style={{ marginBottom: '6px' }}>
-                <span style={styles.kbd}>click + drag</span>
-                pan the view
+                <span style={styles.kbd}>{t('kanban.graphInfo.nav.drag.kbd')}</span>
+                {t('kanban.graphInfo.nav.drag.text')}
               </div>
               <div>
-                <span style={styles.kbd}>Fit to screen</span>
-                recenter and fit everything
+                <span style={styles.kbd}>{t('kanban.graphInfo.nav.fit.kbd')}</span>
+                {t('kanban.graphInfo.nav.fit.text')}
               </div>
             </div>
           </div>
