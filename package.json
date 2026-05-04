@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "description": "Pixel-art agent visualization Electron app",
   "main": "dist/main/main.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
