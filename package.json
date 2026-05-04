@@ -1,6 +1,6 @@
 {
   "name": "the-office",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pixel-art agent visualization Electron app",
   "main": "dist/main/main.js",
   "scripts": {
