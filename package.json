@@ -1,6 +1,6 @@
 {
   "name": "the-office",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Pixel-art agent visualization Electron app",
   "main": "dist/main/main.js",
   "directories": {
@@ -21,11 +21,20 @@
     "dev:worker": "cd feedback-worker && npm run dev",
     "deploy:worker": "cd feedback-worker && npm run deploy",
     "dev:admin": "cd feedback-admin && npm run dev",
-    "deploy:admin": "cd feedback-admin && npm run deploy"
+    "deploy:admin": "cd feedback-admin && npm run deploy",
+    "pack": "electron-vite build && electron-builder --dir",
+    "dist": "electron-vite build && electron-builder",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "keywords": [],
-  "author": "",
+  "author": "shahar061",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shahar061/the-office.git"
+  },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "@testing-library/dom": "^10.4.1",
@@ -39,6 +48,7 @@
     "@vitest/coverage-v8": "1.6",
     "commander": "^12.1.0",
     "electron": "^41.0.2",
+    "electron-builder": "^25.1.8",
     "electron-vite": "^5.0.0",
     "jsdom": "^21.1.2",
     "tsx": "^4.21.0",

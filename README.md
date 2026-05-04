@@ -87,6 +87,24 @@ npm run test:watch      # Watch mode
 npm run dev:jump        # Dev tool — jump straight to a specific agent/phase
 ```
 
+### Building installers locally
+```bash
+npm run pack            # Unpacked app for smoke-testing (no installer)
+npm run dist            # Installer for the host OS
+npm run dist:mac        # .dmg + .zip (macOS, x64 + arm64)
+npm run dist:win        # .exe NSIS installer (Windows, x64)
+npm run dist:linux      # .AppImage (Linux, x64)
+```
+Output lands in `release/`. Builds are unsigned by default — macOS users will see a Gatekeeper warning, Windows users a SmartScreen warning. Drop platform icons in `build/` (`icon.icns`, `icon.ico`, `icon.png`) to override the default Electron icon.
+
+### Cutting a release
+The `Release` GitHub Actions workflow builds installers for macOS, Windows, and Linux in parallel and uploads them to a draft GitHub Release.
+
+- **Tag-triggered:** `git tag v1.0.1 && git push origin v1.0.1` — builds run on all three OSes and publish to a draft release named after the tag.
+- **Manual:** open the *Release* workflow on GitHub → *Run workflow* → set `publish: false` for a build-only smoke test (artifacts attached to the run) or `publish: true` to publish.
+
+When the workflow finishes, edit the draft release on GitHub, write the changelog, and publish it.
+
 ---
 
 ## 🤝 Contributing — we want your help
