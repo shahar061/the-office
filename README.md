@@ -163,7 +163,17 @@ Use the **Report a bug** button inside the app (top-right icon rail → 🐛). I
 
 ### Code of conduct
 
-Be kind, be specific, assume good faith. We're building this for fun and for craft — let's keep it that way.
+Be kind, be specific, assume good faith. We're building this for fun and for craft — let's keep it that way. Full text in [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).
+
+For deeper detail on dev setup, PR workflow, and what good contributions look like, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+---
+
+## 🧑‍💻 Used by
+
+A list of teams and indie makers building with The Office. **Add yourself** by opening a PR that appends to this list — one bullet, link optional.
+
+- (Be the first — open a PR!)
 
 ---
 

@@ -1,0 +1,62 @@
+name: ✨ Feature request
+description: Suggest an enhancement or new capability.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting something new. The most useful proposals start from a real problem the user is hitting, not a solution looking for a problem.
+
+        > 💡 Not sure if this is the right shape yet? Open a [Discussion](https://github.com/shahar061/the-office/discussions) first to feel it out.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: One paragraph. Who hits this? When? What's painful?
+      placeholder: "When the build phase runs in the background, I have no way to know if it succeeded without re-opening the app. I'd love a system notification when it finishes."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed solution
+      description: How you'd like it to work. UI sketches, API shape, anything that makes the proposal concrete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: What else could solve this? Why does the proposed solution win?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Roughly how big do you think this is?
+      options:
+        - Small (a single component / a few files)
+        - Medium (a feature spanning a few areas)
+        - Large (cross-cutting / requires architecture changes)
+        - I have no idea — that's part of why I'm asking
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - label: I'd like to take a crack at the implementation if it gets accepted.
+          required: false
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched [open issues](https://github.com/shahar061/the-office/issues?q=is%3Aissue) and didn't find a duplicate.
+          required: true

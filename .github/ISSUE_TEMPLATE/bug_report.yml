@@ -1,0 +1,92 @@
+name: 🐛 Bug report
+description: Something is broken or behaves unexpectedly.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Filling this out completely makes triage 10× faster.
+
+        > 💡 If the bug is in the desktop app, the in-app **Report a bug** button (top-right icon rail → 🐛) auto-attaches platform, version, and language. Use that when you can — then come back here only if you also want public discussion.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear, specific description of the problem.
+      placeholder: "When I clicked the Build button, the office freezes and the kanban board never updates."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "Tasks should move from Queued to Active as engineers start working on them."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list, one step per line. Be specific.
+      placeholder: |
+        1. Open The Office
+        2. Create a new project from "an habit tracker app"
+        3. Wait for Imagine + War Room phases to complete
+        4. Click "Start Build"
+        5. Observe: the office freezes
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Visible at top-left of the app, or in Settings → About.
+      placeholder: "v0.1.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: platform-version
+    attributes:
+      label: OS version
+      placeholder: "macOS 14.5, Windows 11 23H2, Ubuntu 24.04, …"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace (optional but very helpful)
+      description: Paste from the in-app Logs panel, or `~/Library/Logs/the-office/` (mac), `%APPDATA%/the-office/logs/` (win), `~/.config/the-office/logs/` (linux).
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / screen recording
+      description: Drag and drop files. A 5-second screen recording of the freeze is worth a thousand words.
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched [open issues](https://github.com/shahar061/the-office/issues?q=is%3Aissue) and didn't find a duplicate.
+          required: true
+        - label: This is reproducible (not a one-off transient).
+          required: false
