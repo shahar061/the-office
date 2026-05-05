@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Press_Start_2P } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import FloatingPixels from "../../components/FloatingPixels";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -43,6 +44,7 @@ export default function EnglishRootLayout({
       <body className="min-h-screen antialiased">
         <FloatingPixels />
         <div className="relative z-10">{children}</div>
+        <Analytics />
       </body>
     </html>
   );

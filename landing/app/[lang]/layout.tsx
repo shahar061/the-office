@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Inter, Press_Start_2P } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 import FloatingPixels from "../../components/FloatingPixels";
 import {
@@ -68,6 +69,7 @@ export default async function LocaleRootLayout({
       <body className="min-h-screen antialiased">
         <FloatingPixels />
         <div className="relative z-10">{children}</div>
+        <Analytics />
       </body>
     </html>
   );
