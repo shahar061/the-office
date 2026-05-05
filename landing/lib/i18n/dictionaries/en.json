@@ -1,0 +1,153 @@
+{
+  "_status": "source",
+  "meta": {
+    "title": "pixel.team — Your AI agents deserve an office",
+    "description": "Watch your AI team build software in a virtual office. From idea to shipped product, with full visibility into every decision."
+  },
+  "nav": {
+    "features": "Features",
+    "howItWorks": "How it Works",
+    "github": "GitHub",
+    "download": "Download"
+  },
+  "hero": {
+    "badge": "pixel.team",
+    "headlinePrefix": "Describe ",
+    "typewriterPhrases": [
+      "your next big idea",
+      "a recipe sharing app",
+      "an AI-powered dashboard",
+      "a multiplayer game",
+      "your portfolio website",
+      "a SaaS for freelancers"
+    ],
+    "headlineSuffix": "Watch it get built.",
+    "subheadline": "A pixel-art virtual office where 15 AI agents brainstorm, plan, and code your project — while you watch.",
+    "viewOnGithub": "View on GitHub →",
+    "otherPlatforms": "Other platforms ↓",
+    "screenshotAlt": "The Office — pixel-art virtual office with AI agents working",
+    "trustLine": "Free & open source · Bring your own API keys"
+  },
+  "problem": {
+    "label": "THE PROBLEM",
+    "headline": "Great ideas shouldn't die in your notes app",
+    "subheadline": "There's a canyon between having a vision and shipping a product. Most people get stuck somewhere in between.",
+    "cards": [
+      {
+        "title": "I'm not technical",
+        "description": "You don't need to be. Describe your idea in plain English and let the AI team handle the rest."
+      },
+      {
+        "title": "I'm building alone",
+        "description": "Solo founders get a full team: PM, architect, frontend, backend, QA, and DevOps."
+      },
+      {
+        "title": "AI feels like a black box",
+        "description": "Watch every decision happen in real-time. See the reasoning, the code, the reviews."
+      },
+      {
+        "title": "Sessions spiral into chaos",
+        "description": "Structured phases keep work focused: discover, plan, then build. No more prompt soup."
+      }
+    ]
+  },
+  "phases": {
+    "label": "HOW IT WORKS",
+    "headline": "From napkin sketch to working code",
+    "subheadline": "Three structured phases keep your project on track, from idea to implementation.",
+    "items": [
+      {
+        "label": "PHASE 1",
+        "name": "Imagine",
+        "description": "Your AI team explores the problem space, validates ideas, and creates a comprehensive design.",
+        "artifacts": "Vision Brief · PRD · Market Analysis · System Design"
+      },
+      {
+        "label": "PHASE 2",
+        "name": "War Room",
+        "description": "The team breaks down the design into an actionable plan with clear tasks and specifications.",
+        "artifacts": "Implementation Plan · Task Breakdown · TDD Specs"
+      },
+      {
+        "label": "PHASE 3",
+        "name": "Build",
+        "description": "Engineers execute the plan, writing code with tests and reviews at every step.",
+        "artifacts": "Working Code · Tests · Code Review"
+      }
+    ]
+  },
+  "orgChart": {
+    "label": "YOUR TEAM",
+    "headline": "15 agents. Three departments. One office.",
+    "subheadline": "A complete virtual team that collaborates, reviews, and ships — so you don't have to do it alone."
+  },
+  "features": {
+    "label": "FEATURES",
+    "headline": "Not just watching. Working.",
+    "items": [
+      {
+        "label": "Live Visualization",
+        "title": "Every tool call becomes a character action",
+        "description": "Watch your AI agents move through the office in real-time as they write code, review PRs, and discuss architecture."
+      },
+      {
+        "label": "Project Management",
+        "title": "Kanban, code review, and cost tracking",
+        "description": "Built-in project dashboard with task boards, code diffs, and token usage tracking across all agents."
+      },
+      {
+        "label": "Artifacts",
+        "title": "Every decision, documented",
+        "description": "PRDs, system designs, implementation plans, and test specs are all saved as reviewable artifacts."
+      },
+      {
+        "label": "Works Locally",
+        "title": "Your repo, your machine, your keys",
+        "description": "Built-in git: every phase becomes a real commit on a real branch in your project. Powered by the Claude Agent SDK with your own API key — no servers, no telemetry, no lock-in."
+      }
+    ]
+  },
+  "workshop": {
+    "headline": "Need something quick? Use Workshop.",
+    "description": "Not every idea needs a full production. Workshop mode lets you spin up a single-prompt build — perfect for prototypes, landing pages, or quick experiments. No team, no phases, just results."
+  },
+  "mobile": {
+    "label": "MOBILE",
+    "comingSoonBadge": "Coming soon",
+    "headline": "Your office, in your pocket.",
+    "description": "Scan a QR code from the desktop app to pair your phone, watch builds stream in real-time, approve reviews, and nudge agents — all from the mobile companion.",
+    "inDevelopment": "In development — not yet shipped."
+  },
+  "finalCta": {
+    "headline": "Start building with your AI team.",
+    "subheadline": "Free. Open source. Bring your own API keys.",
+    "buttonLabel": "Download pixel.team",
+    "viewOnGithub": "View on GitHub →",
+    "trustLine": "Works with Claude Code · macOS, Windows, Linux · Open Source · Free"
+  },
+  "download": {
+    "released": "Released",
+    "headline": "Get the app",
+    "subheadline": "Free. Open source. Bring your own API keys.",
+    "primaryLabelPrefix": "Download for",
+    "primaryFallback": "Download",
+    "intelMacFallback": "On an Intel Mac? Download Intel build",
+    "betaWarning": "Beta build — unsigned. macOS: right-click → Open. Windows: More info → Run anyway.",
+    "allBuilds": "All builds",
+    "viewAllReleases": "View all releases on GitHub →",
+    "platformNotes": {
+      "macArm64": "DMG installer",
+      "macIntel": "DMG installer",
+      "windows": "NSIS installer",
+      "linux": "Self-contained"
+    }
+  },
+  "footer": {
+    "tagline": "Built with Claude Code",
+    "github": "GitHub",
+    "docs": "Docs"
+  },
+  "localeSwitcher": {
+    "ariaLabel": "Choose language"
+  }
+}

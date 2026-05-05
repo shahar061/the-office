@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Press_Start_2P } from "next/font/google";
-import "./globals.css";
-import FloatingPixels from "../components/FloatingPixels";
+import "../globals.css";
+import FloatingPixels from "../../components/FloatingPixels";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -14,19 +15,20 @@ const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "pixel.team \u2014 Your AI agents deserve an office",
-  description:
-    "Watch your AI team build software in a virtual office. From idea to shipped product, with full visibility into every decision.",
-  openGraph: {
-    title: "pixel.team \u2014 Your AI agents deserve an office",
-    description:
-      "Watch your AI team build software in a virtual office. From idea to shipped product, with full visibility into every decision.",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = await getDictionary("en");
+  return {
+    title: dict.meta.title,
+    description: dict.meta.description,
+    openGraph: {
+      title: dict.meta.title,
+      description: dict.meta.description,
+      type: "website",
+    },
+  };
+}
 
-export default function RootLayout({
+export default function EnglishRootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -34,6 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      dir="ltr"
       className={`${inter.variable} ${pressStart2P.variable}`}
       style={{ colorScheme: "dark" }}
     >

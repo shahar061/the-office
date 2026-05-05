@@ -96,6 +96,11 @@ export interface Feature {
   title: string;
   description: string;
   screenshotHint: string;
+  /** Optional path to a real screenshot. Falls back to placeholder when missing. */
+  imageSrc?: string;
+  /** Optional autoplay video. Takes precedence over imageSrc when present. */
+  videoSrc?: string;
+  posterSrc?: string;
 }
 
 export const FEATURES: Feature[] = [
@@ -106,6 +111,8 @@ export const FEATURES: Feature[] = [
     description:
       "Watch your AI agents move through the office in real-time as they write code, review PRs, and discuss architecture.",
     screenshotHint: "office-visualization",
+    videoSrc: "/media/features-live-visualization.mp4",
+    posterSrc: "/media/features-live-visualization-poster.jpg",
   },
   {
     label: "Project Management",
@@ -114,6 +121,7 @@ export const FEATURES: Feature[] = [
     description:
       "Built-in project dashboard with task boards, code diffs, and token usage tracking across all agents.",
     screenshotHint: "project-management",
+    imageSrc: "/media/features-project-management.jpg",
   },
   {
     label: "Artifacts",
@@ -122,14 +130,16 @@ export const FEATURES: Feature[] = [
     description:
       "PRDs, system designs, implementation plans, and test specs are all saved as reviewable artifacts.",
     screenshotHint: "artifacts",
+    imageSrc: "/media/features-artifacts.jpg",
   },
   {
-    label: "Integrations",
+    label: "Works Locally",
     labelColor: "#6366f1",
-    title: "Works with the tools you already use",
+    title: "Your repo, your machine, your keys",
     description:
-      "Connect to GitHub, Linear, Figma, and more. Your AI office fits into your existing workflow.",
-    screenshotHint: "integrations",
+      "Built-in git: every phase becomes a real commit on a real branch in your project. Powered by the Claude Agent SDK with your own API key — no servers, no telemetry, no lock-in.",
+    screenshotHint: "works-locally",
+    imageSrc: "/media/features-works-locally.jpg",
   },
 ];
 

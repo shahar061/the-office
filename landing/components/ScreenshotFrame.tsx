@@ -4,12 +4,24 @@ import { motion, useMotionValue, useTransform } from "framer-motion";
 import Image from "next/image";
 import type { MouseEvent } from "react";
 
-interface ScreenshotFrameProps {
-  src: string;
+interface BaseProps {
   alt: string;
 }
+interface ImageProps extends BaseProps {
+  src: string;
+  videoSrc?: never;
+  posterSrc?: never;
+}
+interface VideoProps extends BaseProps {
+  src?: never;
+  /** Path to an mp4. Renders an autoplay/muted/loop video. */
+  videoSrc: string;
+  /** Optional poster image shown before the video loads. */
+  posterSrc?: string;
+}
+type ScreenshotFrameProps = ImageProps | VideoProps;
 
-export function ScreenshotFrame({ src, alt }: ScreenshotFrameProps) {
+export function ScreenshotFrame(props: ScreenshotFrameProps) {
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.5);
 
@@ -48,15 +60,29 @@ export function ScreenshotFrame({ src, alt }: ScreenshotFrameProps) {
           </span>
         </div>
 
-        {/* Screenshot */}
-        <Image
-          src={src}
-          alt={alt}
-          width={1920}
-          height={1080}
-          className="w-full h-auto pixelated"
-          priority
-        />
+        {/* Media */}
+        {"videoSrc" in props && props.videoSrc ? (
+          <video
+            src={props.videoSrc}
+            poster={props.posterSrc}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label={props.alt}
+            className="w-full h-auto block"
+          />
+        ) : (
+          <Image
+            src={(props as ImageProps).src}
+            alt={props.alt}
+            width={1920}
+            height={1080}
+            className="w-full h-auto pixelated"
+            priority
+          />
+        )}
       </div>
     </motion.div>
   );

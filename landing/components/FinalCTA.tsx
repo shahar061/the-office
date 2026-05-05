@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -16,7 +17,11 @@ const fadeIn = (delay: number) => ({
   transition: { duration: 0.5, delay },
 });
 
-export function FinalCTA() {
+interface Props {
+  dict: Dictionary["finalCta"];
+}
+
+export function FinalCTA({ dict }: Props) {
   return (
     <section className="relative py-24 px-6 bg-[radial-gradient(ellipse_at_center,#1a1a2e_0%,#0f0f1a_70%)]">
       <div className="max-w-2xl mx-auto text-center">
@@ -24,14 +29,14 @@ export function FinalCTA() {
           className="text-3xl md:text-4xl font-bold text-text-primary"
           {...fadeUp(0)}
         >
-          Start building with your AI team.
+          {dict.headline}
         </motion.h2>
 
         <motion.p
           className="text-text-secondary text-[17px] mt-4"
           {...fadeIn(0.2)}
         >
-          Free. Open source. Bring your own API keys.
+          {dict.subheadline}
         </motion.p>
 
         <motion.div
@@ -40,12 +45,10 @@ export function FinalCTA() {
         >
           <div className="relative inline-block">
             <a
-              href="https://github.com/shahar061/the-office"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#download"
               className="relative z-10 inline-block bg-accent-blue text-white text-[17px] font-semibold px-8 py-4 rounded-xl hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-shadow"
             >
-              Download pixel.team
+              {dict.buttonLabel}
             </a>
             <span
               className="absolute inset-[-6px] border border-accent-blue/20 rounded-2xl pointer-events-none"
@@ -66,7 +69,7 @@ export function FinalCTA() {
             rel="noopener noreferrer"
             className="text-text-secondary text-[15px] hover:text-text-primary transition-colors"
           >
-            View on GitHub &rarr;
+            {dict.viewOnGithub}
           </a>
         </motion.div>
 
@@ -74,7 +77,7 @@ export function FinalCTA() {
           className="text-text-dim text-sm mt-8"
           {...fadeIn(0.6)}
         >
-          Works with Claude Code &middot; macOS &middot; Open Source
+          {dict.trustLine}
         </motion.p>
       </div>
     </section>

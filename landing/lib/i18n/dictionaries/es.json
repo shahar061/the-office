@@ -1,0 +1,153 @@
+{
+  "_status": "machine-translated, pending native review",
+  "meta": {
+    "title": "pixel.team — Tus agentes de IA merecen una oficina",
+    "description": "Mira cómo tu equipo de IA construye software en una oficina virtual. De la idea al producto enviado, con visibilidad total en cada decisión."
+  },
+  "nav": {
+    "features": "Características",
+    "howItWorks": "Cómo funciona",
+    "github": "GitHub",
+    "download": "Descargar"
+  },
+  "hero": {
+    "badge": "pixel.team",
+    "headlinePrefix": "Describe ",
+    "typewriterPhrases": [
+      "tu próxima gran idea",
+      "una app para compartir recetas",
+      "un panel con IA",
+      "un juego multijugador",
+      "tu portafolio web",
+      "un SaaS para freelancers"
+    ],
+    "headlineSuffix": "Míralo construirse.",
+    "subheadline": "Una oficina virtual pixel-art donde 15 agentes de IA piensan, planean y programan tu proyecto — mientras tú observas.",
+    "viewOnGithub": "Ver en GitHub →",
+    "otherPlatforms": "Otras plataformas ↓",
+    "screenshotAlt": "The Office — oficina virtual pixel-art con agentes de IA trabajando",
+    "trustLine": "Gratis y de código abierto · Usa tus propias claves de API"
+  },
+  "problem": {
+    "label": "EL PROBLEMA",
+    "headline": "Las grandes ideas no deberían morir en tu app de notas",
+    "subheadline": "Hay un abismo entre tener una visión y enviar un producto. La mayoría se queda atascada en algún punto entre ambos.",
+    "cards": [
+      {
+        "title": "No soy técnico",
+        "description": "No necesitas serlo. Describe tu idea en español sencillo y deja que el equipo de IA haga el resto."
+      },
+      {
+        "title": "Construyo solo",
+        "description": "Los founders en solitario reciben un equipo completo: PM, arquitecto, frontend, backend, QA y DevOps."
+      },
+      {
+        "title": "La IA es una caja negra",
+        "description": "Mira cada decisión en tiempo real. Ve el razonamiento, el código, las revisiones."
+      },
+      {
+        "title": "Las sesiones se vuelven caos",
+        "description": "Las fases estructuradas mantienen el trabajo enfocado: descubrir, planear, construir. Sin más sopa de prompts."
+      }
+    ]
+  },
+  "phases": {
+    "label": "CÓMO FUNCIONA",
+    "headline": "De boceto en servilleta a código funcional",
+    "subheadline": "Tres fases estructuradas mantienen tu proyecto en marcha, de la idea a la implementación.",
+    "items": [
+      {
+        "label": "FASE 1",
+        "name": "Imagine",
+        "description": "Tu equipo de IA explora el problema, valida ideas y crea un diseño completo.",
+        "artifacts": "Vision Brief · PRD · Análisis de mercado · Diseño del sistema"
+      },
+      {
+        "label": "FASE 2",
+        "name": "War Room",
+        "description": "El equipo descompone el diseño en un plan accionable con tareas y especificaciones claras.",
+        "artifacts": "Plan de implementación · Desglose de tareas · Specs TDD"
+      },
+      {
+        "label": "FASE 3",
+        "name": "Build",
+        "description": "Los ingenieros ejecutan el plan, escribiendo código con pruebas y revisiones en cada paso.",
+        "artifacts": "Código funcional · Pruebas · Revisión de código"
+      }
+    ]
+  },
+  "orgChart": {
+    "label": "TU EQUIPO",
+    "headline": "15 agentes. Tres departamentos. Una oficina.",
+    "subheadline": "Un equipo virtual completo que colabora, revisa y entrega — para que no tengas que hacerlo solo."
+  },
+  "features": {
+    "label": "CARACTERÍSTICAS",
+    "headline": "No solo observar. Trabajar.",
+    "items": [
+      {
+        "label": "Visualización en vivo",
+        "title": "Cada llamada a herramienta es una acción del personaje",
+        "description": "Mira a tus agentes de IA moverse por la oficina en tiempo real mientras escriben código, revisan PRs y discuten arquitectura."
+      },
+      {
+        "label": "Gestión de proyectos",
+        "title": "Kanban, revisión de código y seguimiento de costos",
+        "description": "Panel del proyecto integrado con tableros de tareas, diffs de código y seguimiento de uso de tokens entre todos los agentes."
+      },
+      {
+        "label": "Artefactos",
+        "title": "Cada decisión, documentada",
+        "description": "PRDs, diseños del sistema, planes de implementación y specs de pruebas se guardan como artefactos revisables."
+      },
+      {
+        "label": "Funciona localmente",
+        "title": "Tu repo, tu máquina, tus claves",
+        "description": "Git integrado: cada fase se convierte en un commit real en una rama real de tu proyecto. Funciona con el Claude Agent SDK usando tus propias claves de API — sin servidores, sin telemetría, sin dependencia."
+      }
+    ]
+  },
+  "workshop": {
+    "headline": "¿Necesitas algo rápido? Usa Workshop.",
+    "description": "No toda idea necesita una producción completa. El modo Workshop te permite generar un build con un solo prompt — ideal para prototipos, landing pages o experimentos rápidos. Sin equipo, sin fases, solo resultados."
+  },
+  "mobile": {
+    "label": "MÓVIL",
+    "comingSoonBadge": "Próximamente",
+    "headline": "Tu oficina, en tu bolsillo.",
+    "description": "Escanea un código QR desde la app de escritorio para emparejar tu teléfono, mira los builds en tiempo real, aprueba revisiones y guía a los agentes — todo desde el compañero móvil.",
+    "inDevelopment": "En desarrollo — aún no disponible."
+  },
+  "finalCta": {
+    "headline": "Empieza a construir con tu equipo de IA.",
+    "subheadline": "Gratis. De código abierto. Usa tus propias claves de API.",
+    "buttonLabel": "Descargar pixel.team",
+    "viewOnGithub": "Ver en GitHub →",
+    "trustLine": "Funciona con Claude Code · macOS, Windows, Linux · Código abierto · Gratis"
+  },
+  "download": {
+    "released": "Lanzado",
+    "headline": "Obtén la app",
+    "subheadline": "Gratis. De código abierto. Usa tus propias claves de API.",
+    "primaryLabelPrefix": "Descargar para",
+    "primaryFallback": "Descargar",
+    "intelMacFallback": "¿En un Mac Intel? Descarga la versión Intel",
+    "betaWarning": "Build beta — sin firmar. macOS: clic derecho → Abrir. Windows: Más información → Ejecutar de todos modos.",
+    "allBuilds": "Todos los builds",
+    "viewAllReleases": "Ver todos los lanzamientos en GitHub →",
+    "platformNotes": {
+      "macArm64": "Instalador DMG",
+      "macIntel": "Instalador DMG",
+      "windows": "Instalador NSIS",
+      "linux": "Autocontenido"
+    }
+  },
+  "footer": {
+    "tagline": "Construido con Claude Code",
+    "github": "GitHub",
+    "docs": "Documentación"
+  },
+  "localeSwitcher": {
+    "ariaLabel": "Elegir idioma"
+  }
+}

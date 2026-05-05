@@ -6,6 +6,8 @@ An open-source Electron app where a team of AI agents — CEO, Product Manager, 
 
 ![Electron](https://img.shields.io/badge/Electron-41-blue) ![React](https://img.shields.io/badge/React-19-blue) ![PixiJS](https://img.shields.io/badge/PixiJS-8-orange) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue) ![License](https://img.shields.io/badge/License-ISC-green)
 
+🌐 **[landing-alpha-cyan.vercel.app](https://landing-alpha-cyan.vercel.app)** — see what it does, then come back to install.
+
 ![The Office](docs/screenshot.png)
 
 ---

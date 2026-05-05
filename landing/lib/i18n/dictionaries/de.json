@@ -1,0 +1,153 @@
+{
+  "_status": "machine-translated, pending native review",
+  "meta": {
+    "title": "pixel.team — Deine KI-Agenten verdienen ein Büro",
+    "description": "Sieh deinem KI-Team beim Bau von Software in einem virtuellen Büro zu. Von der Idee zum fertigen Produkt, mit voller Sicht auf jede Entscheidung."
+  },
+  "nav": {
+    "features": "Funktionen",
+    "howItWorks": "So funktioniert's",
+    "github": "GitHub",
+    "download": "Download"
+  },
+  "hero": {
+    "badge": "pixel.team",
+    "headlinePrefix": "Beschreibe ",
+    "typewriterPhrases": [
+      "deine nächste große Idee",
+      "eine Rezept-App",
+      "ein KI-gestütztes Dashboard",
+      "ein Multiplayer-Spiel",
+      "deine Portfolio-Website",
+      "ein SaaS für Freelancer"
+    ],
+    "headlineSuffix": "Sieh es entstehen.",
+    "subheadline": "Ein Pixel-Art-Büro, in dem 15 KI-Agenten dein Projekt durchdenken, planen und programmieren — während du zusiehst.",
+    "viewOnGithub": "Auf GitHub ansehen →",
+    "otherPlatforms": "Andere Plattformen ↓",
+    "screenshotAlt": "The Office — Pixel-Art-Büro mit KI-Agenten bei der Arbeit",
+    "trustLine": "Kostenlos & Open Source · Eigene API-Schlüssel mitbringen"
+  },
+  "problem": {
+    "label": "DAS PROBLEM",
+    "headline": "Gute Ideen sollten nicht in deiner Notiz-App sterben",
+    "subheadline": "Zwischen Vision und fertigem Produkt klafft ein Abgrund. Die meisten bleiben irgendwo dazwischen stecken.",
+    "cards": [
+      {
+        "title": "Ich bin nicht technisch",
+        "description": "Musst du nicht. Beschreib deine Idee in einfachem Deutsch und lass das KI-Team den Rest erledigen."
+      },
+      {
+        "title": "Ich baue allein",
+        "description": "Solo-Founder bekommen ein komplettes Team: PM, Architekt, Frontend, Backend, QA und DevOps."
+      },
+      {
+        "title": "KI fühlt sich wie eine Blackbox an",
+        "description": "Sieh jeder Entscheidung in Echtzeit zu. Beobachte den Gedankengang, den Code, die Reviews."
+      },
+      {
+        "title": "Sessions enden im Chaos",
+        "description": "Strukturierte Phasen halten den Fokus: entdecken, planen, dann bauen. Schluss mit Prompt-Suppe."
+      }
+    ]
+  },
+  "phases": {
+    "label": "SO FUNKTIONIERT'S",
+    "headline": "Vom Servietten-Skizze zu funktionierendem Code",
+    "subheadline": "Drei strukturierte Phasen halten dein Projekt auf Kurs, von der Idee zur Umsetzung.",
+    "items": [
+      {
+        "label": "PHASE 1",
+        "name": "Imagine",
+        "description": "Dein KI-Team erkundet das Problem, validiert Ideen und entwirft ein vollständiges Design.",
+        "artifacts": "Vision Brief · PRD · Marktanalyse · System-Design"
+      },
+      {
+        "label": "PHASE 2",
+        "name": "War Room",
+        "description": "Das Team zerlegt das Design in einen umsetzbaren Plan mit klaren Tasks und Specs.",
+        "artifacts": "Implementierungsplan · Task-Aufteilung · TDD-Specs"
+      },
+      {
+        "label": "PHASE 3",
+        "name": "Build",
+        "description": "Die Engineers setzen den Plan um, schreiben Code mit Tests und Reviews in jedem Schritt.",
+        "artifacts": "Funktionierender Code · Tests · Code Review"
+      }
+    ]
+  },
+  "orgChart": {
+    "label": "DEIN TEAM",
+    "headline": "15 Agenten. Drei Abteilungen. Ein Büro.",
+    "subheadline": "Ein komplettes virtuelles Team, das zusammenarbeitet, prüft und ausliefert — damit du es nicht allein machen musst."
+  },
+  "features": {
+    "label": "FUNKTIONEN",
+    "headline": "Nicht nur zusehen. Mitarbeiten.",
+    "items": [
+      {
+        "label": "Live-Visualisierung",
+        "title": "Jeder Tool-Aufruf wird zur Charakter-Aktion",
+        "description": "Sieh deinen KI-Agenten in Echtzeit dabei zu, wie sie durchs Büro laufen, Code schreiben, PRs reviewen und über Architektur diskutieren."
+      },
+      {
+        "label": "Projekt-Management",
+        "title": "Kanban, Code Review und Kostentracking",
+        "description": "Eingebautes Projekt-Dashboard mit Task-Boards, Code-Diffs und Token-Verbrauch über alle Agenten hinweg."
+      },
+      {
+        "label": "Artefakte",
+        "title": "Jede Entscheidung, dokumentiert",
+        "description": "PRDs, System-Designs, Implementierungspläne und Test-Specs werden als prüfbare Artefakte gespeichert."
+      },
+      {
+        "label": "Lokal bei dir",
+        "title": "Dein Repo, dein Rechner, deine Keys",
+        "description": "Eingebautes Git: jede Phase wird zu einem echten Commit auf einem echten Branch in deinem Projekt. Läuft mit dem Claude Agent SDK und deinen eigenen API-Schlüsseln — keine Server, keine Telemetrie, kein Lock-in."
+      }
+    ]
+  },
+  "workshop": {
+    "headline": "Brauchst du was Schnelles? Nimm Workshop.",
+    "description": "Nicht jede Idee braucht eine volle Produktion. Der Workshop-Modus baut dir aus einem einzigen Prompt heraus — perfekt für Prototypen, Landing Pages oder schnelle Experimente. Kein Team, keine Phasen, nur Ergebnisse."
+  },
+  "mobile": {
+    "label": "MOBIL",
+    "comingSoonBadge": "Bald verfügbar",
+    "headline": "Dein Büro, in der Hosentasche.",
+    "description": "Scanne einen QR-Code aus der Desktop-App, um dein Telefon zu koppeln, verfolge Builds live, genehmige Reviews und stupse Agenten an — alles vom Mobil-Begleiter aus.",
+    "inDevelopment": "In Entwicklung — noch nicht verfügbar."
+  },
+  "finalCta": {
+    "headline": "Leg los mit deinem KI-Team.",
+    "subheadline": "Kostenlos. Open Source. Eigene API-Schlüssel mitbringen.",
+    "buttonLabel": "pixel.team herunterladen",
+    "viewOnGithub": "Auf GitHub ansehen →",
+    "trustLine": "Funktioniert mit Claude Code · macOS, Windows, Linux · Open Source · Kostenlos"
+  },
+  "download": {
+    "released": "Veröffentlicht",
+    "headline": "Hol dir die App",
+    "subheadline": "Kostenlos. Open Source. Eigene API-Schlüssel mitbringen.",
+    "primaryLabelPrefix": "Download für",
+    "primaryFallback": "Download",
+    "intelMacFallback": "Auf einem Intel-Mac? Lade die Intel-Version",
+    "betaWarning": "Beta-Build — unsigniert. macOS: Rechtsklick → Öffnen. Windows: Weitere Informationen → Trotzdem ausführen.",
+    "allBuilds": "Alle Builds",
+    "viewAllReleases": "Alle Releases auf GitHub ansehen →",
+    "platformNotes": {
+      "macArm64": "DMG-Installer",
+      "macIntel": "DMG-Installer",
+      "windows": "NSIS-Installer",
+      "linux": "Eigenständig"
+    }
+  },
+  "footer": {
+    "tagline": "Gebaut mit Claude Code",
+    "github": "GitHub",
+    "docs": "Docs"
+  },
+  "localeSwitcher": {
+    "ariaLabel": "Sprache wählen"
+  }
+}

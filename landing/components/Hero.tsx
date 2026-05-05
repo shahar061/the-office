@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { Typewriter } from "./Typewriter";
 import { ScreenshotFrame } from "./ScreenshotFrame";
-import { TYPEWRITER_PHRASES } from "@/lib/constants";
+import { PrimaryDownloadButton } from "./PrimaryDownloadButton";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 const fadeIn = { initial: { opacity: 0 }, animate: { opacity: 1 } };
 const fadeUp = (delay: number) => ({
@@ -12,7 +13,11 @@ const fadeUp = (delay: number) => ({
   transition: { duration: 0.6, delay },
 });
 
-export function Hero() {
+interface Props {
+  dict: Dictionary["hero"];
+}
+
+export function Hero({ dict }: Props) {
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-6 pt-20 pb-16 bg-[radial-gradient(ellipse_at_center,#1a1a2e_0%,#0f0f1a_70%)]">
       {/* Badge */}
@@ -20,7 +25,7 @@ export function Hero() {
         className="font-pixel text-[10px] tracking-[3px] text-accent-amber uppercase mb-6"
         {...fadeIn}
       >
-        pixel.team
+        {dict.badge}
       </motion.p>
 
       {/* Headline */}
@@ -31,15 +36,15 @@ export function Hero() {
         transition={{ delay: 0.2 }}
       >
         <h1 className="text-4xl md:text-5xl font-extrabold">
-          <span className="text-text-muted">Describe </span>
-          <Typewriter phrases={TYPEWRITER_PHRASES} />
+          <span className="text-text-muted">{dict.headlinePrefix}</span>
+          <Typewriter phrases={dict.typewriterPhrases} />
         </h1>
 
         <motion.p
           className="text-4xl md:text-5xl font-extrabold text-text-primary mt-2"
           {...fadeUp(0.8)}
         >
-          Watch it get built.
+          {dict.headlineSuffix}
         </motion.p>
       </motion.div>
 
@@ -48,35 +53,40 @@ export function Hero() {
         className="text-lg text-text-secondary max-w-xl text-center mb-9 mt-6"
         {...fadeUp(1.0)}
       >
-        A pixel-art virtual office where 15 AI agents brainstorm, plan, and code
-        your project — while you watch.
+        {dict.subheadline}
       </motion.p>
 
       {/* CTAs */}
       <motion.div
-        className="flex flex-col sm:flex-row items-center gap-4"
+        className="flex flex-col items-center gap-3"
         {...fadeUp(1.1)}
       >
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <PrimaryDownloadButton
+            className="bg-accent-blue text-white text-base font-semibold px-7 py-3.5 rounded-xl hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] transition-shadow"
+          />
+          <a
+            href="https://github.com/shahar061/the-office"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-secondary underline underline-offset-4 hover:text-text-primary transition-colors"
+          >
+            {dict.viewOnGithub}
+          </a>
+        </div>
         <a
           href="#download"
-          className="bg-accent-blue text-white text-base font-semibold px-7 py-3.5 rounded-xl hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] transition-shadow"
+          className="text-text-dim text-sm hover:text-text-secondary transition-colors"
         >
-          Download for macOS
-        </a>
-        <a
-          href="https://github.com/shahar061/the-office"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-text-secondary underline underline-offset-4 hover:text-text-primary transition-colors"
-        >
-          View on GitHub &rarr;
+          {dict.otherPlatforms}
         </a>
       </motion.div>
 
-      {/* Screenshot */}
+      {/* Hero clip */}
       <ScreenshotFrame
-        src="/screenshot.png"
-        alt="The Office — pixel-art virtual office with AI agents working"
+        videoSrc="/media/hero.mp4"
+        posterSrc="/media/hero-poster.jpg"
+        alt={dict.screenshotAlt}
       />
 
       {/* Trust line */}
@@ -86,7 +96,7 @@ export function Hero() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5 }}
       >
-        Free &amp; open source &middot; Bring your own API keys
+        {dict.trustLine}
       </motion.p>
     </section>
   );

@@ -3,9 +3,14 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { PHASES } from "@/lib/constants";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import ScrollReveal from "./ScrollReveal";
 
-function ProgressBar() {
+function ProgressBar({
+  labels,
+}: {
+  labels: ReadonlyArray<string>;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -28,9 +33,9 @@ function ProgressBar() {
         </div>
 
         {/* Dots */}
-        {PHASES.map((phase) => (
+        {PHASES.map((phase, i) => (
           <motion.div
-            key={phase.name}
+            key={i}
             className="w-4 h-4 rounded-full relative z-10"
             style={{ backgroundColor: phase.color }}
             whileInView={{
@@ -45,13 +50,13 @@ function ProgressBar() {
 
       {/* Labels */}
       <div className="flex justify-between mt-2">
-        {PHASES.map((phase) => (
+        {PHASES.map((phase, i) => (
           <span
-            key={phase.name}
+            key={i}
             className="font-pixel text-[9px] tracking-wider"
             style={{ color: phase.color }}
           >
-            {phase.label}
+            {labels[i] ?? phase.label}
           </span>
         ))}
       </div>
@@ -59,59 +64,59 @@ function ProgressBar() {
   );
 }
 
-export function PhasesSection() {
+export function PhasesSection({ dict }: { dict: Dictionary["phases"] }) {
   return (
     <section id="how-it-works" className="py-24 px-6">
       {/* Header */}
       <div className="text-center mb-12">
         <p className="font-pixel text-[10px] tracking-[3px] text-text-muted uppercase mb-4">
-          HOW IT WORKS
+          {dict.label}
         </p>
         <h2 className="text-3xl md:text-4xl font-extrabold text-text-primary mb-4">
-          From napkin sketch to working code
+          {dict.headline}
         </h2>
         <p className="text-text-secondary text-lg max-w-xl mx-auto">
-          Three structured phases keep your project on track, from idea to
-          implementation.
+          {dict.subheadline}
         </p>
       </div>
 
-      <ProgressBar />
+      <ProgressBar labels={dict.items.map((it) => it.label)} />
 
       {/* Phase cards grid */}
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-        {PHASES.map((phase, i) => (
-          <ScrollReveal key={phase.name} delay={i * 0.15}>
-            <motion.div
-              className="bg-surface border border-border rounded-xl p-7 h-full"
-              style={{ borderTopColor: phase.color, borderTopWidth: 3 }}
-              whileHover={{ translateY: -4 }}
-            >
-              <p
-                className="font-pixel text-[9px] tracking-wider mb-2"
-                style={{ color: phase.color }}
+        {PHASES.map((phase, i) => {
+          const item = dict.items[i] ?? {
+            label: phase.label,
+            name: phase.name,
+            description: phase.description,
+            artifacts: phase.artifacts,
+          };
+          return (
+            <ScrollReveal key={i} delay={i * 0.15}>
+              <motion.div
+                className="bg-surface border border-border rounded-xl p-7 h-full"
+                style={{ borderTopColor: phase.color, borderTopWidth: 3 }}
+                whileHover={{ translateY: -4 }}
               >
-                {phase.label}
-              </p>
-              <h3 className="text-xl font-bold text-text-primary mb-2">
-                {phase.name}
-              </h3>
-              <p className="text-sm text-text-secondary leading-relaxed mb-4">
-                {phase.description}
-              </p>
-              <div className="border-t border-border pt-3">
-                <p className="text-xs text-text-muted">{phase.artifacts}</p>
-              </div>
-            </motion.div>
-          </ScrollReveal>
-        ))}
-      </div>
-
-      {/* Screenshot slot */}
-      <div className="max-w-3xl mx-auto mt-10 bg-surface-light border border-dashed border-border rounded-xl p-10 text-center">
-        <p className="text-text-muted text-sm">
-          Screenshot placeholder -- workflow visualization
-        </p>
+                <p
+                  className="font-pixel text-[9px] tracking-wider mb-2"
+                  style={{ color: phase.color }}
+                >
+                  {item.label}
+                </p>
+                <h3 className="text-xl font-bold text-text-primary mb-2">
+                  {item.name}
+                </h3>
+                <p className="text-sm text-text-secondary leading-relaxed mb-4">
+                  {item.description}
+                </p>
+                <div className="border-t border-border pt-3">
+                  <p className="text-xs text-text-muted">{item.artifacts}</p>
+                </div>
+              </motion.div>
+            </ScrollReveal>
+          );
+        })}
       </div>
     </section>
   );

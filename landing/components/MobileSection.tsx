@@ -1,6 +1,11 @@
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import ScrollReveal from "./ScrollReveal";
 
-export function MobileSection() {
+interface Props {
+  dict: Dictionary["mobile"];
+}
+
+export function MobileSection({ dict }: Props) {
   return (
     <section className="py-20 px-6">
       <div className="max-w-3xl mx-auto flex flex-col md:flex-row items-center gap-10">
@@ -31,16 +36,20 @@ export function MobileSection() {
         {/* Text side */}
         <ScrollReveal direction="right" distance={40} delay={0.15}>
           <div>
-            <p className="font-pixel text-[9px] tracking-[3px] text-accent-blue uppercase mb-3">
-              MOBILE
-            </p>
+            <div className="flex items-center gap-3 mb-3">
+              <p className="font-pixel text-[9px] tracking-[3px] text-accent-blue uppercase">
+                {dict.label}
+              </p>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber text-[10px] font-mono uppercase tracking-wider">
+                {dict.comingSoonBadge}
+              </span>
+            </div>
             <h3 className="text-text-primary text-2xl font-bold mb-3">
-              Your office, in your pocket.
+              {dict.headline}
             </h3>
             <p className="text-text-secondary text-[15px] leading-relaxed">
-              Scan a QR code from the desktop app to pair your phone. Watch
-              builds stream in real-time, approve reviews, and nudge agents --
-              all from the mobile companion.
+              {dict.description}{" "}
+              <span className="text-text-dim">{dict.inDevelopment}</span>
             </p>
           </div>
         </ScrollReveal>

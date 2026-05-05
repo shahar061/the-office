@@ -66,7 +66,7 @@ export function Typewriter({
     <span className="inline-flex items-center">
       <span data-testid="typewriter-text">{displayText}</span>
       <motion.span
-        className="inline-block w-[3px] h-[1em] bg-accent-blue ml-0.5"
+        className="inline-block w-[3px] h-[1em] bg-accent-blue ms-0.5"
         animate={{ opacity: [1, 0] }}
         transition={{
           duration: 0.8,

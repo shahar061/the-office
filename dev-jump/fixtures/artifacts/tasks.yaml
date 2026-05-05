@@ -1,49 +1,119 @@
-# <!-- last-reviewed: 2026-04-24 -->
-tasks:
-  - id: foundation-scaffold
-    description: "Scaffold React Native project with TypeScript template"
-    assignedAgent: mobile-developer
-    phaseId: foundation
-    dependsOn: []
+version: "1.0"
+project: "Habit Streak Tracker"
 
-  - id: foundation-sqlite
-    description: "Add SQLite dependency and set up migration runner"
-    assignedAgent: mobile-developer
-    phaseId: foundation
-    dependsOn: [foundation-scaffold]
+phases:
+  # ── Phase 1: Foundation ────────────────────────────────────
+  # Three independent tasks fan out in parallel (kanban shows
+  # frontend / backend / devops all going at once on first tick).
+  - id: foundation
+    name: "Foundation"
+    tasks:
+      - id: foundation-scaffold
+        description: "Scaffold React Native app with TypeScript"
+        assigned_agent: mobile_developer
+        depends_on: []
+        acceptance_criteria:
+          - "App builds and runs on iOS simulator"
+          - "TypeScript strict mode enabled"
 
-  - id: foundation-datamodel
-    description: "Define habit and check_ins tables and migration"
-    assignedAgent: mobile-developer
-    phaseId: foundation
-    dependsOn: [foundation-sqlite]
+      - id: foundation-api-skeleton
+        description: "Stand up Node + Express API skeleton"
+        assigned_agent: backend_engineer
+        depends_on: []
+        acceptance_criteria:
+          - "Health endpoint responds 200"
+          - "TypeScript build passes"
 
-  - id: checkin-home
-    description: "Build home screen with habit name and streak"
-    assignedAgent: frontend-engineer
-    phaseId: checkin
-    dependsOn: [foundation-datamodel]
+      - id: foundation-ci
+        description: "GitHub Actions CI pipeline (test + lint)"
+        assigned_agent: devops
+        depends_on: []
+        acceptance_criteria:
+          - "CI runs on every PR"
+          - "Caching configured for Node modules"
 
-  - id: checkin-button
-    description: "Check-in button with once-per-day guard"
-    assignedAgent: frontend-engineer
-    phaseId: checkin
-    dependsOn: [checkin-home]
+  # ── Phase 2: Data layer ────────────────────────────────────
+  - id: data
+    name: "Data Layer"
+    tasks:
+      - id: data-schema
+        description: "Design SQLite schema (habits + check_ins)"
+        assigned_agent: data_engineer
+        depends_on: [foundation-scaffold]
+        acceptance_criteria:
+          - "Migration runs cleanly"
+          - "Indexes on user_id + date"
 
-  - id: checkin-streak
-    description: "Compute streak from check_ins table"
-    assignedAgent: backend-engineer
-    phaseId: checkin
-    dependsOn: [checkin-home]
+      - id: data-migration
+        description: "Migration runner with rollback support"
+        assigned_agent: data_engineer
+        depends_on: [data-schema]
+        acceptance_criteria:
+          - "Up + down migrations both work"
+          - "Test fixture seeds verified"
 
-  - id: history-dashboard
-    description: "Monthly grid view of check-ins"
-    assignedAgent: frontend-engineer
-    phaseId: history
-    dependsOn: [checkin-streak]
+  # ── Phase 3: Check-in flow ─────────────────────────────────
+  # Four tasks run in parallel here — fills the kanban Active
+  # column with all four engineering disciplines simultaneously.
+  - id: checkin
+    name: "Check-in Flow"
+    tasks:
+      - id: checkin-home-ui
+        description: "Home screen — habit name + streak counter"
+        assigned_agent: frontend_engineer
+        depends_on: [foundation-scaffold]
+        acceptance_criteria:
+          - "Streak counter renders from local state"
+          - "Empty state for first-time user"
 
-  - id: settings-panel
-    description: "Rename, reset, reminder time, strict/lenient mode"
-    assignedAgent: frontend-engineer
-    phaseId: history
-    dependsOn: [checkin-button]
+      - id: checkin-button
+        description: "Daily check-in button (once-per-day guard)"
+        assigned_agent: frontend_engineer
+        depends_on: [checkin-home-ui]
+        acceptance_criteria:
+          - "Disabled if already checked in today"
+          - "Optimistic update + rollback on failure"
+
+      - id: checkin-streak-calc
+        description: "Streak calculation service from check_ins"
+        assigned_agent: backend_engineer
+        depends_on: [data-migration]
+        acceptance_criteria:
+          - "Handles missed days per strict/lenient mode"
+          - "Unit tests cover edge cases"
+
+      - id: checkin-e2e
+        description: "End-to-end test for check-in happy path"
+        assigned_agent: automation_developer
+        depends_on: [checkin-button, checkin-streak-calc]
+        acceptance_criteria:
+          - "Tap → check-in recorded → streak increments"
+          - "Runs headless in CI"
+
+  # ── Phase 4: History + Settings ────────────────────────────
+  - id: history
+    name: "History & Settings"
+    tasks:
+      - id: history-dashboard
+        description: "Monthly grid view of check-ins"
+        assigned_agent: frontend_engineer
+        depends_on: [checkin-streak-calc]
+        acceptance_criteria:
+          - "Past 30 days rendered"
+          - "Tap a day to see its check-in"
+
+      - id: settings-panel
+        description: "Settings: rename, reset, reminder time, mode"
+        assigned_agent: frontend_engineer
+        depends_on: [checkin-button]
+        acceptance_criteria:
+          - "All settings persist to local storage"
+          - "Reset confirmation dialog"
+
+      - id: deploy-pipeline
+        description: "Build + sign + upload to TestFlight"
+        assigned_agent: devops
+        depends_on: [history-dashboard, settings-panel]
+        acceptance_criteria:
+          - "Triggered on tag push"
+          - "Artifacts uploaded to TestFlight automatically"

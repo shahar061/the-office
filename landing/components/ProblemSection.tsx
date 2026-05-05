@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { PROBLEM_CARDS } from "@/lib/constants";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 const Y_OFFSETS = [-40, -20, 20, 40] as const;
 
@@ -56,34 +57,39 @@ function ProblemCard({
   );
 }
 
-export function ProblemSection() {
+export function ProblemSection({ dict }: { dict: Dictionary["problem"] }) {
   return (
     <section className="py-24 px-6">
       {/* Header */}
       <div className="text-center mb-12">
         <p className="font-pixel text-[10px] tracking-[3px] text-text-muted uppercase mb-4">
-          THE PROBLEM
+          {dict.label}
         </p>
         <h2 className="text-3xl md:text-4xl font-extrabold text-text-primary mb-4">
-          Great ideas shouldn&apos;t die in your notes app
+          {dict.headline}
         </h2>
         <p className="text-text-secondary text-lg max-w-xl mx-auto">
-          There&apos;s a canyon between having a vision and shipping a product.
-          Most people get stuck somewhere in between.
+          {dict.subheadline}
         </p>
       </div>
 
       {/* Cards grid */}
       <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {PROBLEM_CARDS.map((card, index) => (
-          <ProblemCard
-            key={card.title}
-            emoji={card.emoji}
-            title={card.title}
-            description={card.description}
-            index={index}
-          />
-        ))}
+        {PROBLEM_CARDS.map((card, index) => {
+          const localized = dict.cards[index] ?? {
+            title: card.title,
+            description: card.description,
+          };
+          return (
+            <ProblemCard
+              key={index}
+              emoji={card.emoji}
+              title={localized.title}
+              description={localized.description}
+              index={index}
+            />
+          );
+        })}
       </div>
     </section>
   );

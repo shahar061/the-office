@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { AGENTS } from "@/lib/constants";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 /* ── internal sub-components ─────────────────────────────── */
 
@@ -108,7 +109,7 @@ const leadership = AGENTS[0].agents;
 const coordination = AGENTS[1].agents;
 const engineering = AGENTS[2].agents;
 
-export function OrgChart() {
+export function OrgChart({ dict }: { dict: Dictionary["orgChart"] }) {
   const ceo = leadership[0];
   const leadershipRest = leadership.slice(1);
 
@@ -122,14 +123,13 @@ export function OrgChart() {
         {/* header */}
         <div className="text-center mb-12">
           <p className="font-pixel text-[10px] tracking-[3px] text-text-muted uppercase mb-4">
-            YOUR TEAM
+            {dict.label}
           </p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-text-primary mb-4">
-            15 agents. Three departments. One office.
+            {dict.headline}
           </h2>
           <p className="text-text-secondary text-lg max-w-xl mx-auto">
-            A complete virtual team that collaborates, reviews, and ships -- so
-            you don&apos;t have to do it alone.
+            {dict.subheadline}
           </p>
         </div>
 

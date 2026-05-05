@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/config";
+import { LocaleSwitcher } from "./LocaleSwitcher";
 
-const navLinks = [
-  { label: "Features", href: "#features" },
-  { label: "How it Works", href: "#how-it-works" },
-  {
-    label: "GitHub",
-    href: "https://github.com/shahar061/the-office",
-    external: true,
-  },
-];
+interface Props {
+  dict: Dictionary["nav"];
+  locale: Locale;
+}
 
-export default function Nav() {
+export default function Nav({ dict, locale }: Props) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -21,6 +19,16 @@ export default function Nav() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const navLinks = [
+    { label: dict.features, href: "#features" },
+    { label: dict.howItWorks, href: "#how-it-works" },
+    {
+      label: dict.github,
+      href: "https://github.com/shahar061/the-office",
+      external: true,
+    },
+  ];
 
   return (
     <nav
@@ -39,8 +47,8 @@ export default function Nav() {
           pixel.team
         </a>
 
-        {/* Right: links + CTA */}
-        <div className="flex items-center gap-6">
+        {/* Right: links + locale + CTA */}
+        <div className="flex items-center gap-4 md:gap-6">
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -54,11 +62,13 @@ export default function Nav() {
             </a>
           ))}
 
+          <LocaleSwitcher currentLocale={locale} />
+
           <a
             href="#download"
             className="bg-accent-blue text-white text-sm font-semibold px-5 py-2 rounded-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-shadow"
           >
-            Download
+            {dict.download}
           </a>
         </div>
       </div>
