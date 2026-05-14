@@ -440,4 +440,19 @@ export const de: Partial<Record<StringKey, string>> = {
   'agent.devops': 'DevOps',
   'agent.automation-developer': 'Automation Developer',
   'agent.freelancer': 'Freelancer',
+
+  // Chat — stop/redirect
+  'chat.stop': 'Stopp',
+  'chat.redirectPlaceholder': 'Anweisung zum Umlenken eingeben…',
+  'chat.interrupted.title': 'Von Ihnen unterbrochen',
+  'chat.interrupted.agent': 'Agent: {agent}',
+  'chat.interrupted.restartStep': 'Schritt neu starten',
+  'chat.interrupted.leavePaused': 'Pausiert lassen',
+
+  // Build — pause/resume
+  'build.stopBuild': 'Build stoppen',
+  'build.paused.banner': 'Build pausiert — {done} von {total} Aufgaben übrig',
+  'build.paused.resume': 'Fortsetzen',
+  'build.paused.restart': 'Build neu starten',
+  'build.paused.leave': 'Pausiert lassen',
 };
