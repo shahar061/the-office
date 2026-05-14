@@ -79,6 +79,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     onWarTableChoreography({ step: 'pm-reading' });
     onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
 
+    const pmPlanWasForced = config.forceRerunAct === 'pm-plan';
     setCurrentAct('pm-plan', 'docs/office/plan.md');
     if (config.signal?.aborted) {
       const err: any = new Error('Aborted');
@@ -107,6 +108,11 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
       onEvent,
       onWaiting,
     });
+
+    if (pmPlanWasForced) {
+      const { clearInterruptionFile } = await import('./interruption');
+      await clearInterruptionFile(projectDir);
+    }
 
     // Parse milestones and emit cards with staggered timing
     onWarTableChoreography({ step: 'pm-writing' });
@@ -143,6 +149,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     ? `\n\nThe user reviewed the plan and has this feedback — incorporate it into your task breakdown:\n${reviewResponse.feedback}`
     : '';
 
+  const tlTasksWasForced = config.forceRerunAct === 'tl-tasks';
   setCurrentAct('tl-tasks', 'docs/office/tasks.yaml');
   if (config.signal?.aborted) {
     const err: any = new Error('Aborted');
@@ -187,6 +194,11 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     onEvent,
     onWaiting,
   });
+
+  if (tlTasksWasForced) {
+    const { clearInterruptionFile } = await import('./interruption');
+    await clearInterruptionFile(projectDir);
+  }
 
   onWarTableChoreography({ step: 'tl-writing' });
   onSystemMessage('Task manifest ready. Parsing phases...');
@@ -238,6 +250,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     phases,
     maxConcurrency,
     async (phase, index) => {
+      const tlPhaseWasForced = config.forceRerunAct === `tl-phase-${phase.id}`;
       setCurrentAct(`tl-phase-${phase.id}`, `docs/office/specs/phase-${phase.id}.md`);
       if (config.signal?.aborted) {
         const err: any = new Error('Aborted');
@@ -299,6 +312,11 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
         onEvent,
         onWaiting,
       });
+
+      if (tlPhaseWasForced) {
+        const { clearInterruptionFile } = await import('./interruption');
+        await clearInterruptionFile(projectDir);
+      }
 
       onWarTableChoreography({ step: 'tl-clone-done', cloneId: `tl-${phase.id}`, phaseId: phase.id });
 

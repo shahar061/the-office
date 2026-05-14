@@ -54,6 +54,10 @@ async function runAct(act: Act, artifactStore: ArtifactStore, config: ImagineCon
     config.onActStart?.(act.name);
     await act.run();
     config.onActComplete?.(act.name);
+    if (force) {
+      const { clearInterruptionFile } = await import('./interruption');
+      await clearInterruptionFile(config.projectDir);
+    }
   }
   config.onArtifactAvailable(act.artifact);
 }

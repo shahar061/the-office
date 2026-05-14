@@ -35,6 +35,9 @@ import {
   startPhaseInterruption,
   clearPhaseInterruption,
   abortPhase,
+  loadInterruption,
+  saveUserRedirect,
+  clearInterruptionFile,
 } from '../orchestrator/interruption';
 import { runAdvanceAfter } from '../orchestrator/phase-advance';
 import { runWorkshopRequest } from '../orchestrator/workshop';
@@ -97,6 +100,26 @@ import type { BuildState } from '../orchestrator/build';
 import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 
 let lastBuildState: BuildState | null = null;
+let pendingForceRerunAct: string | null = null;
+
+async function resumeAfterInterrupt(): Promise<void> {
+  if (!currentProjectDir) return;
+  const interruption = await loadInterruption(currentProjectDir);
+  if (!interruption) return;
+
+  if (interruption.phase === 'imagine') {
+    pendingForceRerunAct = interruption.actName;
+    await resumePhase('imagine');
+  } else if (interruption.phase === 'warroom') {
+    pendingForceRerunAct = interruption.actName;
+    await handleStartWarroom();
+  } else if (interruption.phase === 'build') {
+    // Build doesn't use forceRerunAct (tasks tracked by kanban status, not files)
+    await handleStartBuild({
+      modelPreset: 'default', retryLimit: 2, permissionMode: 'auto-all',
+    });
+  }
+}
 
 const WORKSHOP_GIT_DENY = [
   /^git\s+(commit|checkout|reset|branch|merge|rebase|stash|push|pull|rm|clean)\b/,
@@ -194,6 +217,9 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
 
   const signal = startPhaseInterruption('imagine');
 
+  const forceRerunActImagine = pendingForceRerunAct;
+  pendingForceRerunAct = null;
+
   try {
     await runImagine(userIdea, {
       projectDir: currentProjectDir!,
@@ -215,7 +241,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
       onActStart: (actName) => statsCollector?.onActStart('imagine', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('imagine', actName),
       signal,
-      forceRerunAct: null,
+      forceRerunAct: forceRerunActImagine,
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
@@ -260,6 +286,9 @@ export async function handleStartWarroom(): Promise<void> {
 
   const signal = startPhaseInterruption('warroom');
 
+  const forceRerunActWarroom = pendingForceRerunAct;
+  pendingForceRerunAct = null;
+
   try {
     await runWarroom({
       projectDir: currentProjectDir!,
@@ -294,7 +323,7 @@ export async function handleStartWarroom(): Promise<void> {
       },
       getSettings: async (): Promise<AppSettings> => settingsStore.get(),
       signal,
-      forceRerunAct: null,
+      forceRerunAct: forceRerunActWarroom,
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
@@ -692,6 +721,13 @@ export function initPhaseHandlers(): void {
     rejectPendingQuestions('Stopped by user', false);
   });
 
+  ipcMain.handle(IPC_CHANNELS.RESTART_CURRENT_ACT, async () => {
+    if (!currentProjectDir) return;
+    // No userRedirect — restart with original prompt. interruption.json's userRedirect
+    // is already null (it was never set), so we just call the resume path.
+    await resumeAfterInterrupt();
+  });
+
   ipcMain.handle(IPC_CHANNELS.RESTART_PHASE, async (_event, payload: RestartPhasePayload) => {
     if (!currentProjectDir) throw new Error('No project open');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
@@ -814,6 +850,20 @@ export function initPhaseHandlers(): void {
   // ── Chat ──
 
   ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, message: string) => {
+    // Redirect-when-interrupted: if phase is interrupted and we're in imagine/warroom,
+    // treat user's message as a redirect for the interrupted act.
+    if (
+      currentProjectDir &&
+      phaseMachine &&
+      (phaseMachine.currentPhase === 'imagine' || phaseMachine.currentPhase === 'warroom') &&
+      (await loadInterruption(currentProjectDir)) !== null
+    ) {
+      await saveUserRedirect(currentProjectDir, message);
+      sendChat({ role: 'user', text: message });  // append to chat history so the bubble survives a restart
+      await resumeAfterInterrupt();
+      return;
+    }
+
     // Forward desktop-typed user input to the mobile bridge so the phone's
     // chat tail mirrors desktop input. We intentionally do NOT call sendChat()
     // here — that path also emits CHAT_MESSAGE to the renderer, which would
