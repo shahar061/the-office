@@ -15,6 +15,7 @@ export interface AgentSessionConfig {
   model?: string;
   expectedOutput?: string;
   excludeAskUser?: boolean;
+  signal?: AbortSignal;
   onEvent: (event: AgentEvent) => void;
   onWaiting: (agentRole: AgentRole, questions: AskQuestion[]) => Promise<Record<string, string>>;
   onToolPermission?: (toolName: string, input: Record<string, unknown>) => Promise<{
@@ -25,6 +26,12 @@ export interface AgentSessionConfig {
 }
 
 export async function runAgentSession(config: AgentSessionConfig): Promise<void> {
+  if (config.signal?.aborted) {
+    const err: any = new Error('Aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
   if (process.env.OFFICE_MOCK_AGENTS === '1') {
     const { mockRunAgentSession } = await import('../../dev-jump/mock/mock-run-agent-session');
     return mockRunAgentSession(config);
@@ -51,30 +58,44 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
       config.onEvent(event);
     });
 
-    // Prepend a brief working-directory reminder so agents don't hallucinate paths.
-    const cwdReminder = `IMPORTANT: Your working directory is ${config.cwd}. `
-      + `Always use relative paths (e.g. "docs/office/file.md") when calling Write, Read, or Edit tools. `
-      + `Never guess absolute paths.\n\n`;
+    const onAbort = () => bridge.abort();
+    config.signal?.addEventListener('abort', onAbort, { once: true });
 
-    const prompt = attempt === 1
-      ? cwdReminder + config.prompt
-      : cwdReminder
-        + `RETRY: Your previous session ended without producing the required file: ${config.expectedOutput}.\n`
-        + `You MUST use the Write tool to create this file before finishing.\n\n`
-        + config.prompt;
+    try {
+      // Prepend a brief working-directory reminder so agents don't hallucinate paths.
+      const cwdReminder = `IMPORTANT: Your working directory is ${config.cwd}. `
+        + `Always use relative paths (e.g. "docs/office/file.md") when calling Write, Read, or Edit tools. `
+        + `Never guess absolute paths.\n\n`;
 
-    await bridge.runSession({
-      agentId: config.agentName,
-      agentRole,
-      systemPrompt: agentDef.prompt,
-      prompt,
-      cwd: config.cwd,
-      model: config.model,
-      allowedTools: tools,
-      env: config.env,
-      onWaiting: config.excludeAskUser ? undefined : (questions) => config.onWaiting(agentRole, questions),
-      onToolPermission: config.onToolPermission,
-    });
+      const prompt = attempt === 1
+        ? cwdReminder + config.prompt
+        : cwdReminder
+          + `RETRY: Your previous session ended without producing the required file: ${config.expectedOutput}.\n`
+          + `You MUST use the Write tool to create this file before finishing.\n\n`
+          + config.prompt;
+
+      await bridge.runSession({
+        agentId: config.agentName,
+        agentRole,
+        systemPrompt: agentDef.prompt,
+        prompt,
+        cwd: config.cwd,
+        model: config.model,
+        allowedTools: tools,
+        env: config.env,
+        onWaiting: config.excludeAskUser ? undefined : (questions) => config.onWaiting(agentRole, questions),
+        onToolPermission: config.onToolPermission,
+      });
+    } finally {
+      config.signal?.removeEventListener('abort', onAbort);
+    }
+
+    // Normalize: if abort fired during the session, throw AbortError
+    if (config.signal?.aborted) {
+      const err: any = new Error('Aborted');
+      err.name = 'AbortError';
+      throw err;
+    }
 
     // 4. Verify expected output
     if (config.expectedOutput) {
@@ -85,7 +106,6 @@ export async function runAgentSession(config: AgentSessionConfig): Promise<void>
 
       if (attempt < maxAttempts) {
         console.warn(`[AgentSession] Expected output missing after attempt ${attempt}, retrying...`);
-        // Emit a visible message so the user knows what's happening
         config.onEvent({
           agentId: config.agentName,
           agentRole,
