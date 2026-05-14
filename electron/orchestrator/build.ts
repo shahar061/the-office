@@ -67,6 +67,7 @@ export interface BuildOrchestratorConfig {
   onSystemMessage: (text: string) => void;
   onActStart?: (actName: string) => void;
   onActComplete?: (actName: string) => void;
+  signal?: AbortSignal;
 }
 
 /** State tracking for resume support. */
@@ -182,6 +183,7 @@ export async function runBuild(
   const result = await runDependencyGraph({
     tasks: adjustedTasks,
     concurrency: 4,  // max parallel agent sessions
+    signal: config.signal,
     run: async (task) => {
       await runTaskSession(task, config, artifactStore, completedTaskOutputs, langPrefix);
     },
@@ -193,6 +195,34 @@ export async function runBuild(
       emitKanban();
     },
   });
+
+  if (config.signal?.aborted) {
+    // Revert any in-flight tasks back to queued so the kanban shows them as pending
+    for (const [taskId, status] of taskStatuses.entries()) {
+      if (status === 'active') {
+        taskStatuses.set(taskId, 'queued');
+      }
+    }
+
+    // Broadcast updated kanban state so UI reflects the reverts
+    config.onKanbanUpdate({
+      projectName: '',
+      currentPhase: 'build',
+      completionPercent: Math.round((result.completed.length / allTasks.length) * 100),
+      tasks: allTasks.map(t => ({
+        id: t.id,
+        description: t.description,
+        status: taskStatuses.get(t.id) || 'queued',
+        assignedAgent: resolveRole(t.assignedAgent),
+        phaseId: t.phaseId,
+        dependsOn: t.dependsOn,
+        error: taskErrors.get(t.id),
+      })),
+    });
+
+    // Skip RUN.md generation when aborted
+    return { allTasks, taskStatuses, taskErrors };
+  }
 
   if (result.failed) {
     // Emit final failure state
@@ -227,6 +257,7 @@ export async function runBuild(
         env: config.authEnv || {},
         excludeAskUser: true,
         expectedOutput: 'docs/office/RUN.md',
+        signal: config.signal,
         onEvent: config.onEvent,
         onWaiting: async () => ({}),
         onToolPermission: (toolName, input) =>
@@ -283,6 +314,7 @@ async function runTaskSession(
     env: config.authEnv || {},
     model: task.model,
     excludeAskUser: true,
+    signal: config.signal,
     onEvent: config.onEvent,
     onWaiting: async () => ({}),
     onToolPermission: (toolName, input) =>
