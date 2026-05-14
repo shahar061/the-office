@@ -28,6 +28,7 @@ let active: ActiveState | null = null;
 let cachedRedirect: { actName: string; text: string } | null = null;
 
 export function startPhaseInterruption(phase: Phase): AbortSignal {
+  cachedRedirect = null;
   active = {
     phase,
     controller: new AbortController(),
@@ -87,19 +88,9 @@ export async function loadInterruption(projectDir: string): Promise<PersistedInt
 }
 
 export async function saveUserRedirect(projectDir: string, text: string): Promise<void> {
-  let current = await loadInterruption(projectDir);
+  const current = await loadInterruption(projectDir);
   if (!current) {
-    // Create minimal interruption state if none exists
-    if (!active) {
-      throw new Error('saveUserRedirect called with no active phase and no existing interruption.json');
-    }
-    current = {
-      phase: active.phase,
-      actName: active.actName,
-      expectedOutput: active.expectedOutput,
-      userRedirect: null,
-      timestamp: Date.now(),
-    };
+    throw new Error('saveUserRedirect called with no existing interruption.json');
   }
   const updated: PersistedInterruption = { ...current, userRedirect: text };
   await writeInterruptionFile(projectDir, updated);

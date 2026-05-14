@@ -59,6 +59,7 @@ describe('interruption module', () => {
   it('consumeUserRedirect returns the message once, then null', async () => {
     startPhaseInterruption('imagine');
     setCurrentAct('ceo', null);
+    await abortPhase(tmpDir);
     await saveUserRedirect(tmpDir, 'Make it more colorful');
     await loadInterruption(tmpDir);
     expect(consumeUserRedirect('ceo')).toBe('Make it more colorful');
@@ -68,6 +69,7 @@ describe('interruption module', () => {
   it('consumeUserRedirect returns null for a different act', async () => {
     startPhaseInterruption('imagine');
     setCurrentAct('ceo', null);
+    await abortPhase(tmpDir);
     await saveUserRedirect(tmpDir, 'For CEO only');
     await loadInterruption(tmpDir);
     expect(consumeUserRedirect('pm')).toBe(null);
