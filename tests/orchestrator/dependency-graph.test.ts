@@ -137,3 +137,47 @@ describe('runDependencyGraph', () => {
     expect(result.failed).toBeNull();
   });
 });
+
+describe('runDependencyGraph with AbortSignal', () => {
+  it('halts when signal aborts before scheduling', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+
+    const started: string[] = [];
+    const result = await runDependencyGraph({
+      tasks: [{ id: 'a', dependsOn: [] }, { id: 'b', dependsOn: [] }],
+      concurrency: 2,
+      run: async (t) => { started.push(t.id); },
+      signal: ctrl.signal,
+    });
+
+    expect(started).toHaveLength(0);
+    expect(result.completed).toHaveLength(0);
+  });
+
+  it('does not schedule new tasks once signal aborts', async () => {
+    const ctrl = new AbortController();
+    const started: string[] = [];
+
+    const promise = runDependencyGraph({
+      tasks: [
+        { id: 'a', dependsOn: [] },
+        { id: 'b', dependsOn: [] },
+        { id: 'c', dependsOn: [] },
+        { id: 'd', dependsOn: [] },
+      ],
+      concurrency: 1,
+      run: async (t) => {
+        started.push(t.id);
+        await new Promise((r) => setTimeout(r, 10));
+      },
+      signal: ctrl.signal,
+    });
+
+    await new Promise((r) => setTimeout(r, 5));
+    ctrl.abort();
+    await promise;
+
+    expect(started).toEqual(['a']);
+  });
+});

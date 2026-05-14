@@ -10,6 +10,7 @@ export async function runPool<T>(
   concurrency: number,
   fn: (item: T, index: number) => Promise<void>,
   callbacks?: PoolCallbacks<T>,
+  signal?: AbortSignal,
 ): Promise<PromiseSettledResult<void>[]> {
   if (items.length === 0) return [];
 
@@ -18,6 +19,7 @@ export async function runPool<T>(
 
   async function runNext(): Promise<void> {
     while (nextIndex < items.length) {
+      if (signal?.aborted) return;
       const i = nextIndex++;
       const item = items[i];
       callbacks?.onStart?.(item, i);

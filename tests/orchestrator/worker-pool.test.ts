@@ -127,3 +127,33 @@ describe('runPool', () => {
     expect(results).toEqual([]);
   });
 });
+
+describe('runPool with AbortSignal', () => {
+  it('halts scheduling when signal aborts mid-pool', async () => {
+    const ctrl = new AbortController();
+    const started: number[] = [];
+
+    const promise = runPool(
+      [0, 1, 2, 3, 4, 5, 6, 7],
+      2,
+      async (item) => {
+        started.push(item);
+        await new Promise((r) => setTimeout(r, 20));
+      },
+      undefined,
+      ctrl.signal,
+    );
+
+    await new Promise((r) => setTimeout(r, 5));
+    ctrl.abort();
+    await promise;
+
+    expect(started.length).toBeLessThanOrEqual(2);
+  });
+
+  it('runs to completion when signal is not provided', async () => {
+    const results = await runPool([1, 2, 3], 2, async () => {});
+    expect(results).toHaveLength(3);
+    expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
+  });
+});
