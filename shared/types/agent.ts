@@ -44,6 +44,7 @@ export type AgentEventType =
   | 'agent:message'
   | 'agent:message:delta'
   | 'agent:closed'
+  | 'agent:interrupted'
   | 'session:cost:update';
 
 export interface AgentEvent {
