@@ -13,6 +13,7 @@ import {
   clearInterruptionFile,
   consumeUserRedirect,
 } from '../../electron/orchestrator/interruption';
+import { runDependencyGraph } from '../../electron/orchestrator/dependency-graph';
 
 describe('interrupt integration — Imagine phase', () => {
   let tmpDir: string;
@@ -62,5 +63,62 @@ describe('interrupt integration — Imagine phase', () => {
 
     expect(consumeUserRedirect('CEO Discovery')).toBe(null);
     expect(fs.existsSync(path.join(tmpDir, '.the-office', 'interruption.json'))).toBe(false);
+  });
+});
+
+describe('interrupt integration — Build phase via runDependencyGraph', () => {
+  it('aborts mid-graph, no new tasks start after abort', async () => {
+    const ctrl = new AbortController();
+    const started: string[] = [];
+
+    const promise = runDependencyGraph({
+      tasks: [
+        { id: 'a', dependsOn: [] },
+        { id: 'b', dependsOn: ['a'] },
+        { id: 'c', dependsOn: ['a'] },
+        { id: 'd', dependsOn: ['b', 'c'] },
+      ],
+      concurrency: 2,
+      run: async (t) => {
+        started.push(t.id);
+        await new Promise((r) => setTimeout(r, 20));
+      },
+      signal: ctrl.signal,
+    });
+
+    // Let 'a' start, then abort before 'b' and 'c' get scheduled
+    await new Promise((r) => setTimeout(r, 5));
+    ctrl.abort();
+    const result = await promise;
+
+    expect(started).toEqual(['a']);
+    expect(result.completed.length).toBeLessThan(4);
+  });
+
+  it('a task started before abort completes; result reports it as completed', async () => {
+    const ctrl = new AbortController();
+    const completed: string[] = [];
+
+    const promise = runDependencyGraph({
+      tasks: [
+        { id: 'a', dependsOn: [] },
+        { id: 'b', dependsOn: ['a'] },
+      ],
+      concurrency: 1,
+      run: async (t) => {
+        await new Promise((r) => setTimeout(r, 15));
+        completed.push(t.id);
+      },
+      signal: ctrl.signal,
+    });
+
+    // Abort after 'a' likely completed but before 'b' starts
+    await new Promise((r) => setTimeout(r, 20));
+    ctrl.abort();
+    const result = await promise;
+
+    expect(completed).toContain('a');
+    expect(result.completed).toContain('a');
+    expect(result.completed).not.toContain('b');
   });
 });
