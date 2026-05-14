@@ -380,6 +380,10 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
 
   const signal = startPhaseInterruption('build');
 
+  const wasInterrupted = currentProjectDir
+    ? (await loadInterruption(currentProjectDir))?.phase === 'build'
+    : false;
+
   try {
     lastBuildState = await runBuild({
       projectDir: currentProjectDir!,
@@ -400,6 +404,9 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
     statsCollector?.onPhaseComplete('build');
     if (!lastBuildState.taskErrors.size) {
       phaseMachine!.markCompleted('build');
+      if (wasInterrupted && !signal.aborted) {
+        await clearInterruptionFile(currentProjectDir!);
+      }
       phaseMachine!.transition('complete');
       phaseMachine!.markCompleted('complete');
     } else {
