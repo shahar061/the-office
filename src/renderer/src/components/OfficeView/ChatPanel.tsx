@@ -7,6 +7,7 @@ import type { ChatMessage } from '@shared/types';
 import { PhaseTabs } from './PhaseTabs';
 import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
+import { InterruptedBubble } from './InterruptedBubble';
 import { QuestionBubble } from './QuestionBubble';
 import { ActivityIndicator } from './ActivityIndicator';
 import { useOfficeStore } from '../../stores/office.store';
@@ -457,6 +458,16 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
           <div style={messageListStyle}>
             {renderArchivedRuns()}
             {messages.map((msg, i) => {
+              if (msg.role === 'system' && msg.text === '__interrupted__') {
+                return (
+                  <InterruptedBubble
+                    key={msg.id}
+                    agentLabel={msg.agentLabel}
+                    onRestartStep={() => window.office.restartCurrentAct()}
+                    onLeavePaused={() => { /* bubble stays; user decides */ }}
+                  />
+                );
+              }
               const isLast = i === messages.length - 1;
               const isWaiting = isLast && waitingForResponse;
               const hasQuestionBubble = isWaiting && waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0;

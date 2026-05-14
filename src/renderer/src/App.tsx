@@ -78,7 +78,18 @@ export default function App() {
       window.office.onPhaseChange(setPhaseInfo),
       window.office.onChatMessage(addMessage),
       window.office.onKanbanUpdate(setKanban),
-      window.office.onAgentEvent(handleAgentEvent),
+      window.office.onAgentEvent((event) => {
+        handleAgentEvent(event);
+        if (event.type === 'agent:interrupted') {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: 'system',
+            agentLabel: event.agentLabel,
+            text: '__interrupted__',
+            timestamp: event.timestamp,
+          });
+        }
+      }),
       window.office.onArtifactAvailable((payload) => {
         markArtifactAvailable(payload.key);
         audioManager.playSfx('artifact-written');
