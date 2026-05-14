@@ -61,6 +61,8 @@ export const IPC_CHANNELS = {
   RESTART_PHASE: 'office:restart-phase',
   RESUME_PHASE: 'office:resume-phase',
   PHASE_RESTART: 'office:phase-restart',
+  STOP_PHASE: 'office:stop-phase',
+  RESTART_CURRENT_ACT: 'office:restart-current-act',
   // Chat
   SEND_MESSAGE: 'office:send-message',
   CHAT_MESSAGE: 'office:chat-message',
@@ -188,6 +190,8 @@ export interface OfficeAPI {
   onPhaseChange(callback: (phase: PhaseInfo) => void): () => void;
   restartPhase(payload: RestartPhasePayload): Promise<void>;
   resumePhase(): Promise<void>;
+  stopPhase(): Promise<void>;
+  restartCurrentAct(): Promise<void>;
   onPhaseRestart(callback: (targetPhase: Phase) => void): () => void;
 
   sendMessage(message: string): Promise<void>;

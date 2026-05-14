@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
 import type {
+  AgentEvent,
   AppSettings,
   BuildConfig,
   ChatMessage,
@@ -30,6 +31,11 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
+import {
+  startPhaseInterruption,
+  clearPhaseInterruption,
+  abortPhase,
+} from '../orchestrator/interruption';
 import { runAdvanceAfter } from '../orchestrator/phase-advance';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
@@ -186,6 +192,8 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
   );
   setPermissionHandler(ph);
 
+  const signal = startPhaseInterruption('imagine');
+
   try {
     await runImagine(userIdea, {
       projectDir: currentProjectDir!,
@@ -206,16 +214,24 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
       },
       onActStart: (actName) => statsCollector?.onActStart('imagine', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('imagine', actName),
+      signal,
+      forceRerunAct: null,
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
     void runAdvanceAfter('imagine', () => handleStartWarroom());   // NEW
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     console.error('[Main] Imagine failed:', err);
     const errMsg = err.stderr || err.message || 'Unknown error';
     sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
     rejectPendingQuestions('Imagine phase failed', true);
     pm.markFailed();
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -241,6 +257,8 @@ export async function handleStartWarroom(): Promise<void> {
     );
     setPermissionHandler(ph);
   }
+
+  const signal = startPhaseInterruption('warroom');
 
   try {
     await runWarroom({
@@ -275,6 +293,8 @@ export async function handleStartWarroom(): Promise<void> {
         });
       },
       getSettings: async (): Promise<AppSettings> => settingsStore.get(),
+      signal,
+      forceRerunAct: null,
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
@@ -284,12 +304,18 @@ export async function handleStartWarroom(): Promise<void> {
       permissionMode: 'auto-all',
     }));
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
     onSystemMessage(`Warroom failed: ${errMsg}`);
     rejectPendingQuestions('Warroom phase failed', true);
     setPendingReview(null);
     phaseMachine!.markFailed();
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -323,6 +349,8 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
     projectManager.updateProjectState(currentProjectDir!, { buildIntroSeen: true });
   }
 
+  const signal = startPhaseInterruption('build');
+
   try {
     lastBuildState = await runBuild({
       projectDir: currentProjectDir!,
@@ -337,6 +365,7 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
       onSystemMessage,
       onActStart: (actName) => statsCollector?.onActStart('build', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('build', actName),
+      signal,
     });
 
     statsCollector?.onPhaseComplete('build');
@@ -348,11 +377,17 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
       phaseMachine!.markFailed();
     }
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Build failed:', err);
     onSystemMessage(`Build failed: ${errMsg}`);
     rejectPendingQuestions('Build phase failed', true);
     phaseMachine!.markFailed();
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -636,6 +671,25 @@ export function initPhaseHandlers(): void {
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
     if (!phaseMachine) ensurePhaseMachine();
     return handleStartBuild(config);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.STOP_PHASE, async () => {
+    if (!currentProjectDir) return;
+    await abortPhase(currentProjectDir);
+    phaseMachine?.markInterrupted();
+
+    // Emit a synthetic agent:interrupted event so the renderer + chat history capture it
+    const interruptedEvent: AgentEvent = {
+      agentId: 'system',
+      agentRole: 'ceo',  // placeholder; renderer keys off type, not role
+      source: 'sdk',
+      type: 'agent:interrupted',
+      timestamp: Date.now(),
+    };
+    onAgentEvent(interruptedEvent);
+
+    // Reject any pending AskUserQuestion so the SDK call unblocks
+    rejectPendingQuestions('Stopped by user', false);
   });
 
   ipcMain.handle(IPC_CHANNELS.RESTART_PHASE, async (_event, payload: RestartPhasePayload) => {
