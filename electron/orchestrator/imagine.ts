@@ -1,12 +1,15 @@
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
 import { languageInstructions, currentLanguageFromEnv } from './language';
+import { consumeUserRedirect, setCurrentAct } from './interruption';
 import type { PhaseConfig, UIDesignReviewPayload, UIDesignReviewResponse } from '../../shared/types';
 
 export interface ImagineConfig extends PhaseConfig {
   onSystemMessage: (text: string) => void;
   onArtifactAvailable: (payload: { key: string; filename: string; agentRole: string }) => void;
   onUIReviewReady: (payload: UIDesignReviewPayload) => Promise<UIDesignReviewResponse>;
+  signal?: AbortSignal;
+  forceRerunAct?: string | null;
 }
 
 interface Act {
@@ -15,12 +18,37 @@ interface Act {
   run: () => Promise<void>;
 }
 
+function buildInterruptedActPreamble(
+  actName: string,
+  expectedOutput: string,
+  forceRerunAct?: string | null,
+): string {
+  if (forceRerunAct !== actName) return '';
+  const redirect = consumeUserRedirect(actName);
+  const lines = [
+    `You were previously interrupted while working on this act.`,
+    `The file at ${expectedOutput} may contain partial output from your last run — read it and decide whether to overwrite or extend.`,
+  ];
+  if (redirect) {
+    lines.push('', `The user redirected with the following message:`, redirect);
+  }
+  lines.push('', '---', '');
+  return lines.join('\n');
+}
+
 /**
  * Run a single act, skipping it if its artifact already exists on disk.
  * This is the core resume mechanism: each act is idempotent based on its output file.
  */
 async function runAct(act: Act, artifactStore: ArtifactStore, config: ImagineConfig): Promise<void> {
-  if (artifactStore.hasArtifact(act.artifact.filename)) {
+  setCurrentAct(act.name, 'docs/office/' + act.artifact.filename);
+  if (config.signal?.aborted) {
+    const err: any = new Error('Aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+  const force = config.forceRerunAct === act.name;
+  if (artifactStore.hasArtifact(act.artifact.filename) && !force) {
     config.onSystemMessage(`Resuming — ${act.artifact.filename} exists, skipping ${act.name}.`);
   } else {
     config.onActStart?.(act.name);
@@ -42,19 +70,22 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
     run: () => runAgentSession({
       agentName: 'ceo',
       agentsDir,
-      prompt: langPrefix + [
-        'You are the CEO leading the Discovery phase.',
-        'Ask the user clarifying questions to understand their idea deeply.',
-        'Use AskUserQuestion to ask structured questions with options when possible.',
-        'For each option, include a description explaining it and tradeoffs (short pros/cons).',
-        'Set recommendation to the label of the option you think is best.',
-        'When you have enough understanding, write the vision brief to docs/office/01-vision-brief.md.',
-        '',
-        `The user's idea: ${userIdea}`,
-      ].join('\n'),
+      prompt: langPrefix
+        + buildInterruptedActPreamble('CEO Discovery', 'docs/office/01-vision-brief.md', config.forceRerunAct)
+        + [
+          'You are the CEO leading the Discovery phase.',
+          'Ask the user clarifying questions to understand their idea deeply.',
+          'Use AskUserQuestion to ask structured questions with options when possible.',
+          'For each option, include a description explaining it and tradeoffs (short pros/cons).',
+          'Set recommendation to the label of the option you think is best.',
+          'When you have enough understanding, write the vision brief to docs/office/01-vision-brief.md.',
+          '',
+          `The user's idea: ${userIdea}`,
+        ].join('\n'),
       cwd: projectDir,
       env,
       expectedOutput: 'docs/office/01-vision-brief.md',
+      signal: config.signal,
       onEvent,
       onWaiting,
     }),
@@ -69,20 +100,23 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'product-manager',
         agentsDir,
-        prompt: langPrefix + [
-          'You are the Product Manager leading the Definition phase.',
-          'Based on the vision brief below, ask the user questions to refine requirements.',
-          'Use AskUserQuestion for structured questions when possible.',
-          'For each option, include a description explaining it and tradeoffs (short pros/cons).',
-          'Set recommendation to the label of the option you think is best.',
-          'Produce a detailed PRD and write it to docs/office/02-prd.md.',
-          '',
-          '## Vision Brief',
-          visionBrief,
-        ].join('\n'),
+        prompt: langPrefix
+          + buildInterruptedActPreamble('PM Definition', 'docs/office/02-prd.md', config.forceRerunAct)
+          + [
+            'You are the Product Manager leading the Definition phase.',
+            'Based on the vision brief below, ask the user questions to refine requirements.',
+            'Use AskUserQuestion for structured questions when possible.',
+            'For each option, include a description explaining it and tradeoffs (short pros/cons).',
+            'Set recommendation to the label of the option you think is best.',
+            'Produce a detailed PRD and write it to docs/office/02-prd.md.',
+            '',
+            '## Vision Brief',
+            visionBrief,
+          ].join('\n'),
         cwd: projectDir,
         env,
         expectedOutput: 'docs/office/02-prd.md',
+        signal: config.signal,
         onEvent,
         onWaiting,
       });
@@ -99,22 +133,25 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'market-researcher',
         agentsDir,
-        prompt: langPrefix + [
-          'You are the Market Researcher leading the Validation phase.',
-          'Research the market landscape, competitors, and opportunities.',
-          'Use WebSearch to gather real data.',
-          'Write your analysis to docs/office/03-market-analysis.md.',
-          '',
-          '## Vision Brief',
-          visionBrief,
-          '',
-          '## PRD',
-          prd,
-        ].join('\n'),
+        prompt: langPrefix
+          + buildInterruptedActPreamble('Market Research', 'docs/office/03-market-analysis.md', config.forceRerunAct)
+          + [
+            'You are the Market Researcher leading the Validation phase.',
+            'Research the market landscape, competitors, and opportunities.',
+            'Use WebSearch to gather real data.',
+            'Write your analysis to docs/office/03-market-analysis.md.',
+            '',
+            '## Vision Brief',
+            visionBrief,
+            '',
+            '## PRD',
+            prd,
+          ].join('\n'),
         cwd: projectDir,
         env,
         excludeAskUser: true,
         expectedOutput: 'docs/office/03-market-analysis.md',
+        signal: config.signal,
         onEvent,
         onWaiting,
       });
@@ -148,9 +185,10 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
 
       let feedback: string | undefined;
       while (true) {
+        const preamble = buildInterruptedActPreamble('UI/UX Design', 'docs/office/05-ui-designs/index.md', config.forceRerunAct);
         const prompt = feedback
           ? `REVISION REQUEST: The user reviewed your mockups and wants these changes:\n\n${feedback}\n\nRead the existing files in docs/office/05-ui-designs/ and apply the feedback.\n\n${basePrompt}`
-          : basePrompt;
+          : preamble + basePrompt;
 
         await runAgentSession({
           agentName: 'ui-ux-expert',
@@ -159,6 +197,7 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
           cwd: projectDir,
           env,
           expectedOutput: 'docs/office/05-ui-designs/index.md',
+          signal: config.signal,
           onEvent,
           onWaiting,
         });
@@ -186,19 +225,22 @@ export async function runImagine(userIdea: string, config: ImagineConfig): Promi
       return runAgentSession({
         agentName: 'chief-architect',
         agentsDir,
-        prompt: langPrefix + [
-          'You are the Chief Architect leading the Architecture phase.',
-          'Based on the design documents below, ask the user about tech stack preferences.',
-          'Use AskUserQuestion for structured questions when possible.',
-          'For each option, include a description explaining it and tradeoffs (short pros/cons).',
-          'Set recommendation to the label of the option you think is best.',
-          'Design the system architecture and write it to docs/office/04-system-design.md.',
-          '',
-          allDocs,
-        ].join('\n'),
+        prompt: langPrefix
+          + buildInterruptedActPreamble('Architecture', 'docs/office/04-system-design.md', config.forceRerunAct)
+          + [
+            'You are the Chief Architect leading the Architecture phase.',
+            'Based on the design documents below, ask the user about tech stack preferences.',
+            'Use AskUserQuestion for structured questions when possible.',
+            'For each option, include a description explaining it and tradeoffs (short pros/cons).',
+            'Set recommendation to the label of the option you think is best.',
+            'Design the system architecture and write it to docs/office/04-system-design.md.',
+            '',
+            allDocs,
+          ].join('\n'),
         cwd: projectDir,
         env,
         expectedOutput: 'docs/office/04-system-design.md',
+        signal: config.signal,
         onEvent,
         onWaiting,
       });
