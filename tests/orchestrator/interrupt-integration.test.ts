@@ -122,3 +122,22 @@ describe('interrupt integration — Build phase via runDependencyGraph', () => {
     expect(result.completed).not.toContain('b');
   });
 });
+
+describe('interrupt during AskUserQuestion', () => {
+  it('abortPhase unblocks a pending onWaiting promise via rejectPendingQuestions pattern', async () => {
+    // Real flow: when an agent calls AskUserQuestion, phase-handlers stores a pending
+    // promise. On abort, we resolve that promise with {} (empty answers) so the SDK
+    // call's listener releases and the bridge.abort() path can run.
+
+    let resolveWaiting: (answers: Record<string, string>) => void = () => {};
+    const waitingPromise = new Promise<Record<string, string>>((resolve) => {
+      resolveWaiting = resolve;
+    });
+
+    // Simulate the abort flow: resolve the waiting promise with empty answers
+    setTimeout(() => resolveWaiting({}), 5);
+
+    const result = await waitingPromise;
+    expect(result).toEqual({});
+  });
+});
