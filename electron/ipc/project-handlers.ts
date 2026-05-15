@@ -41,6 +41,7 @@ import {
   refreshMobileArchivedRuns,
   clearWaitingState,
   clearPendingReview,
+  telemetryClient,
 } from './state';
 
 export function initProjectHandlers(): void {
@@ -226,6 +227,11 @@ export function initProjectHandlers(): void {
       // tail with live content; we don't want to clobber it.
       refreshMobileArchivedRuns(false);
 
+      try {
+        const mode = projectManager.getProjectState(projectPath).mode === 'workshop' ? 'workshop' : 'greenfield';
+        telemetryClient.emit('project:opened', { mode });
+      } catch { /* ignore telemetry failures */ }
+
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to open project';
@@ -258,6 +264,8 @@ export function initProjectHandlers(): void {
         (note) => send(IPC_CHANNELS.GREENFIELD_GIT_NOTE, note),
       );
       await gg.initializeOnCreation();
+
+      telemetryClient.emit('project:created', { mode: 'greenfield' });
 
       return { success: true };
     } catch (err: unknown) {
@@ -337,6 +345,8 @@ export function initProjectHandlers(): void {
       setRequestStore(new RequestStore(projectPath));
       chatHistoryStore?.flush();
       setChatHistoryStore(new ChatHistoryStore(projectPath));
+
+      telemetryClient.emit('project:created', { mode: 'workshop' });
 
       return { success: true };
     } catch (err: unknown) {

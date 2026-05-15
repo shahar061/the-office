@@ -19,6 +19,7 @@ import {
   settingsStore,
   setMobileBridge,
   getPhaseHistoryForMobile,
+  telemetryClient,
 } from './ipc/state';
 import { initAuthHandlers } from './ipc/auth-handlers';
 import { initProjectHandlers } from './ipc/project-handlers';
@@ -26,6 +27,8 @@ import { initPhaseHandlers, routeUserChat, handleStartImagine, handleStartWarroo
 import { initSettingsHandlers } from './ipc/settings-handlers';
 import { initDevHandlers } from './ipc/dev-handlers';
 import { initFeedbackHandlers } from './ipc/feedback-handlers';
+import { initTelemetryHandlers } from './ipc/telemetry-handlers';
+import { installMainProcessErrorHandlers } from './telemetry/error-handler';
 import { SeedEngine } from '../dev-jump/engine/seed-engine';
 import { hostname } from 'os';
 import { createMobileBridge } from './mobile-bridge';
@@ -191,6 +194,8 @@ function fixPath(): void {
 
 // ── App Lifecycle ──
 
+const sessionStartMs = Date.now();
+
 app.whenReady().then(async () => {
   fixPath();
   createWindow();
@@ -200,6 +205,12 @@ app.whenReady().then(async () => {
   initPhaseHandlers();
   initSettingsHandlers();
   initFeedbackHandlers();
+  initTelemetryHandlers(telemetryClient);
+  installMainProcessErrorHandlers(telemetryClient);
+  telemetryClient.start();
+  // Per-launch event. The client gates on the consent flag itself, so this
+  // is a no-op for users who haven't opted in.
+  telemetryClient.emit('app:launch', {});
   process.env.OFFICE_LANGUAGE = settingsStore.get().language ?? 'en';
   initDevHandlers({
     seed: (opts) => SeedEngine.seed(opts),
@@ -259,6 +270,8 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   chatHistoryStore?.flush();
+  const sessionMinutes = Math.max(0, Math.round((Date.now() - sessionStartMs) / 60000));
+  telemetryClient.emit('app:closed', { sessionMinutes });
 
   // Mark interrupted if a phase is active
   if (phaseMachine && phaseMachine.currentPhase !== 'idle' && phaseMachine.currentPhase !== 'complete') {
@@ -280,18 +293,29 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-let bridgeStopping = false;
+let cleanupRunning = false;
 app.on('before-quit', async (event) => {
-  if (mobileBridgeRef && !bridgeStopping) {
-    event.preventDefault();
-    bridgeStopping = true;
-    unregisterMobileHandlers();
-    try {
-      await mobileBridgeRef.stop();
-    } catch (err) {
-      console.warn('[mobile-bridge] stop failed:', err);
-    }
-    mobileBridgeRef = null;
-    app.quit();
+  if (cleanupRunning) return;
+  if (!mobileBridgeRef) {
+    // Nothing async to wait on — let the quit proceed. Telemetry stop is
+    // fire-and-forget; the worst case is a few queued events that ship next
+    // launch.
+    void telemetryClient.stop();
+    return;
   }
+  event.preventDefault();
+  cleanupRunning = true;
+  unregisterMobileHandlers();
+  try {
+    await mobileBridgeRef.stop();
+  } catch (err) {
+    console.warn('[mobile-bridge] stop failed:', err);
+  }
+  mobileBridgeRef = null;
+  try {
+    await telemetryClient.stop();
+  } catch (err) {
+    console.warn('[telemetry] stop failed:', err);
+  }
+  app.quit();
 });

@@ -41,6 +41,13 @@ export interface AppSettings {
   appearance?: {
     theme: ThemeId;
   };
+  telemetry?: {
+    /** User-controlled opt-in. Defaults to false (no data leaves the machine). */
+    enabled: boolean;
+    /** Timestamp of the consent decision (accept or decline). null until the
+     *  first-run prompt has been shown and answered. */
+    consentDecidedAt: number | null;
+  };
   devMode: boolean;
 }
 

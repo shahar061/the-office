@@ -6,6 +6,10 @@ import type {
   SubmitReportResponse,
 } from './feedback';
 import type {
+  TelemetryEventType,
+  TelemetryEventPayload,
+} from './telemetry';
+import type {
   Phase,
   ChatMessage,
   PhaseHistory,
@@ -166,6 +170,12 @@ export const IPC_CHANNELS = {
   DEV_JUMP: 'office:dev-jump',
   // Feedback
   SUBMIT_FEEDBACK_REPORT: 'office:submit-feedback-report',
+  // Telemetry
+  TELEMETRY_EMIT: 'office:telemetry-emit',
+  TELEMETRY_REPORT_RENDERER_ERROR: 'office:telemetry-report-renderer-error',
+  TELEMETRY_RESET_INSTALL_ID: 'office:telemetry-reset-install-id',
+  TELEMETRY_DELETE_DATA: 'office:telemetry-delete-data',
+  TELEMETRY_GET_INSTALL_ID: 'office:telemetry-get-install-id',
 } as const;
 
 export interface OfficeAPI {
@@ -298,6 +308,19 @@ export interface OfficeAPI {
   feedback: {
     submitReport(req: Pick<SubmitReportRequest, 'type' | 'title' | 'body' | 'turnstileToken'>):
       Promise<SubmitReportResponse>;
+  };
+
+  // Telemetry — fire-and-forget emit; renderer error reports; privacy controls.
+  telemetry: {
+    emit<T extends TelemetryEventType>(type: T, payload: TelemetryEventPayload[T]): void;
+    reportRendererError(req: {
+      message: string;
+      stack?: string;
+      breadcrumbs?: string;
+    }): Promise<void>;
+    getInstallId(): Promise<string>;
+    resetInstallId(): Promise<string>;
+    deleteAllData(): Promise<{ ok: boolean }>;
   };
 
   // Mobile Bridge

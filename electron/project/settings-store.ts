@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   language: 'en',
   appearance: { theme: 'dark' },
+  telemetry: { enabled: false, consentDecidedAt: null },
   devMode: false,
 };
 
@@ -143,6 +144,7 @@ export class SettingsStore {
         audio: parsed.audio ?? DEFAULT_SETTINGS.audio,
         language: parsed.language ?? DEFAULT_SETTINGS.language,
         appearance: parsed.appearance ?? DEFAULT_SETTINGS.appearance,
+        telemetry: parsed.telemetry ?? DEFAULT_SETTINGS.telemetry,
         devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
       };
     } catch (err) {

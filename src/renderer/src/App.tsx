@@ -18,6 +18,7 @@ import { useGreenfieldBannersStore } from './stores/greenfield-banners.store';
 import { useSettingsStore } from './stores/settings.store';
 import { useMobileBridgeStore } from './stores/mobile-bridge.store';
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel';
+import { TelemetryConsentModal } from './components/TelemetryConsentModal';
 import { BugReportModal } from './components/BugReportModal';
 import { AppChromeCluster } from './components/AppChromeCluster';
 import { useWorkshopKanbanSync } from './hooks/useWorkshopKanbanSync';
@@ -272,6 +273,7 @@ export default function App() {
       </React.Suspense>
       <SettingsPanel />
       <BugReportModal />
+      <TelemetryConsentModal />
       <AppChromeCluster />
     </div>
   );

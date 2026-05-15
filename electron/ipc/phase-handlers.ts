@@ -84,6 +84,7 @@ import {
   setPendingGitInit,
   settingsStore,
   mobileBridge,
+  telemetryClient,
 } from './state';
 import { StatsCollector } from '../stats/stats-collector';
 import type { StatsState } from '../../shared/types';
@@ -143,6 +144,9 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
   setCurrentChatPhase('imagine');
   setCurrentChatAgentRole('ceo');
   setCurrentChatRunNumber(chatHistoryStore?.nextRunNumber('imagine', 'ceo') ?? 1);
+
+  const phaseStartedAt = Date.now();
+  telemetryClient.emit(resume ? 'phase:restarted' : 'phase:started', { phase: 'imagine' });
 
   if (!resume) {
     sendChat({ role: 'agent', agentRole: 'ceo', text: 'Starting the /imagine phase... gathering the team.' });
@@ -209,6 +213,10 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
+    telemetryClient.emit('phase:completed', {
+      phase: 'imagine',
+      durationSec: Math.round((Date.now() - phaseStartedAt) / 1000),
+    });
     void runAdvanceAfter('imagine', () => handleStartWarroom());   // NEW
   } catch (err: any) {
     console.error('[Main] Imagine failed:', err);
@@ -216,6 +224,7 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
     sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
     rejectPendingQuestions('Imagine phase failed', true);
     pm.markFailed();
+    telemetryClient.emit('phase:failed', { phase: 'imagine', reason: errMsg.slice(0, 100) });
   }
 }
 
@@ -224,6 +233,9 @@ export async function handleStartWarroom(): Promise<void> {
   setCurrentChatPhase('warroom');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
+
+  const phaseStartedAt = Date.now();
+  telemetryClient.emit('phase:started', { phase: 'warroom' });
 
   ensurePhaseMachine();
   phaseMachine!.transition('warroom');
@@ -278,6 +290,10 @@ export async function handleStartWarroom(): Promise<void> {
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
+    telemetryClient.emit('phase:completed', {
+      phase: 'warroom',
+      durationSec: Math.round((Date.now() - phaseStartedAt) / 1000),
+    });
     void runAdvanceAfter('warroom', () => handleStartBuild({        // NEW
       modelPreset: 'default',
       retryLimit: 2,
@@ -290,6 +306,7 @@ export async function handleStartWarroom(): Promise<void> {
     rejectPendingQuestions('Warroom phase failed', true);
     setPendingReview(null);
     phaseMachine!.markFailed();
+    telemetryClient.emit('phase:failed', { phase: 'warroom', reason: errMsg.slice(0, 100) });
   }
 }
 
@@ -298,6 +315,9 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
   setCurrentChatPhase('build');
   setCurrentChatAgentRole(null);
   setCurrentChatRunNumber(0);
+
+  const phaseStartedAt = Date.now();
+  telemetryClient.emit('phase:started', { phase: 'build' });
 
   ensurePhaseMachine();
   phaseMachine!.transition('build');
@@ -344,8 +364,16 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
       phaseMachine!.markCompleted('build');
       phaseMachine!.transition('complete');
       phaseMachine!.markCompleted('complete');
+      telemetryClient.emit('phase:completed', {
+        phase: 'build',
+        durationSec: Math.round((Date.now() - phaseStartedAt) / 1000),
+      });
     } else {
       phaseMachine!.markFailed();
+      telemetryClient.emit('phase:failed', {
+        phase: 'build',
+        reason: `${lastBuildState.taskErrors.size} task(s) failed`,
+      });
     }
   } catch (err: any) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -353,6 +381,7 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
     onSystemMessage(`Build failed: ${errMsg}`);
     rejectPendingQuestions('Build phase failed', true);
     phaseMachine!.markFailed();
+    telemetryClient.emit('phase:failed', { phase: 'build', reason: errMsg.slice(0, 100) });
   }
 }
 
@@ -949,6 +978,10 @@ export function initPhaseHandlers(): void {
       branchName: null,
     });
     if (updated) send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+    const durationSec = request.createdAt
+      ? Math.round((Date.now() - request.createdAt) / 1000)
+      : 0;
+    telemetryClient.emit('request:accepted', { durationSec });
     return { ok: true, mergedAt: result.mergedAt };
   });
 
@@ -977,6 +1010,7 @@ export function initPhaseHandlers(): void {
       branchName: null,
     });
     if (updated) send(IPC_CHANNELS.REQUEST_UPDATED, updated);
+    telemetryClient.emit('request:rejected', {});
     return { ok: true };
   });
 
@@ -1141,6 +1175,7 @@ export function initPhaseHandlers(): void {
     // Create the request immediately with empty title
     const request = requestStore.create(description);
     send(IPC_CHANNELS.REQUEST_UPDATED, request);
+    telemetryClient.emit('request:submitted', {});
 
     // Build a per-request permission handler
     const ph = new PermissionHandler(

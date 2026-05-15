@@ -177,6 +177,17 @@ contextBridge.exposeInMainWorld('office', {
       ipcRenderer.invoke(IPC_CHANNELS.SUBMIT_FEEDBACK_REPORT, req),
   },
 
+  // Telemetry — emit is .send() (fire-and-forget); the rest are invokes.
+  telemetry: {
+    emit: (type: string, payload: unknown) =>
+      ipcRenderer.send(IPC_CHANNELS.TELEMETRY_EMIT, { type, payload }),
+    reportRendererError: (req: { message: string; stack?: string; breadcrumbs?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TELEMETRY_REPORT_RENDERER_ERROR, req),
+    getInstallId: () => ipcRenderer.invoke(IPC_CHANNELS.TELEMETRY_GET_INSTALL_ID),
+    resetInstallId: () => ipcRenderer.invoke(IPC_CHANNELS.TELEMETRY_RESET_INSTALL_ID),
+    deleteAllData: () => ipcRenderer.invoke(IPC_CHANNELS.TELEMETRY_DELETE_DATA),
+  },
+
   // Mobile Bridge
   mobile: {
     getPairingQR: () => ipcRenderer.invoke(IPC_CHANNELS.MOBILE_GET_PAIRING_QR),

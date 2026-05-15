@@ -10,3 +10,4 @@ export * from './settings';
 export * from './ipc';
 export * from './envelope';
 export * from './feedback';
+export * from './telemetry';

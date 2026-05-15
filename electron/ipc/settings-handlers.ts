@@ -7,6 +7,7 @@ import {
   settingsStore,
   projectManager,
   send,
+  telemetryClient,
 } from './state';
 import { GitManager } from '../project/git-manager';
 import { writeRepoIdentity } from '../project/git-identity-apply';
@@ -24,9 +25,16 @@ export function initSettingsHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.SAVE_SETTINGS, async (_event, patch: Partial<AppSettings>) => {
+    const prev = settingsStore.get();
     const next = settingsStore.update(patch);
     if (patch.language !== undefined) {
       process.env.OFFICE_LANGUAGE = next.language;
+    }
+    if (patch.language !== undefined && patch.language !== prev.language) {
+      telemetryClient.emit('language:changed', { to: next.language });
+    }
+    if (patch.appearance?.theme && patch.appearance.theme !== prev.appearance?.theme) {
+      telemetryClient.emit('theme:changed', { to: patch.appearance.theme });
     }
     const renderer = settingsForRenderer();
     send(IPC_CHANNELS.SETTINGS_UPDATED, renderer);

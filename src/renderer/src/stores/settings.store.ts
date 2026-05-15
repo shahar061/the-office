@@ -13,6 +13,7 @@ export type SettingsSection =
   | 'workspace'
   | 'mobile'
   | 'integrations'
+  | 'privacy'
   | 'about';
 
 interface SettingsStoreState {

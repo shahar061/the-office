@@ -9,6 +9,7 @@ import { IntegrationsSection } from './sections/IntegrationsSection';
 import { MobileSection } from './sections/MobileSection';
 import { LanguageSection } from './sections/LanguageSection';
 import { AppearanceSection } from './sections/AppearanceSection';
+import { PrivacySection } from './sections/PrivacySection';
 import { colors } from '../../theme';
 
 interface NavItem {
@@ -25,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'workspace', labelKey: 'settings.nav.workspace', icon: '🗂' },
   { id: 'mobile', labelKey: 'settings.nav.mobile', icon: '📱' },
   { id: 'integrations', labelKey: 'settings.nav.integrations', icon: '🔌' },
+  { id: 'privacy', labelKey: 'settings.nav.privacy', icon: '🔒' },
   { id: 'about', labelKey: 'settings.nav.about', icon: 'ℹ' },
 ];
 
@@ -156,6 +158,7 @@ export function SettingsPanel() {
             {activeSection === 'workspace' && <WorkspaceSection />}
             {activeSection === 'mobile' && <MobileSection />}
             {activeSection === 'integrations' && <IntegrationsSection />}
+            {activeSection === 'privacy' && <PrivacySection />}
             {activeSection === 'about' && <AboutSection />}
           </div>
         </div>

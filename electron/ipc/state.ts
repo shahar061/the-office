@@ -22,6 +22,7 @@ import { PhaseMachine } from '../orchestrator/phase-machine';
 import { PermissionHandler } from '../sdk/permission-handler';
 import { StatsCollector } from '../stats/stats-collector';
 import { SettingsStore } from '../project/settings-store';
+import { TelemetryClient } from '../telemetry/client';
 import type { MobileBridge } from '../mobile-bridge';
 
 // ── Constants ──
@@ -34,6 +35,19 @@ export const agentsDir = path.join(__dirname, '../../agents');
 export const authManager = new AuthManager(dataDir);
 export const projectManager = new ProjectManager(dataDir);
 export const settingsStore = new SettingsStore(dataDir, projectManager);
+
+const TELEMETRY_WORKER_URL =
+  process.env.OFFICE_FEEDBACK_URL || 'https://office-feedback-worker.shahar061.workers.dev';
+
+export const telemetryClient = new TelemetryClient(dataDir, {
+  fetch: globalThis.fetch,
+  workerUrl: TELEMETRY_WORKER_URL,
+  isEnabled: () => settingsStore.get().telemetry?.enabled === true,
+  getAppVersion: () => app.getVersion(),
+  getOsPlatform: () => process.platform,
+  getLanguage: () => settingsStore.get().language,
+  getTheme: () => settingsStore.get().appearance?.theme,
+});
 
 // ── Mutable state ──
 
