@@ -461,4 +461,19 @@ export const he: Partial<Record<StringKey, string>> = {
   'agent.devops': 'DevOps',
   'agent.automation-developer': 'מפתח אוטומציה',
   'agent.freelancer': 'פרילנסר',
+
+  // Chat — stop/redirect
+  'chat.stop': 'עצירה',
+  'chat.redirectPlaceholder': 'הקלידו הפניה מחדש…',
+  'chat.interrupted.title': 'הופסק על ידיכם',
+  'chat.interrupted.agent': 'סוכן: {agent}',
+  'chat.interrupted.restartStep': 'התחל שלב מחדש',
+  'chat.interrupted.leavePaused': 'השאר מושהה',
+
+  // Build — pause/resume
+  'build.stopBuild': 'עצירת Build',
+  'build.paused.banner': 'Build הושהה — נותרו {done} מתוך {total} משימות',
+  'build.paused.resume': 'המשך',
+  'build.paused.restart': 'Build מחדש',
+  'build.paused.leave': 'השאר מושהה',
 };

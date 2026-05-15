@@ -3,6 +3,7 @@ import path from 'path';
 import { ArtifactStore } from '../project/artifact-store';
 import { runAgentSession } from './run-agent-session';
 import { languageInstructions, currentLanguageFromEnv } from './language';
+import { consumeUserRedirect, setCurrentAct } from './interruption';
 import type { PhaseConfig, WarTableCard, WarTableVisualState, WarTableChoreographyPayload, WarTableReviewResponse, AppSettings } from '../../shared/types';
 import yaml from 'js-yaml';
 import { runPool } from './worker-pool';
@@ -24,6 +25,26 @@ export interface WarroomConfig extends PhaseConfig {
   getSettings: () => Promise<AppSettings>;
   /** If provided, skip intro + PM + review gate and resume from the TL step. */
   resumeReviewResponse?: WarTableReviewResponse;
+  signal?: AbortSignal;
+  forceRerunAct?: string | null;
+}
+
+function buildInterruptedActPreamble(
+  actName: string,
+  expectedOutput: string,
+  forceRerunAct?: string | null,
+): string {
+  if (forceRerunAct !== actName) return '';
+  const redirect = consumeUserRedirect(actName);
+  const lines = [
+    `You were previously interrupted while working on this act.`,
+    `The file at ${expectedOutput} may contain partial output from your last run — read it and decide whether to overwrite or extend.`,
+  ];
+  if (redirect) {
+    lines.push('', `The user redirected with the following message:`, redirect);
+  }
+  lines.push('', '---', '');
+  return lines.join('\n');
 }
 
 export async function runWarroom(config: WarroomConfig): Promise<void> {
@@ -58,10 +79,18 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     onWarTableChoreography({ step: 'pm-reading' });
     onSystemMessage('War Room started — Project Manager is analyzing the Imagine artifacts...');
 
+    const pmPlanWasForced = config.forceRerunAct === 'pm-plan';
+    setCurrentAct('pm-plan', 'docs/office/plan.md');
+    if (config.signal?.aborted) {
+      const err: any = new Error('Aborted');
+      err.name = 'AbortError';
+      throw err;
+    }
+
     await runAgentSession({
       agentName: 'project-manager',
       agentsDir,
-      prompt: langPrefix + [
+      prompt: langPrefix + buildInterruptedActPreamble('pm-plan', 'docs/office/plan.md', config.forceRerunAct) + [
         'You are the Project Manager leading the War Room planning phase.',
         'Based on the design documents below, create a human-readable implementation plan.',
         '',
@@ -75,9 +104,15 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
       env,
       excludeAskUser: true,
       expectedOutput: 'docs/office/plan.md',
+      signal: config.signal,
       onEvent,
       onWaiting,
     });
+
+    if (pmPlanWasForced) {
+      const { clearInterruptionFile } = await import('./interruption');
+      await clearInterruptionFile(projectDir);
+    }
 
     // Parse milestones and emit cards with staggered timing
     onWarTableChoreography({ step: 'pm-writing' });
@@ -114,10 +149,18 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     ? `\n\nThe user reviewed the plan and has this feedback — incorporate it into your task breakdown:\n${reviewResponse.feedback}`
     : '';
 
+  const tlTasksWasForced = config.forceRerunAct === 'tl-tasks';
+  setCurrentAct('tl-tasks', 'docs/office/tasks.yaml');
+  if (config.signal?.aborted) {
+    const err: any = new Error('Aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
   await runAgentSession({
     agentName: 'team-lead',
     agentsDir,
-    prompt: langPrefix + [
+    prompt: langPrefix + buildInterruptedActPreamble('tl-tasks', 'docs/office/tasks.yaml', config.forceRerunAct) + [
       'You are the Team Lead creating the machine-readable task manifest.',
       'Based on the plan and design documents below, create ONLY tasks.yaml.',
       'Do NOT write an implementation spec — that will be handled separately per phase.',
@@ -147,9 +190,15 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     env,
     excludeAskUser: true,
     expectedOutput: 'docs/office/tasks.yaml',
+    signal: config.signal,
     onEvent,
     onWaiting,
   });
+
+  if (tlTasksWasForced) {
+    const { clearInterruptionFile } = await import('./interruption');
+    await clearInterruptionFile(projectDir);
+  }
 
   onWarTableChoreography({ step: 'tl-writing' });
   onSystemMessage('Task manifest ready. Parsing phases...');
@@ -201,6 +250,14 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
     phases,
     maxConcurrency,
     async (phase, index) => {
+      const tlPhaseWasForced = config.forceRerunAct === `tl-phase-${phase.id}`;
+      setCurrentAct(`tl-phase-${phase.id}`, `docs/office/specs/phase-${phase.id}.md`);
+      if (config.signal?.aborted) {
+        const err: any = new Error('Aborted');
+        err.name = 'AbortError';
+        throw err;
+      }
+
       const cloneNumber = index + 1;
       onWarTableChoreography({ step: 'tl-clone-writing', cloneId: `tl-${phase.id}`, phaseId: phase.id, phaseName: phase.name });
 
@@ -212,7 +269,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
         agentName: 'team-lead',
         agentLabel: `Team Lead #${cloneNumber}`,
         agentsDir,
-        prompt: langPrefix + [
+        prompt: langPrefix + buildInterruptedActPreamble(`tl-phase-${phase.id}`, `docs/office/specs/phase-${phase.id}.md`, config.forceRerunAct) + [
           `You are a spec-writer Team Lead. Write the TDD implementation spec for phase "${phase.name}" (${phase.id}).`,
           '',
           `Write the spec to docs/office/specs/phase-${phase.id}.md`,
@@ -251,9 +308,15 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
         env,
         excludeAskUser: true,
         expectedOutput: `docs/office/specs/phase-${phase.id}.md`,
+        signal: config.signal,
         onEvent,
         onWaiting,
       });
+
+      if (tlPhaseWasForced) {
+        const { clearInterruptionFile } = await import('./interruption');
+        await clearInterruptionFile(projectDir);
+      }
 
       onWarTableChoreography({ step: 'tl-clone-done', cloneId: `tl-${phase.id}`, phaseId: phase.id });
 
@@ -272,6 +335,7 @@ export async function runWarroom(config: WarroomConfig): Promise<void> {
         onWarTableChoreography({ step: 'tl-clone-spawned', cloneId: `tl-${phase.id}`, phaseId: phase.id, phaseName: phase.name });
       },
     },
+    config.signal,
   );
 
   // Log failures

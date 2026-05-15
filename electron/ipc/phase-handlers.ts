@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { IPC_CHANNELS } from '../../shared/types';
 import type {
+  AgentEvent,
   AppSettings,
   BuildConfig,
   ChatMessage,
@@ -30,6 +31,14 @@ import { ArtifactStore } from '../project/artifact-store';
 import { runImagine } from '../orchestrator/imagine';
 import { runWarroom } from '../orchestrator/warroom';
 import { runBuild } from '../orchestrator/build';
+import {
+  startPhaseInterruption,
+  clearPhaseInterruption,
+  abortPhase,
+  loadInterruption,
+  saveUserRedirect,
+  clearInterruptionFile,
+} from '../orchestrator/interruption';
 import { runAdvanceAfter } from '../orchestrator/phase-advance';
 import { runWorkshopRequest } from '../orchestrator/workshop';
 import { runOnboardingScan } from '../orchestrator/onboarding';
@@ -92,6 +101,29 @@ import type { BuildState } from '../orchestrator/build';
 import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 
 let lastBuildState: BuildState | null = null;
+let pendingForceRerunAct: string | null = null;
+/** Tracks whether a STOP_PHASE was issued and not yet recovered by resume/restart. */
+let isInterrupted = false;
+
+async function resumeAfterInterrupt(): Promise<void> {
+  if (!currentProjectDir) return;
+  isInterrupted = false;
+  const interruption = await loadInterruption(currentProjectDir);
+  if (!interruption) return;
+
+  if (interruption.phase === 'imagine') {
+    pendingForceRerunAct = interruption.actName;
+    await resumePhase('imagine');
+  } else if (interruption.phase === 'warroom') {
+    pendingForceRerunAct = interruption.actName;
+    await handleStartWarroom();
+  } else if (interruption.phase === 'build') {
+    // Build doesn't use forceRerunAct (tasks tracked by kanban status, not files)
+    await handleStartBuild({
+      modelPreset: 'default', retryLimit: 2, permissionMode: 'auto-all',
+    });
+  }
+}
 
 const WORKSHOP_GIT_DENY = [
   /^git\s+(commit|checkout|reset|branch|merge|rebase|stash|push|pull|rm|clean)\b/,
@@ -190,6 +222,11 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
   );
   setPermissionHandler(ph);
 
+  const signal = startPhaseInterruption('imagine');
+
+  const forceRerunActImagine = pendingForceRerunAct;
+  pendingForceRerunAct = null;
+
   try {
     await runImagine(userIdea, {
       projectDir: currentProjectDir!,
@@ -210,6 +247,8 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
       },
       onActStart: (actName) => statsCollector?.onActStart('imagine', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('imagine', actName),
+      signal,
+      forceRerunAct: forceRerunActImagine,
     });
     statsCollector?.onPhaseComplete('imagine');
     pm.markCompleted('imagine');
@@ -219,12 +258,18 @@ export async function handleStartImagine(userIdea: string, resume = false): Prom
     });
     void runAdvanceAfter('imagine', () => handleStartWarroom());   // NEW
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     console.error('[Main] Imagine failed:', err);
     const errMsg = err.stderr || err.message || 'Unknown error';
     sendChat({ role: 'agent', text: `Error starting /imagine: ${errMsg}` });
     rejectPendingQuestions('Imagine phase failed', true);
     pm.markFailed();
     telemetryClient.emit('phase:failed', { phase: 'imagine', reason: errMsg.slice(0, 100) });
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -253,6 +298,11 @@ export async function handleStartWarroom(): Promise<void> {
     );
     setPermissionHandler(ph);
   }
+
+  const signal = startPhaseInterruption('warroom');
+
+  const forceRerunActWarroom = pendingForceRerunAct;
+  pendingForceRerunAct = null;
 
   try {
     await runWarroom({
@@ -287,6 +337,8 @@ export async function handleStartWarroom(): Promise<void> {
         });
       },
       getSettings: async (): Promise<AppSettings> => settingsStore.get(),
+      signal,
+      forceRerunAct: forceRerunActWarroom,
     });
     statsCollector?.onPhaseComplete('warroom');
     phaseMachine!.markCompleted('warroom');
@@ -300,6 +352,10 @@ export async function handleStartWarroom(): Promise<void> {
       permissionMode: 'auto-all',
     }));
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Warroom failed:', err);
     onSystemMessage(`Warroom failed: ${errMsg}`);
@@ -307,6 +363,8 @@ export async function handleStartWarroom(): Promise<void> {
     setPendingReview(null);
     phaseMachine!.markFailed();
     telemetryClient.emit('phase:failed', { phase: 'warroom', reason: errMsg.slice(0, 100) });
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -343,6 +401,12 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
     projectManager.updateProjectState(currentProjectDir!, { buildIntroSeen: true });
   }
 
+  const signal = startPhaseInterruption('build');
+
+  const wasInterrupted = currentProjectDir
+    ? (await loadInterruption(currentProjectDir))?.phase === 'build'
+    : false;
+
   try {
     lastBuildState = await runBuild({
       projectDir: currentProjectDir!,
@@ -357,11 +421,15 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
       onSystemMessage,
       onActStart: (actName) => statsCollector?.onActStart('build', actName),
       onActComplete: (actName) => statsCollector?.onActComplete('build', actName),
+      signal,
     });
 
     statsCollector?.onPhaseComplete('build');
     if (!lastBuildState.taskErrors.size) {
       phaseMachine!.markCompleted('build');
+      if (wasInterrupted && !signal.aborted) {
+        await clearInterruptionFile(currentProjectDir!);
+      }
       phaseMachine!.transition('complete');
       phaseMachine!.markCompleted('complete');
       telemetryClient.emit('phase:completed', {
@@ -376,12 +444,18 @@ export async function handleStartBuild(config: BuildConfig): Promise<void> {
       });
     }
   } catch (err: any) {
+    if (err?.name === 'AbortError' || signal.aborted) {
+      // User-initiated stop: phase already marked interrupted via abortPhase
+      return;
+    }
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('[Main] Build failed:', err);
     onSystemMessage(`Build failed: ${errMsg}`);
     rejectPendingQuestions('Build phase failed', true);
     phaseMachine!.markFailed();
     telemetryClient.emit('phase:failed', { phase: 'build', reason: errMsg.slice(0, 100) });
+  } finally {
+    if (!signal.aborted) clearPhaseInterruption();
   }
 }
 
@@ -667,9 +741,48 @@ export function initPhaseHandlers(): void {
     return handleStartBuild(config);
   });
 
+  ipcMain.handle(IPC_CHANNELS.STOP_PHASE, async () => {
+    if (!currentProjectDir) return;
+    await abortPhase(currentProjectDir);
+    phaseMachine?.markInterrupted();
+    isInterrupted = true;
+
+    // Read the persisted interruption to enrich the chat bubble with agentLabel
+    const interruption = await loadInterruption(currentProjectDir);
+    const agentLabel = interruption?.actName || undefined;
+
+    // Emit a synthetic agent:interrupted event so the renderer + chat history capture it
+    const interruptedEvent: AgentEvent = {
+      agentId: 'system',
+      agentRole: 'ceo',  // placeholder; renderer keys off type, not role
+      agentLabel,
+      source: 'sdk',
+      type: 'agent:interrupted',
+      timestamp: Date.now(),
+    };
+    onAgentEvent(interruptedEvent);
+
+    // Reject any pending AskUserQuestion so the SDK call unblocks
+    rejectPendingQuestions('Stopped by user', false);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RESTART_CURRENT_ACT, async () => {
+    if (!currentProjectDir) return;
+    // No userRedirect — restart with original prompt. interruption.json's userRedirect
+    // is already null (it was never set), so we just call the resume path.
+    await resumeAfterInterrupt();
+  });
+
   ipcMain.handle(IPC_CHANNELS.RESTART_PHASE, async (_event, payload: RestartPhasePayload) => {
     if (!currentProjectDir) throw new Error('No project open');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+
+    // Clear any active interruption state before restarting
+    if (currentProjectDir) {
+      await clearInterruptionFile(currentProjectDir);
+    }
+    pendingForceRerunAct = null;
+    isInterrupted = false;
 
     const { targetPhase, userIdea } = payload;
 
@@ -789,6 +902,23 @@ export function initPhaseHandlers(): void {
   // ── Chat ──
 
   ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, message: string) => {
+    // Redirect-when-interrupted: if phase is interrupted and we're in imagine/warroom,
+    // treat user's message as a redirect for the interrupted act.
+    // isInterrupted guards against a stale interruption.json from a previous session
+    // (file-only check would fire even after the user had resumed/restarted).
+    if (
+      isInterrupted &&
+      currentProjectDir &&
+      phaseMachine &&
+      (phaseMachine.currentPhase === 'imagine' || phaseMachine.currentPhase === 'warroom') &&
+      (await loadInterruption(currentProjectDir)) !== null
+    ) {
+      await saveUserRedirect(currentProjectDir, message);
+      sendChat({ role: 'user', text: message });  // append to chat history so the bubble survives a restart
+      await resumeAfterInterrupt();
+      return;
+    }
+
     // Forward desktop-typed user input to the mobile bridge so the phone's
     // chat tail mirrors desktop input. We intentionally do NOT call sendChat()
     // here — that path also emits CHAT_MESSAGE to the renderer, which would
@@ -1045,16 +1175,22 @@ export function initPhaseHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.BUILD_RESUME, async () => {
     if (!currentProjectDir || !lastBuildState) throw new Error('No build state to resume');
     if (!phaseMachine) ensurePhaseMachine();
+    isInterrupted = false;
     const config: BuildConfig = {
       modelPreset: 'default',
       retryLimit: 2,
       permissionMode: 'auto-all',
     };
+    // TODO: pass lastBuildState as resumeState into runBuild so already-completed
+    // tasks are skipped instead of re-run from scratch. This requires plumbing
+    // resumeState through BuildOrchestratorConfig and using it at the top of runBuild
+    // to filter out tasks whose status is already 'done'. (follow-up: issue #resume-state)
     return handleStartBuild(config);
   });
 
   ipcMain.handle(IPC_CHANNELS.BUILD_RESTART, async (_event, config: BuildConfig) => {
     lastBuildState = null;
+    isInterrupted = false;
     if (!currentProjectDir) throw new Error('No project open');
     if (!phaseMachine) ensurePhaseMachine();
     return handleStartBuild(config);

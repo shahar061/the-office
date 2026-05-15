@@ -488,6 +488,21 @@ export const en = {
   'agent.devops': 'DevOps',
   'agent.automation-developer': 'Automation Developer',
   'agent.freelancer': 'Freelancer',
+
+  // Chat — stop/redirect
+  'chat.stop': 'Stop',
+  'chat.redirectPlaceholder': 'Type to redirect, or…',
+  'chat.interrupted.title': 'Interrupted by you',
+  'chat.interrupted.agent': 'Agent: {agent}',
+  'chat.interrupted.restartStep': 'Restart this step',
+  'chat.interrupted.leavePaused': 'Leave paused',
+
+  // Build — pause/resume
+  'build.stopBuild': 'Stop Build',
+  'build.paused.banner': 'Build paused — {done} of {total} tasks remaining',
+  'build.paused.resume': 'Resume',
+  'build.paused.restart': 'Restart Build',
+  'build.paused.leave': 'Leave paused',
 } as const;
 
 export type StringKey = keyof typeof en;

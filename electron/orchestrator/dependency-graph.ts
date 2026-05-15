@@ -10,6 +10,7 @@ export interface DependencyGraphConfig<T extends DependencyTask> {
   concurrency: number;
   run: (task: T) => Promise<void>;
   onStatusChange?: (taskId: string, status: 'active' | 'review' | 'done' | 'failed', error?: string) => void;
+  signal?: AbortSignal;
 }
 
 export interface DependencyGraphResult {
@@ -20,21 +21,27 @@ export interface DependencyGraphResult {
 export async function runDependencyGraph<T extends DependencyTask>(
   config: DependencyGraphConfig<T>,
 ): Promise<DependencyGraphResult> {
-  const { tasks, concurrency, run, onStatusChange } = config;
+  const { tasks, concurrency, run, onStatusChange, signal } = config;
 
-  // Validate: detect cycles via topological sort
   validateNoCycles(tasks);
 
   const completed = new Set<string>();
   const inFlight = new Set<string>();
   let failedTask: { taskId: string; error: string } | null = null;
-  let aborted = false;
+  let aborted = signal?.aborted ?? false;
 
-  // Promise coordination
   let resolveGraph: (result: DependencyGraphResult) => void;
   const graphPromise = new Promise<DependencyGraphResult>((resolve) => {
     resolveGraph = resolve;
   });
+
+  const onExternalAbort = () => {
+    aborted = true;
+    if (inFlight.size === 0) {
+      resolveGraph({ completed: [...completed], failed: null });
+    }
+  };
+  signal?.addEventListener('abort', onExternalAbort, { once: true });
 
   function getReadyTasks(): T[] {
     if (aborted) return [];
@@ -46,7 +53,12 @@ export async function runDependencyGraph<T extends DependencyTask>(
   }
 
   function checkCompletion(): void {
-    if (aborted) return;
+    if (aborted) {
+      if (inFlight.size === 0) {
+        resolveGraph({ completed: [...completed], failed: failedTask });
+      }
+      return;
+    }
     if (completed.size === tasks.length) {
       resolveGraph({ completed: [...completed], failed: null });
     }
@@ -58,30 +70,40 @@ export async function runDependencyGraph<T extends DependencyTask>(
 
     try {
       await run(task);
-      if (aborted) return;
+      if (aborted) {
+        inFlight.delete(task.id);
+        checkCompletion();
+        return;
+      }
 
       inFlight.delete(task.id);
       completed.add(task.id);
       onStatusChange?.(task.id, 'done');
 
-      // Launch newly-ready tasks
       scheduleReady();
       checkCompletion();
     } catch (err) {
+      inFlight.delete(task.id);
+
+      const isAbort = signal?.aborted || (err as any)?.name === 'AbortError';
+      if (isAbort) {
+        aborted = true;
+        checkCompletion();
+        return;
+      }
+
       if (aborted) return;
       aborted = true;
 
       const errorMsg = err instanceof Error ? err.message : String(err);
       failedTask = { taskId: task.id, error: errorMsg };
-      inFlight.delete(task.id);
       onStatusChange?.(task.id, 'failed', errorMsg);
-
-      // Don't wait for in-flight tasks — resolve immediately with failure
       resolveGraph({ completed: [...completed], failed: failedTask });
     }
   }
 
   function scheduleReady(): void {
+    if (aborted) return;
     const slotsAvailable = concurrency - inFlight.size;
     const ready = getReadyTasks().slice(0, slotsAvailable);
     for (const task of ready) {
@@ -90,17 +112,25 @@ export async function runDependencyGraph<T extends DependencyTask>(
   }
 
   if (tasks.length === 0) {
+    signal?.removeEventListener('abort', onExternalAbort);
+    return { completed: [], failed: null };
+  }
+
+  if (aborted) {
+    signal?.removeEventListener('abort', onExternalAbort);
     return { completed: [], failed: null };
   }
 
   scheduleReady();
 
-  // If no tasks were ready (all have unresolvable deps), detect deadlock
-  if (inFlight.size === 0 && completed.size < tasks.length) {
+  if (inFlight.size === 0 && completed.size < tasks.length && !aborted) {
+    signal?.removeEventListener('abort', onExternalAbort);
     throw new Error('Dependency deadlock: no tasks are ready to run');
   }
 
-  return graphPromise;
+  const result = await graphPromise;
+  signal?.removeEventListener('abort', onExternalAbort);
+  return result;
 }
 
 function validateNoCycles(tasks: DependencyTask[]): void {

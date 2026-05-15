@@ -7,6 +7,7 @@ import { KanbanColumn } from './KanbanColumn';
 import { BuildFailureModal } from './BuildFailureModal';
 import { BuildIntro } from './BuildIntro';
 import { DependencyGraph } from './DependencyGraph';
+import { BuildPausedBanner } from './BuildPausedBanner';
 import type { BuildConfig } from '@shared/types';
 
 const COLUMNS: { status: 'queued' | 'active' | 'review' | 'done'; labelKey: StringKey; accent: string }[] = [
@@ -117,6 +118,7 @@ export function KanbanBoard() {
 
   const hasTasks = kanban.tasks.length > 0;
   const buildStarting = phaseInfo?.phase === 'build' && phaseInfo?.status === 'starting';
+  const phaseStatus = phaseInfo?.status;
   const doneCount = kanban.tasks.filter(task => task.status === 'done').length;
 
   // Show intro when build is in 'starting' status (waiting for intro completion)
@@ -172,6 +174,18 @@ export function KanbanBoard() {
         <span style={styles.headerTitle}>Build</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={styles.headerStats}>{doneCount} / {kanban.tasks.length} tasks</span>
+          {phaseStatus === 'active' && (
+            <button
+              style={{
+                background: '#dc2626', color: '#fff', border: 'none',
+                padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+              onClick={() => window.office.stopPhase()}
+            >
+              {t('build.stopBuild')}
+            </button>
+          )}
           <div style={styles.viewToggle}>
             <button
               style={styles.viewToggleButton(viewMode === 'board')}
@@ -188,6 +202,24 @@ export function KanbanBoard() {
           </div>
         </div>
       </div>
+
+      {/* Paused banner */}
+      {phaseStatus === 'interrupted' && (
+        <BuildPausedBanner
+          done={doneCount}
+          total={kanban.tasks.length}
+          onResume={() => window.office.resumeBuild()}
+          onRestart={() => {
+            const config: BuildConfig = {
+              modelPreset: 'default',
+              retryLimit: 2,
+              permissionMode: 'auto-all',
+            };
+            window.office.restartBuild(config);
+          }}
+          onLeave={() => { /* banner stays; user decides */ }}
+        />
+      )}
 
       {/* Main content — board or graph */}
       {viewMode === 'board' ? (

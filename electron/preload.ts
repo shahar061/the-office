@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('office', {
   onPhaseChange: (cb: (p: PhaseInfo) => void) => onEvent(IPC_CHANNELS.PHASE_CHANGE, cb),
   restartPhase: (payload: RestartPhasePayload) => ipcRenderer.invoke(IPC_CHANNELS.RESTART_PHASE, payload),
   resumePhase: () => ipcRenderer.invoke(IPC_CHANNELS.RESUME_PHASE),
+  stopPhase: () => ipcRenderer.invoke(IPC_CHANNELS.STOP_PHASE),
+  restartCurrentAct: () => ipcRenderer.invoke(IPC_CHANNELS.RESTART_CURRENT_ACT),
   onPhaseRestart: (cb: (targetPhase: Phase) => void) => onEvent(IPC_CHANNELS.PHASE_RESTART, cb),
 
   // Chat

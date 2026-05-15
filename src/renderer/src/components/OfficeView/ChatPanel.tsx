@@ -7,6 +7,7 @@ import type { ChatMessage } from '@shared/types';
 import { PhaseTabs } from './PhaseTabs';
 import { colors } from '../../theme';
 import { MessageBubble } from './MessageBubble';
+import { InterruptedBubble } from './InterruptedBubble';
 import { QuestionBubble } from './QuestionBubble';
 import { ActivityIndicator } from './ActivityIndicator';
 import { useOfficeStore } from '../../stores/office.store';
@@ -101,6 +102,23 @@ const styles = {
     flexShrink: 0,
     transition: 'color 0.15s',
   }),
+  stopButton: () => ({
+    background: '#dc2626',
+    color: '#fff',
+    border: 'none',
+    outline: 'none',
+    borderRadius: 6,
+    width: 32,
+    height: 32,
+    margin: '4px 6px',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  }),
   expandedInputRow: {
     display: 'flex',
     alignItems: 'flex-end',
@@ -153,11 +171,18 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
   const phase = projectState?.currentPhase ?? 'idle';
   const isIdle = phase === 'idle';
 
+  const phaseStatus = useProjectStore((s) => s.currentPhase?.status);
+  const isPhaseActive = phaseStatus === 'active' || phaseStatus === 'starting';
+  const isPhaseInterrupted = phaseStatus === 'interrupted';
+  const showStopButton = isPhaseActive;
+
   const inputPlaceholder = waitingForResponse && waitingAgentRole
     ? t('chat.input.placeholder.responding', { agent: t(`agent.${waitingAgentRole}` as StringKey) })
-    : isIdle
-      ? t('chat.input.placeholder.idle')
-      : t('chat.input.placeholder');
+    : isPhaseInterrupted
+      ? t('chat.redirectPlaceholder')
+      : isIdle
+        ? t('chat.input.placeholder.idle')
+        : t('chat.input.placeholder');
 
   const canSend = inputValue.trim().length > 0;
 
@@ -433,6 +458,16 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
           <div style={messageListStyle}>
             {renderArchivedRuns()}
             {messages.map((msg, i) => {
+              if (msg.role === 'system' && msg.text === '__interrupted__') {
+                return (
+                  <InterruptedBubble
+                    key={msg.id}
+                    agentLabel={msg.agentLabel}
+                    onRestartStep={() => window.office.restartCurrentAct()}
+                    onLeavePaused={() => { /* bubble stays; user decides */ }}
+                  />
+                );
+              }
               const isLast = i === messages.length - 1;
               const isWaiting = isLast && waitingForResponse;
               const hasQuestionBubble = isWaiting && waitingQuestions.length > 0 && waitingQuestions[0].options.length > 0;
@@ -497,14 +532,24 @@ export function ChatPanel({ isExpanded, highlightClassName }: ChatPanelProps) {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
             />
-            <button
-              style={styles.sendButton(canSend)}
-              onClick={handleSend}
-              disabled={!canSend}
-              aria-label={t('chat.input.send.aria')}
-            >
-              ↑
-            </button>
+            {showStopButton ? (
+              <button
+                style={styles.stopButton()}
+                onClick={() => window.office.stopPhase()}
+                aria-label={t('chat.stop')}
+              >
+                ■
+              </button>
+            ) : (
+              <button
+                style={styles.sendButton(canSend)}
+                onClick={handleSend}
+                disabled={!canSend}
+                aria-label={t('chat.input.send.aria')}
+              >
+                ↑
+              </button>
+            )}
           </div>
         </div>
       )}
