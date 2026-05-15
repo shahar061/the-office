@@ -426,10 +426,14 @@ export function initProjectHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.CLOSE_PROJECT, async () => {
-    // Intentionally does NOT call resetSessionState — if the user reopens the
-    // same project, we want their desktop-side chat history, artifacts, etc.
-    // to still be there. Only the mobile snapshot is reset, and that's driven
-    // by setCurrentProjectDir(null) → bridge.onSessionScopeChanged({active:false}).
+    // Reset session state on close so active SDK queries get aborted. Otherwise
+    // in-flight agent sessions from the previous project keep emitting events
+    // after the user returns to the picker, and those events get applied to the
+    // next project's canvas (leaked agent characters, stale chat updates).
+    //
+    // Chat history and artifacts are file-backed (chatHistoryStore / disk) and
+    // survive this reset, so re-opening the same project still restores them.
+    resetSessionState();
     setCurrentProjectDir(null);
     return { success: true };
   });
