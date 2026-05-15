@@ -101,9 +101,12 @@ import { applyModeFlagToEnv } from '../../dev-jump/mock/mode-flag';
 
 let lastBuildState: BuildState | null = null;
 let pendingForceRerunAct: string | null = null;
+/** Tracks whether a STOP_PHASE was issued and not yet recovered by resume/restart. */
+let isInterrupted = false;
 
 async function resumeAfterInterrupt(): Promise<void> {
   if (!currentProjectDir) return;
+  isInterrupted = false;
   const interruption = await loadInterruption(currentProjectDir);
   if (!interruption) return;
 
@@ -713,11 +716,17 @@ export function initPhaseHandlers(): void {
     if (!currentProjectDir) return;
     await abortPhase(currentProjectDir);
     phaseMachine?.markInterrupted();
+    isInterrupted = true;
+
+    // Read the persisted interruption to enrich the chat bubble with agentLabel
+    const interruption = await loadInterruption(currentProjectDir);
+    const agentLabel = interruption?.actName || undefined;
 
     // Emit a synthetic agent:interrupted event so the renderer + chat history capture it
     const interruptedEvent: AgentEvent = {
       agentId: 'system',
       agentRole: 'ceo',  // placeholder; renderer keys off type, not role
+      agentLabel,
       source: 'sdk',
       type: 'agent:interrupted',
       timestamp: Date.now(),
@@ -738,6 +747,13 @@ export function initPhaseHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.RESTART_PHASE, async (_event, payload: RestartPhasePayload) => {
     if (!currentProjectDir) throw new Error('No project open');
     if (!authManager.isAuthenticated()) throw new Error('Not authenticated');
+
+    // Clear any active interruption state before restarting
+    if (currentProjectDir) {
+      await clearInterruptionFile(currentProjectDir);
+    }
+    pendingForceRerunAct = null;
+    isInterrupted = false;
 
     const { targetPhase, userIdea } = payload;
 
@@ -859,7 +875,10 @@ export function initPhaseHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SEND_MESSAGE, async (_event, message: string) => {
     // Redirect-when-interrupted: if phase is interrupted and we're in imagine/warroom,
     // treat user's message as a redirect for the interrupted act.
+    // isInterrupted guards against a stale interruption.json from a previous session
+    // (file-only check would fire even after the user had resumed/restarted).
     if (
+      isInterrupted &&
       currentProjectDir &&
       phaseMachine &&
       (phaseMachine.currentPhase === 'imagine' || phaseMachine.currentPhase === 'warroom') &&
@@ -1122,16 +1141,22 @@ export function initPhaseHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.BUILD_RESUME, async () => {
     if (!currentProjectDir || !lastBuildState) throw new Error('No build state to resume');
     if (!phaseMachine) ensurePhaseMachine();
+    isInterrupted = false;
     const config: BuildConfig = {
       modelPreset: 'default',
       retryLimit: 2,
       permissionMode: 'auto-all',
     };
+    // TODO: pass lastBuildState as resumeState into runBuild so already-completed
+    // tasks are skipped instead of re-run from scratch. This requires plumbing
+    // resumeState through BuildOrchestratorConfig and using it at the top of runBuild
+    // to filter out tasks whose status is already 'done'. (follow-up: issue #resume-state)
     return handleStartBuild(config);
   });
 
   ipcMain.handle(IPC_CHANNELS.BUILD_RESTART, async (_event, config: BuildConfig) => {
     lastBuildState = null;
+    isInterrupted = false;
     if (!currentProjectDir) throw new Error('No project open');
     if (!phaseMachine) ensurePhaseMachine();
     return handleStartBuild(config);
